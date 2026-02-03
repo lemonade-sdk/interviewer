@@ -1,0 +1,193 @@
+import { InterviewerSettings, Message, InterviewFeedback, ModelConfig, Interview } from '../types';
+import { LemonadeClient } from './LemonadeClient';
+
+export class InterviewService {
+  private lemonadeClient: LemonadeClient;
+  private activeInterviews: Map<string, InterviewSession> = new Map();
+  private settings: InterviewerSettings;
+
+  constructor(settings: InterviewerSettings) {
+    this.settings = settings;
+    this.lemonadeClient = new LemonadeClient(settings);
+  }
+
+  async startInterview(interviewId: string, config: Partial<Interview>): Promise<void> {
+    const systemPrompt = this.buildSystemPrompt(config);
+    const session: InterviewSession = {
+      interviewId,
+      messages: [
+        {
+          id: Date.now().toString(),
+          role: 'system',
+          content: systemPrompt,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      questionCount: 0,
+    };
+
+    this.activeInterviews.set(interviewId, session);
+
+    // Send initial greeting
+    const greeting = await this.lemonadeClient.sendMessage(
+      session.messages,
+      `Please greet the candidate and ask the first question for this ${config.interviewType} interview for the ${config.position} position at ${config.company}.`
+    );
+
+    session.messages.push({
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: greeting,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  async sendMessage(interviewId: string, userMessage: string): Promise<string> {
+    const session = this.activeInterviews.get(interviewId);
+    if (!session) {
+      throw new Error('Interview session not found');
+    }
+
+    // Add user message to conversation
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toISOString(),
+    };
+    session.messages.push(userMsg);
+
+    // Get AI response
+    const response = await this.lemonadeClient.sendMessage(
+      session.messages,
+      userMessage
+    );
+
+    // Add assistant message
+    const assistantMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: response,
+      timestamp: new Date().toISOString(),
+    };
+    session.messages.push(assistantMsg);
+
+    session.questionCount++;
+
+    return response;
+  }
+
+  async endInterview(interviewId: string): Promise<InterviewFeedback> {
+    const session = this.activeInterviews.get(interviewId);
+    if (!session) {
+      throw new Error('Interview session not found');
+    }
+
+    // Generate feedback
+    const feedbackPrompt = `Based on the interview conversation, provide comprehensive feedback on the candidate's performance. Include:
+1. Overall score (0-100)
+2. Key strengths (list 3-5 points)
+3. Areas for improvement (list 3-5 points)
+4. Specific suggestions for improvement
+5. Detailed feedback on communication, technical knowledge, and problem-solving
+
+Format your response as JSON with the following structure:
+{
+  "overallScore": number,
+  "strengths": string[],
+  "weaknesses": string[],
+  "suggestions": string[],
+  "detailedFeedback": string
+}`;
+
+    const feedbackResponse = await this.lemonadeClient.sendMessage(
+      session.messages,
+      feedbackPrompt
+    );
+
+    // Parse feedback
+    let feedback: InterviewFeedback;
+    try {
+      feedback = JSON.parse(feedbackResponse);
+    } catch (error) {
+      // Fallback if parsing fails
+      feedback = {
+        overallScore: 70,
+        strengths: ['Completed the interview'],
+        weaknesses: ['Unable to parse detailed feedback'],
+        suggestions: ['Practice more interviews'],
+        detailedFeedback: feedbackResponse,
+      };
+    }
+
+    // Clean up session
+    this.activeInterviews.delete(interviewId);
+
+    return feedback;
+  }
+
+  async getAvailableModels(): Promise<ModelConfig[]> {
+    return await this.lemonadeClient.getAvailableModels();
+  }
+
+  async testModelConnection(modelId: string): Promise<boolean> {
+    return await this.lemonadeClient.testConnection(modelId);
+  }
+
+  async loadModel(modelId: string): Promise<boolean> {
+    return await this.lemonadeClient.loadModel(modelId);
+  }
+
+  async unloadModel(modelId: string): Promise<boolean> {
+    return await this.lemonadeClient.unloadModel(modelId);
+  }
+
+  async pullModel(modelId: string): Promise<boolean> {
+    return await this.lemonadeClient.pullModel(modelId);
+  }
+
+  async deleteModel(modelId: string): Promise<boolean> {
+    return await this.lemonadeClient.deleteModel(modelId);
+  }
+
+  async refreshModels(): Promise<ModelConfig[]> {
+    return await this.lemonadeClient.fetchAvailableModels();
+  }
+
+  async checkServerHealth(): Promise<boolean> {
+    return await this.lemonadeClient.checkServerHealth();
+  }
+
+  private buildSystemPrompt(config: Partial<Interview>): string {
+    const { interviewType, position, company } = config;
+    const { interviewStyle, questionDifficulty, numberOfQuestions, includeFollowUps } = this.settings;
+
+    return `You are an experienced interviewer conducting a ${interviewType} interview for the position of ${position} at ${company}.
+
+Your interview style is ${interviewStyle}.
+Question difficulty level: ${questionDifficulty}
+Number of questions to ask: ${numberOfQuestions}
+${includeFollowUps ? 'Include follow-up questions based on candidate responses.' : 'Avoid follow-up questions unless necessary.'}
+
+Guidelines:
+1. Be professional and ${interviewStyle === 'supportive' ? 'encouraging' : interviewStyle === 'challenging' ? 'probing' : 'conversational'}
+2. Ask relevant questions for a ${interviewType} interview
+3. Listen carefully to responses and provide thoughtful follow-ups
+4. Maintain a natural conversation flow
+5. Take notes on the candidate's strengths and areas for improvement
+6. Be respectful of the candidate's time and experience
+
+${interviewType === 'technical' ? 'Focus on technical skills, problem-solving abilities, and technical knowledge relevant to the role.' : ''}
+${interviewType === 'behavioral' ? 'Focus on past experiences, soft skills, and how the candidate handles various situations.' : ''}
+${interviewType === 'system-design' ? 'Focus on architectural thinking, scalability considerations, and system design principles.' : ''}
+${interviewType === 'coding' ? 'Present coding problems and evaluate the candidate\'s approach, code quality, and problem-solving process.' : ''}
+
+Remember to keep track of the number of questions asked and wrap up the interview naturally when approaching the limit.`;
+  }
+}
+
+interface InterviewSession {
+  interviewId: string;
+  messages: Message[];
+  questionCount: number;
+}

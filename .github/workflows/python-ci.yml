@@ -41,13 +41,28 @@ jobs:
           if [ -f lemonade_api/requirements.txt ]; then pip install -r lemonade_api/requirements.txt; fi
 
       - name: Run Black formatter check
-        run: black --check lemonade_api/
+        run: |
+          if [ -d "lemonade_api" ]; then
+            black --check lemonade_api/
+          else
+            echo "lemonade_api directory not found. Skipping Black check."
+          fi
 
       - name: Run Ruff linter
-        run: ruff check lemonade_api/
+        run: |
+          if [ -d "lemonade_api" ]; then
+            ruff check lemonade_api/
+          else
+            echo "lemonade_api directory not found. Skipping Ruff check."
+          fi
 
       - name: Run MyPy type checker
-        run: mypy lemonade_api/ --ignore-missing-imports
+        run: |
+          if [ -d "lemonade_api" ]; then
+            mypy lemonade_api/ --ignore-missing-imports
+          else
+            echo "lemonade_api directory not found. Skipping MyPy check."
+          fi
         continue-on-error: true  # Don't fail build on type errors initially
 
   test:

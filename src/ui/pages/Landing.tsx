@@ -1,17 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, ArrowRight, Citrus } from 'lucide-react';
+import { Upload, AlertCircle, Loader2 } from 'lucide-react';
+import { useStore } from '../store/useStore';
+
+const BUTTON_CLASS =
+  'w-52 h-14 rounded-full font-semibold text-base tracking-wide transition-all duration-500 flex items-center justify-center';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
+  const { loadSettings } = useStore();
   const [step, setStep] = useState<'initial' | 'selection'>('initial');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // System Check State
+  const [isSystemReady, setIsSystemReady] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const [missingModels, setMissingModels] = useState<string[]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  // Required Models
+  const REQUIRED_MODELS = [
+    { id: 'Llama-3.2-1B-Instruct-Hybrid', name: 'Llama 3.2 1B (LLM)' },
+    { id: 'Whisper-Base', name: 'Whisper Base (ASR)' },
+  ];
+
+  useEffect(() => {
+    performBackgroundChecks();
+  }, []);
+
+  const performBackgroundChecks = async () => {
+    setIsChecking(true);
+    try {
+      // 1. Check Server
+      const serverStatus = await window.electronAPI.getServerStatus();
+      if (!serverStatus.isRunning) {
+        console.warn('Lemonade Server not running');
+        // We might choose to let them proceed but warn, or block. 
+        // For now, let's assume we proceed but maybe disable AI features later.
+      }
+
+      // 2. Check Models
+      const availableModels = await window.electronAPI.getAvailableModels();
+      const availableIds = availableModels.map((m: any) => m.id);
+      const missing = REQUIRED_MODELS.filter(m => !availableIds.includes(m.id));
+      
+      if (missing.length > 0) {
+        setMissingModels(missing.map(m => m.id));
+        setIsSystemReady(false);
+      } else {
+        setIsSystemReady(true);
+      }
+
+      // 3. Init API
+      await loadSettings();
+      
+    } catch (error) {
+      console.error('Background check failed:', error);
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleDownloadModels = async () => {
+    setIsDownloading(true);
+    try {
+      // Mock download process
+      for (const modelId of missingModels) {
+        setDownloadProgress(0);
+        // Simulate download
+        for (let i = 0; i <= 100; i += 20) {
+          setDownloadProgress(i);
+          await new Promise(r => setTimeout(r, 200));
+        }
+        // Real implementation would be: await window.electronAPI.pullModel(modelId);
+      }
+      setMissingModels([]);
+      setIsSystemReady(true);
+    } catch (error) {
+      console.error('Download failed:', error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleBeginClick = () => {
+    if (!isSystemReady && missingModels.length > 0) {
+      // If models missing, don't advance, maybe shake or show modal
+      // For this UI, we'll show the download prompt if they try to click begin
+      return; 
+    }
     setStep('selection');
   };
 
   const handleDashboardClick = () => {
     navigate('/dashboard');
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('Resume uploaded:', file.name);
+    }
   };
 
   const handleSelection = (type: 'single' | 'multi') => {
@@ -20,107 +114,144 @@ const Landing: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-lemonade-bg text-lemonade-fg overflow-hidden font-sans">
-      {/* Left Side - Resume Upload */}
-      <div className="w-1/4 h-full border-r-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-8 bg-white/50 transition-all duration-500 hover:bg-white/80">
-        <div className="w-full h-full border-2 border-dashed border-gray-400 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-lemonade-accent-hover hover:bg-lemonade-accent/10 transition-colors group">
-          <Upload className="w-12 h-12 text-gray-400 mb-4 group-hover:text-lemonade-accent-hover transition-colors" />
-          <h3 className="text-xl font-bold text-gray-700 mb-2 group-hover:text-black">Upload Resume</h3>
-          <p className="text-sm text-gray-500 text-center px-4">
-            Drag & drop or click to upload PDF/Word
-          </p>
-        </div>
+    <div className="h-screen w-full bg-lemonade-bg text-lemonade-fg overflow-hidden flex flex-col items-center justify-center relative">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Logo + Title */}
+      <div className="flex flex-col items-center mb-16">
+        <img
+          src="/logo.png"
+          alt="lemonade"
+          className="w-20 h-20 mb-4 drop-shadow-lg"
+        />
+        <h1 className="text-3xl font-bold tracking-widest text-black">
+          NOVA AGENT
+        </h1>
+
+        {/* Subtitle - selection step */}
+        <p
+          className={`mt-3 text-sm tracking-wide text-gray-500 transition-all duration-700 ${
+            step === 'selection'
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 -translate-y-2 pointer-events-none'
+          }`}
+        >
+          select your interview process
+        </p>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 relative flex flex-col items-center justify-center">
-        
-        {/* Header - Always visible */}
-        <div className="absolute top-12 left-0 right-0 flex flex-col items-center justify-center">
-          <div className="flex items-center gap-3 mb-2">
-            <Citrus className="w-10 h-10 text-lemonade-accent-hover" />
-            <h1 className="text-4xl font-extrabold tracking-widest uppercase">Interviewer</h1>
-          </div>
-          
-          {/* Subtitle - Appears in selection step */}
-          <div 
-            className={`mt-4 transition-all duration-700 transform ${
-              step === 'selection' 
-                ? 'opacity-100 translate-y-0' 
-                : 'opacity-0 -translate-y-4'
+      {/* Button Area */}
+      <div className="relative flex flex-col items-center">
+        {/* Primary Row: upload resume / begin / dashboard */}
+        <div className="flex items-center gap-6">
+          {/* upload resume */}
+          <button
+            onClick={handleUploadClick}
+            className={`${BUTTON_CLASS} border-2 border-dashed border-gray-300 bg-white/60 text-gray-600 hover:border-lemonade-accent hover:text-black hover:bg-white ${
+              step === 'selection'
+                ? 'opacity-0 -translate-x-8 pointer-events-none'
+                : 'opacity-100 translate-x-0'
             }`}
           >
-            <p className="text-lg font-medium text-gray-600">Select your interview process</p>
-          </div>
+            <Upload className="w-4 h-4 mr-2" />
+            upload resume
+          </button>
+
+          {/* begin */}
+          <button
+            onClick={handleBeginClick}
+            disabled={step === 'selection' || isChecking}
+            className={`${BUTTON_CLASS} bg-lemonade-accent text-black shadow-md hover:bg-lemonade-accent-hover hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+              step === 'selection' ? '-translate-y-10' : 'translate-y-0'
+            }`}
+          >
+            {isChecking ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              'begin'
+            )}
+          </button>
+
+          {/* dashboard */}
+          <button
+            onClick={handleDashboardClick}
+            className={`${BUTTON_CLASS} border-2 border-lemonade-accent bg-white text-black hover:bg-lemonade-bg hover:shadow-md active:scale-95 ${
+              step === 'selection'
+                ? 'opacity-0 translate-x-8 pointer-events-none'
+                : 'opacity-100 translate-x-0'
+            }`}
+          >
+            dashboard
+          </button>
         </div>
 
-        {/* Center Interaction Area */}
-        <div className="relative flex flex-col items-center justify-center w-full max-w-4xl">
-          
-          {/* Initial Buttons Container */}
-          <div className="flex items-center gap-8 transition-all duration-700 transform">
-            
-            {/* BEGIN Button */}
-            <button
-              onClick={handleBeginClick}
-              className={`
-                px-12 py-4 rounded-full font-bold text-xl shadow-lg transition-all duration-700
-                bg-lemonade-accent hover:bg-lemonade-accent-hover hover:scale-105 active:scale-95
-                text-black
-                ${step === 'selection' ? '-translate-y-32 scale-110' : 'translate-y-0'}
-              `}
-            >
-              Begin
-            </button>
-
-            {/* DASHBOARD Button */}
-            <button
-              onClick={handleDashboardClick}
-              className={`
-                px-12 py-4 rounded-full font-bold text-xl shadow-lg transition-all duration-500
-                bg-white border-2 border-lemonade-accent hover:bg-gray-50 hover:scale-105 active:scale-95
-                text-black
-                ${step === 'selection' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-100 translate-x-0'}
-              `}
-            >
-              Dashboard
-            </button>
-          </div>
-
-          {/* Selection Buttons - Appear after BEGIN is clicked */}
-          <div 
-            className={`
-              absolute top-24 w-full flex justify-center gap-8 transition-all duration-700 delay-300
-              ${step === 'selection' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12 pointer-events-none'}
-            `}
+        {/* Selection Row: one stage / multi stage */}
+        <div
+          className={`flex items-center gap-6 mt-6 transition-all duration-700 delay-200 ${
+            step === 'selection'
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 translate-y-8 pointer-events-none'
+          }`}
+        >
+          <button
+            onClick={() => handleSelection('single')}
+            className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
           >
-            {/* One Stage Interview */}
-            <button
-              onClick={() => handleSelection('single')}
-              className="group flex flex-col items-center justify-center w-64 h-40 bg-white rounded-2xl shadow-md border-2 border-transparent hover:border-lemonade-accent hover:shadow-xl transition-all duration-300"
-            >
-              <div className="w-12 h-12 rounded-full bg-lemonade-bg flex items-center justify-center mb-3 group-hover:bg-lemonade-accent transition-colors">
-                <FileText className="w-6 h-6 text-black" />
-              </div>
-              <span className="font-bold text-lg text-black">One Stage</span>
-              <span className="text-xs text-gray-500 mt-1">Quick Interview</span>
-            </button>
+            one stage interview
+          </button>
 
-            {/* Multi Stage Interview */}
-            <button
-              onClick={() => handleSelection('multi')}
-              className="group flex flex-col items-center justify-center w-64 h-40 bg-white rounded-2xl shadow-md border-2 border-transparent hover:border-lemonade-accent hover:shadow-xl transition-all duration-300"
-            >
-              <div className="w-12 h-12 rounded-full bg-lemonade-bg flex items-center justify-center mb-3 group-hover:bg-lemonade-accent transition-colors">
-                <ArrowRight className="w-6 h-6 text-black" />
-              </div>
-              <span className="font-bold text-lg text-black">Multi Stage</span>
-              <span className="text-xs text-gray-500 mt-1">Full Process</span>
-            </button>
-          </div>
-
+          <button
+            onClick={() => handleSelection('multi')}
+            className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
+          >
+            multi stage interview
+          </button>
         </div>
       </div>
+
+      {/* Missing Models Modal / Overlay */}
+      {!isChecking && missingModels.length > 0 && !isSystemReady && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 text-center">
+            <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-xl font-bold text-black mb-2">Setup Required</h2>
+            <p className="text-gray-600 mb-6">
+              To use Nova Agent, we need to download {missingModels.length} AI models to your device.
+            </p>
+            
+            {isDownloading ? (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-medium text-gray-500">
+                  <span>Downloading...</span>
+                  <span>{downloadProgress}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-lemonade-accent transition-all duration-300" 
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleDownloadModels}
+                className="w-full py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
+              >
+                Download Models
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

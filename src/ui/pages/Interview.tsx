@@ -1,22 +1,27 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, StopCircle, Settings, User } from 'lucide-react';
+import { StopCircle, Settings, FileText, Mic, Volume2, VolumeX } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Message, AgentPersona, AudioSettings as AudioSettingsType } from '../../types';
 import { format } from 'date-fns';
-import { VoiceControls } from '../components/VoiceControls';
 import { PersonaSelector } from '../components/PersonaSelector';
 import { AudioSettings } from '../components/AudioSettings';
+import { VoiceOrb } from '../components/VoiceOrb';
 import { VoiceInterviewManager } from '../../services/VoiceInterviewManager';
+
+type InterviewStage = 'selection' | 'interview';
 
 const Interview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentInterview, setCurrentInterview } = useStore();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Stage Management
+  const [stage, setStage] = useState<InterviewStage>('selection');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Voice features state
   const [showPersonaSelector, setShowPersonaSelector] = useState(false);
@@ -26,7 +31,6 @@ const Interview: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
-  const [isVADActive, setIsVADActive] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
   
   // Voice manager instance
@@ -62,6 +66,20 @@ const Interview: React.FC = () => {
       return () => clearTimeout(timeoutId);
     }
   }, [messages, id]);
+
+  // Transition logic
+  useEffect(() => {
+    if (currentInterview && voiceManagerRef.current && !isLoaded) {
+      // Simulate a brief check/loading period for visual effect
+      const timer = setTimeout(() => {
+        setIsLoaded(true);
+        setStage('interview');
+        // Auto-enable voice mode when entering interview stage if desired
+        setVoiceMode(true);
+      }, 3000); // 3 seconds delay as per "ONCE WE HAVE CONFIRMED..."
+      return () => clearTimeout(timer);
+    }
+  }, [currentInterview, isLoaded]);
 
   const saveTranscript = async () => {
     if (!id || messages.length === 0) return;
@@ -183,14 +201,12 @@ const Interview: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !id || isSending) return;
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || !id || isSending) return;
 
     setIsSending(true);
-    const userMessage = inputMessage;
-    setInputMessage('');
-
-    await sendTextMessage(userMessage);
+    await sendTextMessage(text);
+    setIsSending(false);
   };
 
   const sendTextMessage = async (text: string) => {
@@ -308,6 +324,34 @@ const Interview: React.FC = () => {
     );
   }
 
+  // --- SELECTION STAGE UI ---
+  if (stage === 'selection') {
+    return (
+      <div className="flex h-full bg-white">
+        {/* Left Side: Resume */}
+        <div className="w-1/2 bg-gray-50 border-r border-gray-200 p-8 flex flex-col items-center justify-center">
+          <div className="w-3/4 aspect-[3/4] bg-white shadow-xl rounded-lg border border-gray-200 flex flex-col items-center justify-center text-gray-400">
+            <FileText size={64} className="mb-4" />
+            <span className="text-lg font-medium">Resume Preview</span>
+            <span className="text-sm mt-2">Loading document...</span>
+          </div>
+        </div>
+
+        {/* Right Side: Preparation Text */}
+        <div className="w-1/2 flex flex-col items-center justify-center p-12 bg-white">
+          <h2 className="text-4xl font-bold text-gray-900 mb-6 text-center leading-tight">
+            prepare for your<br />interview
+          </h2>
+          <div className="flex items-center gap-3 text-primary-600 mt-8">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+            <span className="font-medium">Initializing environment...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VOICE UI STAGE ---
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Persona Selector Modal */}
@@ -329,34 +373,10 @@ const Interview: React.FC = () => {
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{currentInterview.title}</h1>
             <p className="text-gray-600 mt-1">
-              {currentInterview.company} • {currentInterview.position} •{' '}
-              <span className="capitalize">{currentInterview.interviewType}</span>
+              {currentInterview.company} • {currentInterview.position}
             </p>
-            {selectedPersona && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-                <User size={16} />
-                <span>Interviewer: <strong>{selectedPersona.name}</strong></span>
-                <button
-                  onClick={() => setShowPersonaSelector(true)}
-                  className="text-primary-600 hover:text-primary-700 underline"
-                >
-                  Change
-                </button>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Voice Mode Toggle */}
-            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={voiceMode}
-                onChange={handleToggleVoiceMode}
-                className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-              />
-              <span className="text-sm font-medium text-gray-700">Voice Mode</span>
-            </label>
-
             {/* Audio Settings Button */}
             <button
               onClick={() => setShowAudioSettings(!showAudioSettings)}
@@ -383,55 +403,55 @@ const Interview: React.FC = () => {
             <AudioSettings />
           </div>
         )}
-
-        {/* Voice Controls */}
-        {voiceMode && (
-          <div className="mt-4">
-            <VoiceControls
-              isRecording={isRecording}
-              isSpeaking={isSpeaking}
-              isMuted={isMuted}
-              audioLevel={audioLevel}
-              isVADActive={isVADActive}
-              onToggleRecording={handleToggleRecording}
-              onToggleMute={handleToggleMute}
-            />
-          </div>
-        )}
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.filter(m => m.role !== 'system').map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input (only show when not in voice mode) */}
-      {!voiceMode && (
-        <div className="border-t border-gray-200 p-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Type your response..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              disabled={isSending}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isSending}
-              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        
+        {/* Voice Orb Area - Centered */}
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[300px] bg-gradient-to-b from-white to-gray-50">
+          <VoiceOrb 
+            isListening={isRecording} 
+            isSpeaking={isSpeaking} 
+            audioLevel={audioLevel} 
+          />
+          
+          {/* Voice Controls (Simplified) */}
+          <div className="mt-12 flex items-center gap-6">
+             <button
+              onClick={handleToggleRecording}
+              className={`p-4 rounded-full transition-all duration-200 shadow-md ${
+                isRecording
+                  ? 'bg-red-500 hover:bg-red-600 text-white'
+                  : 'bg-primary-600 hover:bg-primary-700 text-white'
+              }`}
             >
-              <Send size={20} />
-              {isSending ? 'Sending...' : 'Send'}
+              {isRecording ? <StopCircle size={32} /> : <Mic size={32} />}
+            </button>
+            <button
+              onClick={handleToggleMute}
+              className={`p-4 rounded-full transition-all duration-200 shadow-md ${
+                isMuted ? 'bg-gray-600 text-white' : 'bg-white text-gray-700 border border-gray-200'
+              }`}
+            >
+              {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
             </button>
           </div>
         </div>
-      )}
+
+        {/* Transcript Area - Bottom */}
+        <div className="h-1/3 border-t border-gray-200 bg-white flex flex-col">
+          <div className="px-6 py-2 border-b border-gray-100 bg-gray-50">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Live Transcript</h3>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {messages.filter(m => m.role !== 'system').map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

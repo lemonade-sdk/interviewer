@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "dist/electron",
+    "rootDir": ".",
+    "noEmit": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "types": ["node"],
+    "declaration": false,
+    "declarationMap": false,
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "lib": ["ES2022"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@electron/*": ["./src/electron_app/*"],
+      "@database/*": ["./src/database/*"],
+      "@types/*": ["./src/types/*"],
+      "@utils/*": ["./src/utils/*"]
+    }
+  },
+  "include": [
+    "src/electron_app/**/*",
+    "src/database/**/*",
+    "src/mcp/**/*",
+    "src/utils/**/*"
+  ],
+  "exclude": [
+    "src/services/audio/**/*",
+    "src/services/VoiceInterviewManager.ts",
+    "src/ui/**/*",
+    "src/__tests__/**/*",
+    "node_modules"
+  ]
+}

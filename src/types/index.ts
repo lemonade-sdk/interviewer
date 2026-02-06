@@ -192,6 +192,64 @@ export interface AppState {
   error?: string;
 }
 
+export interface SystemInfo {
+  processor: string;
+  physicalMemory: string;
+  devices: {
+    cpu?: {
+      cores: number;
+      available: boolean;
+    };
+    amd_igpu?: {
+      vram_gb: number;
+      available?: boolean;
+    };
+    nvidia_dgpu?: {
+      vram_gb: number;
+      available?: boolean;
+    };
+    npu?: {
+      available: boolean;
+    };
+  };
+  recipes?: {
+    llamacpp?: {
+      backends: {
+        vulkan?: { available: boolean };
+        rocm?: { available: boolean };
+        cuda?: { available: boolean };
+        cpu?: { available: boolean };
+      };
+    };
+    whispercpp?: {
+      backends: {
+        vulkan?: { available: boolean };
+        cuda?: { available: boolean };
+        cpu?: { available: boolean };
+      };
+    };
+  };
+}
+
+export interface LoadedModel {
+  model_name: string;
+  type: 'llm' | 'audio' | 'embedding' | 'reranking' | 'image';
+  device: string; // e.g., "cpu", "gpu", "npu", "gpu npu"
+  backend?: string;
+}
+
+export interface ServerHealth {
+  status: string;
+  all_models_loaded: LoadedModel[];
+  max_models?: {
+    llm?: number;
+    audio?: number;
+    embedding?: number;
+    reranking?: number;
+    image?: number;
+  };
+}
+
 export interface IPC {
   // Interview operations
   startInterview: (config: Partial<Interview>) => Promise<Interview>;
@@ -200,6 +258,7 @@ export interface IPC {
   getInterview: (interviewId: string) => Promise<Interview>;
   getAllInterviews: () => Promise<Interview[]>;
   deleteInterview: (interviewId: string) => Promise<void>;
+  updateInterviewTranscript: (interviewId: string, transcript: Message[]) => Promise<void>;
   
   // Job operations
   createJob: (job: Partial<Job>) => Promise<Job>;
@@ -226,6 +285,8 @@ export interface IPC {
   checkServerHealth: () => Promise<boolean>;
   getServerStatus: () => Promise<{ isRunning: boolean; url: string }>;
   refreshModels: () => Promise<ModelConfig[]>;
+  getSystemInfo: () => Promise<SystemInfo | null>;
+  getServerHealth: () => Promise<ServerHealth | null>;
   
   // MCP operations
   getMCPServers: () => Promise<MCPServer[]>;

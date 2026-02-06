@@ -1,0 +1,64 @@
+name: Main CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  check-changes:
+    name: Check Changed Files
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      nodejs: ${{ steps.filter.outputs.nodejs }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'lemonade_api/**'
+              - 'pyproject.toml'
+              - 'requirements.txt'
+            nodejs:
+              - 'src/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.json'
+            docs:
+              - 'lemonade_api/docs/**'
+              - 'lemonade_api/mkdocs.yml'
+
+  python-ci:
+    name: Python CI
+    needs: check-changes
+    if: needs.check-changes.outputs.python == 'true'
+    uses: ./.github/workflows/python-ci.yml
+
+  nodejs-ci:
+    name: Node.js CI
+    needs: check-changes
+    if: needs.check-changes.outputs.nodejs == 'true'
+    uses: ./.github/workflows/nodejs-ci.yml
+
+  all-checks-passed:
+    name: All Checks Passed
+    needs: [python-ci, nodejs-ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if all jobs succeeded
+        run: |
+          if [[ "${{ needs.python-ci.result }}" == "failure" || "${{ needs.nodejs-ci.result }}" == "failure" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs passed successfully!"

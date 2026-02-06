@@ -1,264 +1,248 @@
-# AI Interviewer
+# Interviewer
 
-An intelligent interview practice application powered by **local AI** via Lemonade Server. Built with Electron and React, this application runs AI models locally on your NPU/GPU - ensuring complete privacy, zero API costs, and offline capability. Practice your interview skills with an AI interviewer that adapts to your needs and provides comprehensive feedback.
+[![Main CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml)
+[![Python CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml)
+[![Node.js CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml)
+[![CodeQL](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml)
+[![Documentation](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/docs-deploy.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/docs-deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> **Note:** Replace `YOUR-USERNAME` in the badge URLs above with your actual GitHub username or organization name.
+
+An AI-powered interview practice application with Lemonade Server integration. Practice technical interviews with AI assistance using local language models.
 
 ## 🚀 Features
 
-- **AI-Powered Interviews**: Conduct realistic interview sessions with AI that adapts to different interview types (technical, behavioral, system design, coding, etc.)
-- **Multiple Interview Types**: Practice for various interview scenarios
-  - Technical interviews
-  - Behavioral interviews
-  - System design interviews
-  - Coding interviews
-  - General interviews
-  - Mixed format interviews
+- **Desktop Application**: Cross-platform Electron app for Windows, macOS, and Linux
+- **AI-Powered Interviews**: Practice with AI using local language models
+- **Python API Client**: Full-featured Python client for Lemonade Server
+- **Voice Features**: Audio processing for realistic interview simulation
+- **TypeScript/React UI**: Modern, responsive user interface
+- **Local Storage**: JSON-based storage architecture for privacy
+- **Comprehensive Documentation**: Built with MkDocs Material
 
-- **Job Application Tracking**: Keep track of your job applications and link them to interview practice sessions
-- **Comprehensive Feedback**: Get detailed feedback on your performance with:
-  - Overall score
-  - Strengths analysis
-  - Areas for improvement
-  - Specific suggestions
-  - Detailed transcript review
+## 📦 Project Structure
 
-- **Interview History**: Review past interviews, transcripts, and feedback
-- **Customizable Settings**: Configure the AI interviewer to match your preferences
-  - Interview style (conversational, formal, challenging, supportive)
-  - Question difficulty (easy, medium, hard)
-  - Number of questions
-  - Model selection and parameters
+```
+interviewer/
+├── src/                      # TypeScript/React application
+│   ├── ui/                   # React UI components
+│   ├── electron_app/         # Electron main process
+│   ├── database/             # Database layer
+│   ├── services/             # Service layer
+│   └── types/                # TypeScript type definitions
+├── lemonade_api/             # Python API client
+│   ├── client.py             # Main client implementation
+│   ├── models.py             # Pydantic models
+│   ├── exceptions.py         # Custom exceptions
+│   └── docs/                 # API documentation
+├── tests/                    # Test suites
+│   ├── lemonade_api/         # Python tests
+│   └── __tests__/            # TypeScript/Jest tests
+├── docs/                     # Project documentation
+└── .github/                  # CI/CD workflows
 
-- **MCP Integration**: Extensible architecture supporting Model Context Protocol for additional capabilities
-- **Cross-Platform**: Desktop application for Windows, macOS, and Linux
+```
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **Desktop**: Electron
+
+### Backend/API
+- **Language**: Python 3.9+
+- **Framework**: Pydantic for data validation
+- **HTTP Client**: httpx
+- **Documentation**: MkDocs Material
+
+### Testing
+- **Python**: pytest, pytest-cov
+- **TypeScript**: Jest
+- **Linting**: ESLint, Ruff, Black
+- **Type Checking**: TypeScript, MyPy
 
 ## 📋 Prerequisites
 
-- **Node.js 18+** and npm
-- **Lemonade Server** - [Download and install](https://lemonade-server.ai/docs/)
-- Git (for cloning the repository)
+- **Node.js** 18+ and npm
+- **Python** 3.9+
+- **Git**
 
-## 🛠️ Installation
+## 🔧 Installation
 
-1. Clone the repository:
+### 1. Clone the repository
+
 ```bash
-git clone <repository-url>
-cd interviewer
+git clone https://github.com/YOUR-USERNAME/ai-interviewer.git
+cd ai-interviewer
 ```
 
-2. Install dependencies:
+### 2. Install Node.js dependencies
+
 ```bash
 npm install
 ```
 
-3. Install and start Lemonade Server:
+### 3. Install Python dependencies
+
 ```bash
-# Download from https://lemonade-server.ai/docs/
-# After installation, pull a model:
-lemonade-server pull Llama-3.2-1B-Instruct-Hybrid
-
-# Start the server
-lemonade-server start
-
-# Verify it's running at http://localhost:8000
+pip install -r lemonade_api/requirements-dev.txt
 ```
 
-**Note**: No API keys needed! Everything runs locally on your machine.
-
-## 🏃 Running the Application
+## 🚀 Quick Start
 
 ### Development Mode
 
+**Run React + Electron:**
 ```bash
-# Start the development server
 npm run dev
 ```
 
-This will start both the React development server and Electron in development mode with hot reloading.
-
-### Production Build
-
+**Run Python API tests:**
 ```bash
-# Build the React app
-npm run build
+pytest
+```
 
-# Build the Electron application
+**View Documentation:**
+```bash
+cd lemonade_api
+mkdocs serve
+```
+
+### Building
+
+**Build React app:**
+```bash
+npm run build
+```
+
+**Build Electron app:**
+```bash
 npm run build:electron
 ```
 
-The built application will be in the `dist` directory.
-
-## 📁 Project Structure
-
+**Build Python package:**
+```bash
+python -m build
 ```
-interviewer/
-├── src/
-│   ├── electron_app/          # Electron main process
-│   │   ├── main.js            # Main Electron entry point
-│   │   └── preload.js         # Preload script for IPC
-│   │
-│   ├── ui/                    # React frontend
-│   │   ├── components/        # Reusable UI components
-│   │   │   └── Layout.tsx     # Main layout component
-│   │   ├── pages/             # Page components
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Interview.tsx
-│   │   │   ├── InterviewHistory.tsx
-│   │   │   ├── Jobs.tsx
-│   │   │   └── Settings.tsx
-│   │   ├── store/             # State management
-│   │   │   └── useStore.ts
-│   │   ├── App.tsx            # Main App component
-│   │   ├── main.tsx           # React entry point
-│   │   └── index.css          # Global styles
-│   │
-│   ├── database/              # Database layer
-│   │   ├── db.ts              # Database initialization
-│   │   ├── schema.sql         # Database schema
-│   │   └── repositories/      # Data access layer
-│   │       ├── InterviewRepository.ts
-│   │       ├── JobRepository.ts
-│   │       └── SettingsRepository.ts
-│   │
-│   ├── services/              # Business logic
-│   │   ├── InterviewService.ts    # Interview management
-│   │   └── LemonadeClient.ts      # Lemonade SDK integration
-│   │
-│   ├── mcp/                   # Model Context Protocol
-│   │   └── MCPManager.ts      # MCP server management
-│   │
-│   ├── types/                 # TypeScript type definitions
-│   │   └── index.ts
-│   │
-│   └── utils/                 # Utility functions
-│       └── helpers.ts
-│
-├── public/                    # Static assets
-├── package.json              # Project dependencies
-├── tsconfig.json             # TypeScript configuration
-├── vite.config.ts            # Vite configuration
-├── tailwind.config.js        # Tailwind CSS configuration
-└── README.md                 # This file
-```
-
-## 🎯 Usage Guide
-
-### Starting a New Interview
-
-1. Click "New Interview" on the Dashboard
-2. Fill in the interview details:
-   - Interview title
-   - Company name
-   - Position
-   - Interview type
-3. Click "Start Interview"
-4. Engage in conversation with the AI interviewer
-5. Click "End Interview" when finished to receive feedback
-
-### Managing Job Applications
-
-1. Navigate to "Job Applications" from the sidebar
-2. Click "Add Job" to create a new application entry
-3. Fill in job details and track the status
-4. Link interviews to specific job applications
-
-### Customizing Interview Settings
-
-1. Go to Settings → Interviewer AI
-2. Configure:
-   - Model provider and model
-   - Interview style
-   - Question difficulty
-   - Number of questions
-   - Temperature and token limits
-   - Follow-up questions and feedback preferences
-
-### Reviewing Past Interviews
-
-1. Navigate to "Interview History"
-2. Use search and filters to find specific interviews
-3. Click "View Details" to see:
-   - Complete transcript
-   - Feedback and scores
-   - Strengths and weaknesses
-   - Improvement suggestions
-
-## 🔧 Configuration
-
-### Database
-
-The application uses SQLite for local data storage. The database file is automatically created in the user data directory:
-
-- **Windows**: `%APPDATA%/ai-interviewer/interviewer.db`
-- **macOS**: `~/Library/Application Support/ai-interviewer/interviewer.db`
-- **Linux**: `~/.config/ai-interviewer/interviewer.db`
-
-### Lemonade Server Integration
-
-The application integrates with **Lemonade Server** - a local LLM server that:
-- Runs on your machine at `http://localhost:8000`
-- Uses your NPU and GPU for AI acceleration
-- Implements the OpenAI API standard
-- Provides 100% privacy - no data leaves your machine
-- Works completely offline (after models are downloaded)
-
-For detailed integration information, see [LEMONADE_SERVER_INTEGRATION.md](LEMONADE_SERVER_INTEGRATION.md)
-
-### MCP Server Support
-
-Model Context Protocol servers can extend the application's capabilities. Configure servers in Settings → MCP Servers (coming soon).
 
 ## 🧪 Testing
 
+### Run all tests
+
+**Python:**
+```bash
+pytest --cov=lemonade_api --cov-report=html
+```
+
+**TypeScript:**
 ```bash
 npm test
 ```
 
-## 🐛 Troubleshooting
+### Linting
 
-### Database Issues
+**Python:**
+```bash
+black lemonade_api/
+ruff check lemonade_api/
+mypy lemonade_api/
+```
 
-If you experience database errors:
-1. Close the application
-2. Delete the database file from the user data directory
-3. Restart the application (a new database will be created)
+**TypeScript:**
+```bash
+npm run lint
+```
 
-### Interview Not Starting
+## 📚 Documentation
 
-Ensure that:
-1. Lemonade Server is running at http://localhost:8000
-2. A model is loaded in Lemonade Server
-3. All required fields are filled in the interview form
-4. Check Settings → Interviewer AI for server connection status
-5. Check the developer console for error messages (View → Toggle Developer Tools)
+- **[API Documentation](lemonade_api/docs/index.md)** - Python client API reference
+- **[CI/CD Documentation](.github/CI_CD_DOCUMENTATION.md)** - Comprehensive CI/CD guide
+- **[Workflows README](.github/workflows/README.md)** - GitHub Actions workflows
+- **[Contributing Guide](docs/guides/CONTRIBUTING.md)** - How to contribute
+- **[Deployment Guide](docs/guides/DEPLOYMENT_GUIDE.md)** - Deployment instructions
 
-### Performance Issues
+## 🔄 CI/CD Pipeline
 
-If the application feels slow:
-1. Reduce the max tokens setting in Interviewer AI settings
-2. Close other resource-intensive applications
-3. Check your internet connection if using cloud-based AI models
+This project uses a comprehensive GitHub Actions CI/CD pipeline:
+
+### Continuous Integration
+- ✅ **Python CI**: Linting (Black, Ruff), type checking (MyPy), testing (pytest)
+- ✅ **Node.js CI**: Linting (ESLint), TypeScript checks, testing (Jest), building
+- ✅ **CodeQL Security**: Automated vulnerability scanning
+- ✅ **Dependency Review**: Security checks for dependency changes
+
+### Continuous Deployment
+- 📦 **Documentation**: Auto-deploy to GitHub Pages on main branch
+- 🚀 **Electron Release**: Multi-platform builds on version tags
+- 🔄 **Dependabot**: Automated weekly dependency updates
+
+**[See full CI/CD documentation](.github/CI_CD_DOCUMENTATION.md)** for detailed information.
+
+## 🔐 Security
+
+- **CodeQL Analysis**: Automated security scanning on every PR
+- **Dependency Review**: Scans for vulnerable dependencies
+- **Dependabot**: Automated security updates
+- **Branch Protection**: Required status checks on main branch
+
+## 🏗️ Architecture
+
+### Modular Design
+- **Separation of Concerns**: Clear separation between UI, business logic, and data layers
+- **Type Safety**: Full TypeScript and Pydantic type definitions
+- **Testability**: Comprehensive test coverage with unit and integration tests
+- **Scalability**: Modular architecture supports easy feature additions
+
+### Storage
+- **JSON-based**: Privacy-focused local storage
+- **Repositories**: Clean data access patterns
+- **TypeScript Types**: Full type safety across the stack
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions! Please see our [Contributing Guide](docs/guides/CONTRIBUTING.md) for details.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and linting
+5. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+6. Push to your branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+All PRs are automatically checked by our CI pipeline.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Built with [Electron](https://www.electronjs.org/)
-- UI powered by [React](https://react.dev/) and [Tailwind CSS](https://tailwindcss.com/)
-- State management with [Zustand](https://github.com/pmndrs/zustand)
-- Local AI powered by [Lemonade Server](https://lemonade-server.ai/)
-- Database with [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
-- OpenAI API client for Lemonade Server integration
+- [Lemonade Server](https://github.com/lemonade-server/lemonade) - Unified API for local AI models
+- [Electron](https://www.electronjs.org/) - Desktop application framework
+- [React](https://react.dev/) - UI framework
+- [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) - Documentation theme
 
-## 📧 Support
+## 📞 Support
 
-For issues, questions, or suggestions, please open an issue on the GitHub repository.
+- **Issues**: [GitHub Issues](https://github.com/YOUR-USERNAME/interviewer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/YOUR-USERNAME/interviewer/discussions)
+- **Documentation**: [Project Docs](https://YOUR-USERNAME.github.io/interviewer/)
+
+## 🗺️ Roadmap
+
+- [ ] Enhanced voice features
+- [ ] More interview templates
+- [ ] Performance analytics
+- [ ] Cloud sync (optional)
+- [ ] Mobile app support
 
 ---
 
-**Happy interviewing! 🎉**
+**Made with ❤️ by the AI Interviewer Team**

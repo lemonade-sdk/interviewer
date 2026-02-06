@@ -92,7 +92,7 @@ export class LemonadeClient {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(conversationHistory: Message[], message: string): Promise<string> {
+  async sendMessage(conversationHistory: Message[]): Promise<string> {
     try {
       // Check server connection first
       if (!this.isConnected) {
@@ -192,86 +192,154 @@ export class LemonadeClient {
 
   /**
    * Load a model on Lemonade Server
+   * Per spec: POST /api/v1/load with model_name parameter
+   * Optionally supports ctx_size, llamacpp_backend, llamacpp_args, save_options
    */
-  async loadModel(modelId: string): Promise<boolean> {
+  async loadModel(
+    modelId: string,
+    options?: {
+      ctx_size?: number;
+      llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+      llamacpp_args?: string;
+      save_options?: boolean;
+    }
+  ): Promise<{ success: boolean; message?: string }> {
     try {
       const response = await axios.post(
         `${this.baseURL}/load`,
-        { model: modelId },
-        { timeout: 30000 } // Model loading can take time
+        { 
+          model_name: modelId,  // Per spec: use model_name not model
+          ...options
+        },
+        { timeout: 60000 } // Model loading can take time (increased to 60s)
       );
       
-      return response.status === 200;
-    } catch (error) {
+      return {
+        success: response.data.status === 'success',
+        message: response.data.message
+      };
+    } catch (error: any) {
       console.error('Failed to load model:', error);
-      return false;
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to load model'
+      };
     }
   }
 
   /**
    * Unload a model from Lemonade Server
+   * Per spec: POST /api/v1/unload with optional model_name parameter
+   * If model_name not provided, unloads all models
    */
-  async unloadModel(modelId: string): Promise<boolean> {
+  async unloadModel(modelId?: string): Promise<{ success: boolean; message?: string }> {
     try {
+      const payload = modelId ? { model_name: modelId } : {};
       const response = await axios.post(
         `${this.baseURL}/unload`,
-        { model: modelId },
+        payload,
         { timeout: 10000 }
       );
       
-      return response.status === 200;
-    } catch (error) {
+      return {
+        success: response.data.status === 'success',
+        message: response.data.message
+      };
+    } catch (error: any) {
       console.error('Failed to unload model:', error);
-      return false;
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to unload model'
+      };
     }
   }
 
   /**
    * Pull/download a new model to Lemonade Server
+   * Per spec: POST /api/v1/pull with model_name parameter
+   * Supports both registered models and custom Hugging Face models
    */
-  async pullModel(modelId: string, onProgress?: (progress: number) => void): Promise<boolean> {
+  async pullModel(
+    modelId: string,
+    options?: {
+      checkpoint?: string;
+      recipe?: string;
+      reasoning?: boolean;
+      vision?: boolean;
+      embedding?: boolean;
+      reranking?: boolean;
+      stream?: boolean;
+    },
+    onProgress?: (progress: { percent: number; file?: string }) => void
+  ): Promise<{ success: boolean; message?: string }> {
     try {
-      // This is a long-running operation
+      const payload: any = { model_name: modelId };
+      
+      // If custom model registration is needed
+      if (options?.checkpoint) {
+        payload.checkpoint = options.checkpoint;
+        payload.recipe = options.recipe || 'llamacpp';
+        if (options.reasoning) payload.reasoning = true;
+        if (options.vision) payload.vision = true;
+        if (options.embedding) payload.embedding = true;
+        if (options.reranking) payload.reranking = true;
+      }
+      
+      if (options?.stream) {
+        payload.stream = true;
+      }
+
       const response = await axios.post(
         `${this.baseURL}/pull`,
-        { model: modelId },
+        payload,
         {
           timeout: 600000, // 10 minutes for model download
-          onDownloadProgress: (progressEvent) => {
+          onDownloadProgress: (progressEvent: any) => {
             if (onProgress && progressEvent.total) {
               const percentCompleted = Math.round(
                 (progressEvent.loaded * 100) / progressEvent.total
               );
-              onProgress(percentCompleted);
+              onProgress({ percent: percentCompleted });
             }
           },
         }
       );
       
-      return response.status === 200;
-    } catch (error) {
+      return {
+        success: response.data.status === 'success',
+        message: response.data.message
+      };
+    } catch (error: any) {
       console.error('Failed to pull model:', error);
-      return false;
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to pull model'
+      };
     }
   }
 
   /**
    * Delete a model from Lemonade Server
+   * Per spec: POST /api/v1/delete (NOT DELETE verb) with model_name parameter
    */
-  async deleteModel(modelId: string): Promise<boolean> {
+  async deleteModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     try {
-      const response = await axios.delete(
+      const response = await axios.post(
         `${this.baseURL}/delete`,
-        {
-          data: { model: modelId },
-          timeout: 10000,
-        }
+        { model_name: modelId },  // Per spec: use model_name not model
+        { timeout: 10000 }
       );
       
-      return response.status === 200;
-    } catch (error) {
+      return {
+        success: response.data.status === 'success',
+        message: response.data.message
+      };
+    } catch (error: any) {
       console.error('Failed to delete model:', error);
-      return false;
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to delete model'
+      };
     }
   }
 
@@ -324,5 +392,109 @@ export class LemonadeClient {
    */
   getBaseURL(): string {
     return this.baseURL;
+  }
+
+  /**
+   * Fetch system information from Lemonade Server
+   * Per spec: GET /api/v1/system-info
+   * Provides hardware capabilities, device info, and available backends
+   */
+  async fetchSystemInfo(): Promise<{
+    os?: string;
+    processor?: string;
+    memory?: string;
+    devices?: {
+      cpu?: any;
+      amd_igpu?: any;
+      amd_dgpu?: any[];
+      nvidia_dgpu?: any[];
+      npu?: any;
+    };
+    recipes?: Record<string, any>;
+  } | null> {
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/system-info`,
+        { timeout: 5000 }
+      );
+      
+      console.log('System info fetched:', response.data);
+      return {
+        os: response.data['OS Version'],
+        processor: response.data['Processor'],
+        memory: response.data['Physical Memory'],
+        devices: response.data.devices,
+        recipes: response.data.recipes
+      };
+    } catch (error) {
+      console.error('Failed to fetch system info:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get enhanced health information including loaded models
+   * Per spec: GET /api/v1/health
+   * Returns all loaded models with their types, devices, and allocations
+   */
+  async fetchServerHealth(): Promise<{
+    status: string;
+    model_loaded?: string;
+    all_models_loaded?: Array<{
+      model_name: string;
+      checkpoint: string;
+      last_use: number;
+      type: 'llm' | 'embedding' | 'reranking' | 'audio';
+      device: string;
+      recipe: string;
+      recipe_options?: Record<string, any>;
+      backend_url?: string;
+    }>;
+    max_models?: {
+      llm: number;
+      embedding: number;
+      reranking: number;
+      audio: number;
+    };
+  } | null> {
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/health`,
+        { timeout: 5000 }
+      );
+      
+      console.log('Server health fetched:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch server health:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get performance statistics from the last request
+   * Per spec: GET /api/v1/stats
+   * Returns timing and token metrics
+   */
+  async fetchStats(): Promise<{
+    time_to_first_token?: number;
+    tokens_per_second?: number;
+    input_tokens?: number;
+    output_tokens?: number;
+    decode_token_times?: number[];
+    prompt_tokens?: number;
+  } | null> {
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/stats`,
+        { timeout: 5000 }
+      );
+      
+      console.log('Performance stats fetched:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+      return null;
+    }
   }
 }

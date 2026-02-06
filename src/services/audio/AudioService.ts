@@ -1,5 +1,5 @@
 import { AudioDevice, AudioSettings } from '../../types';
-import { EventEmitter } from 'events';
+import { EventEmitter } from '../../utils/EventEmitter';
 
 /**
  * AudioService - Manages audio input/output devices and recording

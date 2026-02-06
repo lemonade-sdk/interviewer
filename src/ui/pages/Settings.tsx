@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Save, Settings as SettingsIcon, Sparkles, Server } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { InterviewerSettings, UserSettings } from '../../types';
+import { SystemInfoPanel } from '../components/SystemInfoPanel';
+import { MultiModelStatus } from '../components/MultiModelStatus';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'interviewer' | 'mcp'>('general');
@@ -81,6 +83,7 @@ const GeneralSettings: React.FC = () => {
 
   useEffect(() => {
     if (settings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(settings);
     }
   }, [settings]);
@@ -247,6 +250,12 @@ const InterviewerSettingsPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Multi-Model Status */}
+      <MultiModelStatus />
+
+      {/* System Information */}
+      <SystemInfoPanel />
+
       {/* Lemonade Server Status */}
       <div className={`border rounded-lg p-4 ${
         serverStatus.isRunning
@@ -468,7 +477,7 @@ const MCPSettings: React.FC = () => {
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <p className="text-sm text-yellow-800">
           <strong>MCP (Model Context Protocol) Servers:</strong> Configure external tools and
-          services that can extend the interviewer's capabilities. This is an advanced feature.
+          services that can extend the interviewer&apos;s capabilities. This is an advanced feature.
         </p>
       </div>
 

@@ -1,45 +1,56 @@
-import Database from 'better-sqlite3';
-import { app } from 'electron';
-import path from 'path';
-import fs from 'fs';
+/**
+ * Database Module
+ * 
+ * This module provides the main database interface for the application.
+ * Migrated from SQLite to JSON file storage for zero-dependency installation.
+ */
 
-let db: Database.Database | null = null;
+import { StorageManager, getStorageManager } from './storage/StorageManager';
 
-export function initializeDatabase(): Database.Database {
-  if (db) return db;
+let storageManager: StorageManager | null = null;
 
-  const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'interviewer.db');
+/**
+ * Initialize the database/storage system
+ */
+export async function initializeDatabase(): Promise<StorageManager> {
+  if (storageManager) return storageManager;
 
-  // Ensure directory exists
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
-  }
-
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-
-  // Read and execute schema
-  const schemaPath = path.join(__dirname, '../database/schema.sql');
-  const schema = fs.readFileSync(schemaPath, 'utf-8');
+  console.log('Initializing database...');
   
-  db.exec(schema);
-
-  console.log('Database initialized at:', dbPath);
-  return db;
+  storageManager = getStorageManager();
+  await storageManager.initialize();
+  
+  const stats = await storageManager.getStats();
+  console.log('Database initialized successfully');
+  console.log('Storage statistics:', stats);
+  
+  return storageManager;
 }
 
-export function getDatabase(): Database.Database {
-  if (!db) {
+/**
+ * Get the storage manager instance
+ * @throws Error if not initialized
+ */
+export function getDatabase(): StorageManager {
+  if (!storageManager) {
     throw new Error('Database not initialized. Call initializeDatabase() first.');
   }
-  return db;
+  return storageManager;
 }
 
+/**
+ * Close/cleanup the database
+ */
 export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
+  if (storageManager) {
+    console.log('Closing database...');
+    // JSON storage doesn't need explicit closing, but we reset the instance
+    storageManager = null;
+    console.log('Database closed');
   }
 }
+
+/**
+ * Export storage manager type for use in repositories
+ */
+export type { StorageManager };

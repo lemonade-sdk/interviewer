@@ -91,11 +91,14 @@ jobs:
 
       - name: Run pytest with coverage
         run: |
-          if [ -d "tests" ] || [ -d "lemonade_api/tests" ]; then
-            pytest --cov=lemonade_api --cov-report=xml --cov-report=term-missing
+          if [ -d "lemonade_api" ]; then
+            if [ -d "tests" ] || [ -d "lemonade_api/tests" ]; then
+              pytest --cov=lemonade_api --cov-report=xml --cov-report=term-missing
+            else
+              echo "No tests directory found. Skipping tests."
+            fi
           else
-            echo "No tests directory found. Skipping tests."
-            echo "Please add tests to improve code quality."
+            echo "lemonade_api directory not found. Skipping tests."
           fi
 
       - name: Upload coverage to Codecov

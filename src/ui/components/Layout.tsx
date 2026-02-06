@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Briefcase, Settings, History } from 'lucide-react';
+import { Home, Briefcase, Settings, History, Citrus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 const Layout: React.FC = () => {
@@ -12,31 +12,34 @@ const Layout: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-lemonade-bg text-lemonade-fg">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-primary-600">AI Interviewer</h1>
-          <p className="text-sm text-gray-500 mt-1">Practice & Improve</p>
+      <aside className="w-64 bg-white/80 backdrop-blur-sm border-r border-gray-200 flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex items-center gap-3">
+          <Citrus className="text-lemonade-accent-hover w-8 h-8" />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Interviewer</h1>
+            <p className="text-xs text-gray-500">Lemonade SDK</p>
+          </div>
         </div>
 
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-4 space-y-2">
           <NavItem to="/dashboard" icon={<Home size={20} />} label="Dashboard" />
-          <NavItem to="/interview-history" icon={<History size={20} />} label="Interview History" />
-          <NavItem to="/jobs" icon={<Briefcase size={20} />} label="Job Applications" />
+          <NavItem to="/interview-history" icon={<History size={20} />} label="History" />
+          <NavItem to="/jobs" icon={<Briefcase size={20} />} label="Applications" />
           <NavItem to="/settings" icon={<Settings size={20} />} label="Settings" />
         </nav>
 
         <div className="p-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 text-center">
             <p>Version 1.0.0</p>
-            <p className="mt-1">Powered by Lemonade SDK</p>
+            <p className="mt-1">Powered by Lemonade</p>
           </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden bg-lemonade-bg">
         <Outlet />
       </main>
     </div>
@@ -54,10 +57,10 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
           isActive
-            ? 'bg-primary-50 text-primary-700 font-medium'
-            : 'text-gray-700 hover:bg-gray-100'
+            ? 'bg-lemonade-accent text-black font-bold shadow-sm'
+            : 'text-gray-600 hover:bg-lemonade-bg hover:text-black'
         }`
       }
     >

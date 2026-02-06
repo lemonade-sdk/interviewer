@@ -11,6 +11,14 @@
   --color-primary-700: #0369a1;
   --color-primary-800: #075985;
   --color-primary-900: #0c4a6e;
+
+  /* Lemonade Brand Colors */
+  --color-lemonade-bg: #FFFBE9;
+  --color-lemonade-fg: #000000;
+  --color-lemonade-accent: #FFD744;
+  --color-lemonade-accent-hover: #E59800;
+  --color-lemonade-dark-bg: #141413;
+  --color-lemonade-dark-fg: #FFD500;
 }
 
 * {

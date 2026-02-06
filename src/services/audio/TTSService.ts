@@ -53,7 +53,7 @@ export class TTSService {
   /**
    * Set pitch (0.5 - 2.0)
    */
-  setPitch(pitch: number): void {
+  setPitch(_pitch: number): void {
     // Kokoro doesn't support pitch adjustment natively yet, 
     // but we can store it for future use or client-side processing
     console.log('Pitch adjustment not supported by backend yet');

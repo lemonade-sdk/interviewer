@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Interview, Job, UserSettings, InterviewerSettings, AgentPersona } from '../../types';
+import { Interview, Job, UserSettings, InterviewerSettings } from '../../types';
 
 interface AppStore {
   // State
@@ -86,50 +86,4 @@ export const useStore = create<AppStore>((set) => ({
   },
 }));
 
-// Type declaration for window.electronAPI
-declare global {
-  interface Window {
-    electronAPI: {
-      startInterview: (config: any) => Promise<Interview>;
-      endInterview: (interviewId: string) => Promise<Interview>;
-      sendMessage: (interviewId: string, message: string) => Promise<any>;
-      getInterview: (interviewId: string) => Promise<Interview>;
-      getAllInterviews: () => Promise<Interview[]>;
-      deleteInterview: (interviewId: string) => Promise<void>;
-      createJob: (jobData: any) => Promise<Job>;
-      updateJob: (jobId: string, updates: any) => Promise<Job>;
-      getJob: (jobId: string) => Promise<Job>;
-      getAllJobs: () => Promise<Job[]>;
-      deleteJob: (jobId: string) => Promise<void>;
-      getSettings: () => Promise<UserSettings>;
-      updateSettings: (updates: any) => Promise<UserSettings>;
-      getInterviewerSettings: () => Promise<InterviewerSettings>;
-      updateInterviewerSettings: (updates: any) => Promise<InterviewerSettings>;
-      getAvailableModels: () => Promise<any[]>;
-      testModelConnection: (modelId: string) => Promise<boolean>;
-      loadModel: (modelId: string) => Promise<boolean>;
-      unloadModel: (modelId: string) => Promise<boolean>;
-      pullModel: (modelId: string) => Promise<boolean>;
-      deleteModel: (modelId: string) => Promise<boolean>;
-      refreshModels: () => Promise<any[]>;
-      checkServerHealth: () => Promise<boolean>;
-      getServerStatus: () => Promise<{ isRunning: boolean; url: string }>;
-      getMCPServers: () => Promise<any[]>;
-      updateMCPServers: (servers: any[]) => Promise<void>;
-      
-      // Persona operations
-      createPersona: (personaData: Partial<AgentPersona>) => Promise<AgentPersona>;
-      getAllPersonas: () => Promise<AgentPersona[]>;
-      getPersonaById: (personaId: string) => Promise<AgentPersona>;
-      updatePersona: (personaId: string, updates: Partial<AgentPersona>) => Promise<AgentPersona>;
-      deletePersona: (personaId: string) => Promise<boolean>;
-      setDefaultPersona: (personaId: string) => Promise<boolean>;
-      getDefaultPersona: () => Promise<AgentPersona | null>;
-      
-      // Audio operations
-      saveAudioRecording: (audioData: { interviewId: string; messageId: string; audioBlob: string }) => Promise<{ success: boolean; filepath: string }>;
-      getAudioRecordingsPath: () => Promise<string>;
-      deleteAudioRecording: (filepath: string) => Promise<{ success: boolean; error?: string }>;
-    };
-  }
-}
+// Type declaration for window.electronAPI is handled in vite-env.d.ts

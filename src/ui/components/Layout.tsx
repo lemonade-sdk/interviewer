@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, MessageSquare, Briefcase, Settings, History } from 'lucide-react';
+import { Home, Briefcase, Settings, History } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 const Layout: React.FC = () => {

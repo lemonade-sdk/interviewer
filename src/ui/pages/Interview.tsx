@@ -102,7 +102,7 @@ const Interview: React.FC = () => {
       const manager = new VoiceInterviewManager(
         defaultAudioSettings,
         'http://localhost:8000/api/v1', // ASR base URL
-        'whisper' // ASR model
+        'Whisper-Base' // ASR model
       );
 
       // Set up event listeners

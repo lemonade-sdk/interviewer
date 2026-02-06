@@ -289,6 +289,20 @@ export interface IPC {
   getSystemInfo: () => Promise<SystemInfo | null>;
   getServerHealth: () => Promise<ServerHealth | null>;
   
+  // Persona operations
+  createPersona: (personaData: Partial<AgentPersona>) => Promise<AgentPersona>;
+  getAllPersonas: () => Promise<AgentPersona[]>;
+  getPersonaById: (personaId: string) => Promise<AgentPersona>;
+  updatePersona: (personaId: string, updates: Partial<AgentPersona>) => Promise<AgentPersona>;
+  deletePersona: (personaId: string) => Promise<boolean>;
+  setDefaultPersona: (personaId: string) => Promise<boolean>;
+  getDefaultPersona: () => Promise<AgentPersona | null>;
+
+  // Audio operations
+  saveAudioRecording: (audioData: { interviewId: string; messageId: string; audioBlob: string }) => Promise<{ success: boolean; filepath: string }>;
+  getAudioRecordingsPath: () => Promise<string>;
+  deleteAudioRecording: (filepath: string) => Promise<{ success: boolean; error?: string }>;
+
   // MCP operations
   getMCPServers: () => Promise<MCPServer[]>;
   updateMCPServers: (servers: MCPServer[]) => Promise<void>;

@@ -2,11 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Send, StopCircle, Settings, User } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { Message, AgentPersona } from '../../types';
+import { Message, AgentPersona, AudioSettings as AudioSettingsType } from '../../types';
 import { format } from 'date-fns';
 import { VoiceControls } from '../components/VoiceControls';
 import { PersonaSelector } from '../components/PersonaSelector';
 import { AudioSettings } from '../components/AudioSettings';
+import { VoiceInterviewManager } from '../../services/VoiceInterviewManager';
 
 const Interview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,17 +28,50 @@ const Interview: React.FC = () => {
   const [audioLevel, setAudioLevel] = useState(0);
   const [isVADActive, setIsVADActive] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
+  
+  // Voice manager instance
+  const voiceManagerRef = useRef<VoiceInterviewManager | null>(null);
 
   useEffect(() => {
     if (id) {
       loadInterview();
       loadDefaultPersona();
+      initializeVoiceManager();
     }
+    
+    // Cleanup on unmount
+    return () => {
+      if (voiceManagerRef.current) {
+        voiceManagerRef.current.cleanup();
+        voiceManagerRef.current = null;
+      }
+    };
   }, [id]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Auto-save transcript on every message change
+  useEffect(() => {
+    if (id && messages.length > 0 && currentInterview) {
+      // Debounce to avoid excessive saves
+      const timeoutId = setTimeout(() => {
+        saveTranscript();
+      }, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, id]);
+
+  const saveTranscript = async () => {
+    if (!id || messages.length === 0) return;
+    try {
+      await window.electronAPI.updateInterviewTranscript(id, messages);
+      console.log('Transcript auto-saved');
+    } catch (error) {
+      console.error('Failed to auto-save transcript:', error);
+    }
+  };
 
   const loadDefaultPersona = async () => {
     try {
@@ -53,12 +87,93 @@ const Interview: React.FC = () => {
     }
   };
 
+  const initializeVoiceManager = async () => {
+    try {
+      // Get default audio settings
+      const defaultAudioSettings: AudioSettingsType = {
+        inputVolume: 100,
+        outputVolume: 100,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+
+      // Create voice manager instance
+      const manager = new VoiceInterviewManager(
+        defaultAudioSettings,
+        'http://localhost:8000/api/v1', // ASR base URL
+        'Whisper-Base' // ASR model
+      );
+
+      // Set up event listeners
+      manager.on('recording-started', () => {
+        setIsRecording(true);
+        console.log('Recording started');
+      });
+
+      manager.on('recording-stopped', () => {
+        setIsRecording(false);
+        console.log('Recording stopped');
+      });
+
+      manager.on('audio-level', (level: number) => {
+        setAudioLevel(level);
+      });
+
+      manager.on('speech-detected', () => {
+        setIsVADActive(true);
+        console.log('Speech detected');
+      });
+
+      manager.on('speech-ended', () => {
+        setIsVADActive(false);
+        console.log('Speech ended');
+      });
+
+      manager.on('transcription-complete', async (text: string) => {
+        console.log('Transcription:', text);
+        // Send transcribed text as message
+        if (text.trim() && id) {
+          await sendVoiceMessage(text);
+        }
+      });
+
+      manager.on('speaking-started', () => {
+        setIsSpeaking(true);
+        console.log('TTS started');
+      });
+
+      manager.on('speaking-stopped', () => {
+        setIsSpeaking(false);
+        console.log('TTS stopped');
+      });
+
+      manager.on('error', (error: Error) => {
+        console.error('Voice manager error:', error);
+        alert(`Voice error: ${error.message}`);
+      });
+
+      // Initialize the manager
+      await manager.initialize();
+      voiceManagerRef.current = manager;
+      
+      console.log('Voice manager initialized');
+    } catch (error) {
+      console.error('Failed to initialize voice manager:', error);
+    }
+  };
+
   const loadInterview = async () => {
     if (!id) return;
     try {
       const interview = await window.electronAPI.getInterview(id);
       setCurrentInterview(interview);
-      setMessages(interview.transcript || []);
+      
+      // Restore messages from database (handles page refresh)
+      if (interview.transcript && interview.transcript.length > 0) {
+        setMessages(interview.transcript);
+        console.log(`Restored ${interview.transcript.length} messages from database`);
+      }
     } catch (error) {
       console.error('Failed to load interview:', error);
     }
@@ -75,18 +190,33 @@ const Interview: React.FC = () => {
     const userMessage = inputMessage;
     setInputMessage('');
 
+    await sendTextMessage(userMessage);
+  };
+
+  const sendTextMessage = async (text: string) => {
+    if (!id) return;
+
     // Add user message to UI immediately
     const tempUserMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: userMessage,
+      content: text,
       timestamp: new Date().toISOString(),
     };
     setMessages(prev => [...prev, tempUserMsg]);
 
     try {
-      const response = await window.electronAPI.sendMessage(id, userMessage);
+      const response = await window.electronAPI.sendMessage(id, text);
       setMessages(prev => [...prev, response]);
+      
+      // Auto-play TTS if voice mode is enabled
+      if (voiceMode && voiceManagerRef.current && !isMuted) {
+        try {
+          await voiceManagerRef.current.speak(response.content);
+        } catch (error) {
+          console.error('TTS failed:', error);
+        }
+      }
       
       // Reload interview to get updated transcript
       await loadInterview();
@@ -95,6 +225,14 @@ const Interview: React.FC = () => {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const sendVoiceMessage = async (text: string) => {
+    if (!id) return;
+    
+    setIsSending(true);
+    await sendTextMessage(text);
+    setIsSending(false);
   };
 
   const handleEndInterview = async () => {
@@ -119,15 +257,31 @@ const Interview: React.FC = () => {
     setShowPersonaSelector(false);
   };
 
-  const handleToggleRecording = () => {
-    if (!voiceMode) return;
-    setIsRecording(!isRecording);
-    // TODO: Wire up to AudioService when fully integrated
+  const handleToggleRecording = async () => {
+    if (!voiceMode || !voiceManagerRef.current) return;
+
+    try {
+      if (isRecording) {
+        // Stop recording and get transcription
+        await voiceManagerRef.current.stopVoiceInput();
+      } else {
+        // Start recording with VAD
+        await voiceManagerRef.current.startVoiceInput({
+          enableVAD: true,
+          vadSensitivity: 0.7,
+        });
+      }
+    } catch (error: any) {
+      console.error('Recording toggle failed:', error);
+      alert(`Failed to ${isRecording ? 'stop' : 'start'} recording: ${error.message}`);
+    }
   };
 
   const handleToggleMute = () => {
     setIsMuted(!isMuted);
-    // TODO: Wire up to AudioService when fully integrated
+    if (voiceManagerRef.current && voiceManagerRef.current.getState().isSpeaking) {
+      voiceManagerRef.current.stopSpeaking();
+    }
   };
 
   const handleToggleVoiceMode = () => {

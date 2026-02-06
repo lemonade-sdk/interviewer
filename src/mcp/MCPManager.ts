@@ -28,35 +28,35 @@ export class MCPManager extends EventEmitter {
     }
 
     try {
-      const process = spawn(config.command, config.args, {
+      const serverProcess = spawn(config.command, config.args, {
         env: { ...process.env, ...config.env },
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 
       const instance: MCPServerInstance = {
         config,
-        process,
+        process: serverProcess,
         isRunning: true,
       };
 
-      process.on('error', (error) => {
+      serverProcess.on('error', (error: Error) => {
         console.error(`MCP server ${config.name} error:`, error);
         instance.isRunning = false;
         this.emit('server:error', { serverId: config.id, error });
       });
 
-      process.on('exit', (code) => {
+      serverProcess.on('exit', (code: number | null) => {
         console.log(`MCP server ${config.name} exited with code ${code}`);
         instance.isRunning = false;
         this.servers.delete(config.id);
         this.emit('server:exit', { serverId: config.id, code });
       });
 
-      process.stdout?.on('data', (data) => {
+      serverProcess.stdout?.on('data', (data: Buffer) => {
         console.log(`[${config.name}] ${data.toString()}`);
       });
 
-      process.stderr?.on('data', (data) => {
+      serverProcess.stderr?.on('data', (data: Buffer) => {
         console.error(`[${config.name}] ${data.toString()}`);
       });
 
@@ -131,7 +131,7 @@ export class MCPManager extends EventEmitter {
   shutdown(): void {
     console.log('Shutting down MCP Manager...');
     
-    for (const [serverId, instance] of this.servers) {
+    for (const instance of this.servers.values()) {
       if (instance.isRunning) {
         instance.process.kill();
       }

@@ -141,7 +141,7 @@ export const PersonaSelector: React.FC<Props> = ({
             {/* System Prompt Preview */}
             <div className="mt-3 pt-3 border-t border-gray-200">
               <p className="text-xs text-gray-500 line-clamp-2 italic">
-                "{persona.systemPrompt}"
+                &quot;{persona.systemPrompt}&quot;
               </p>
             </div>
           </div>

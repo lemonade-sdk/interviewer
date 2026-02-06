@@ -3,9 +3,11 @@ import { AgentPersona } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export class PersonaRepository {
-  private db = getDatabase();
+  private get store() {
+    return getDatabase().personas;
+  }
 
-  create(persona: Partial<AgentPersona>): AgentPersona {
+  async create(persona: Partial<AgentPersona>): Promise<AgentPersona> {
     const now = new Date().toISOString();
     const newPersona: AgentPersona = {
       id: uuidv4(),
@@ -21,132 +23,65 @@ export class PersonaRepository {
       updatedAt: now,
     };
 
-    const stmt = this.db.prepare(`
-      INSERT INTO agent_personas (
-        id, name, description, system_prompt, interview_style,
-        question_difficulty, tts_voice, avatar_url, is_default,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      newPersona.id,
-      newPersona.name,
-      newPersona.description,
-      newPersona.systemPrompt,
-      newPersona.interviewStyle,
-      newPersona.questionDifficulty,
-      newPersona.ttsVoice || null,
-      newPersona.avatarUrl || null,
-      newPersona.isDefault ? 1 : 0,
-      newPersona.createdAt,
-      newPersona.updatedAt
-    );
-
-    return newPersona;
+    return await this.store.create(newPersona);
   }
 
-  findById(id: string): AgentPersona | null {
-    const stmt = this.db.prepare('SELECT * FROM agent_personas WHERE id = ?');
-    const row = stmt.get(id) as any;
-    
-    if (!row) return null;
-    
-    return this.mapRowToPersona(row);
+  async findById(id: string): Promise<AgentPersona | null> {
+    return await this.store.findById(id);
   }
 
-  findAll(): AgentPersona[] {
-    const stmt = this.db.prepare('SELECT * FROM agent_personas ORDER BY is_default DESC, name ASC');
-    const rows = stmt.all() as any[];
+  async findAll(): Promise<AgentPersona[]> {
+    const personas = await this.store.findAll();
     
-    return rows.map(row => this.mapRowToPersona(row));
+    // Sort by default first, then alphabetically by name
+    return personas.sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return a.name.localeCompare(b.name);
+    });
   }
 
-  findDefault(): AgentPersona | null {
-    const stmt = this.db.prepare('SELECT * FROM agent_personas WHERE is_default = 1 LIMIT 1');
-    const row = stmt.get() as any;
-    
-    if (!row) return null;
-    
-    return this.mapRowToPersona(row);
+  async findDefault(): Promise<AgentPersona | null> {
+    const defaults = await this.store.findAll(p => p.isDefault);
+    return defaults.length > 0 ? defaults[0] : null;
   }
 
-  update(id: string, updates: Partial<AgentPersona>): AgentPersona | null {
-    const existing = this.findById(id);
+  async update(id: string, updates: Partial<AgentPersona>): Promise<AgentPersona | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
     const updatedPersona = {
       ...existing,
       ...updates,
+      id, // Ensure ID doesn't change
       updatedAt: new Date().toISOString(),
     };
 
-    const stmt = this.db.prepare(`
-      UPDATE agent_personas SET
-        name = ?,
-        description = ?,
-        system_prompt = ?,
-        interview_style = ?,
-        question_difficulty = ?,
-        tts_voice = ?,
-        avatar_url = ?,
-        is_default = ?,
-        updated_at = ?
-      WHERE id = ?
-    `);
-
-    stmt.run(
-      updatedPersona.name,
-      updatedPersona.description,
-      updatedPersona.systemPrompt,
-      updatedPersona.interviewStyle,
-      updatedPersona.questionDifficulty,
-      updatedPersona.ttsVoice || null,
-      updatedPersona.avatarUrl || null,
-      updatedPersona.isDefault ? 1 : 0,
-      updatedPersona.updatedAt,
-      id
-    );
-
-    return updatedPersona;
+    return await this.store.update(id, updatedPersona);
   }
 
-  delete(id: string): boolean {
+  async delete(id: string): Promise<boolean> {
     // Don't allow deleting default personas
-    const persona = this.findById(id);
+    const persona = await this.findById(id);
     if (persona?.isDefault) {
       throw new Error('Cannot delete default persona');
     }
 
-    const stmt = this.db.prepare('DELETE FROM agent_personas WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+    return await this.store.delete(id);
   }
 
-  setDefault(id: string): boolean {
+  async setDefault(id: string): Promise<boolean> {
     // First, unset all defaults
-    const unsetStmt = this.db.prepare('UPDATE agent_personas SET is_default = 0');
-    unsetStmt.run();
+    const allPersonas = await this.findAll();
+    
+    for (const persona of allPersonas) {
+      if (persona.isDefault) {
+        await this.update(persona.id, { isDefault: false });
+      }
+    }
 
     // Then set the new default
-    const setStmt = this.db.prepare('UPDATE agent_personas SET is_default = 1 WHERE id = ?');
-    const result = setStmt.run(id);
-    return result.changes > 0;
-  }
-
-  private mapRowToPersona(row: any): AgentPersona {
-    return {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      systemPrompt: row.system_prompt,
-      interviewStyle: row.interview_style,
-      questionDifficulty: row.question_difficulty,
-      ttsVoice: row.tts_voice,
-      avatarUrl: row.avatar_url,
-      isDefault: row.is_default === 1,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
+    const result = await this.update(id, { isDefault: true });
+    return result !== null;
   }
 }

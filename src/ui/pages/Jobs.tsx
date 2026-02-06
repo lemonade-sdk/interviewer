@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Edit } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Job, JobStatus } from '../../types';
 import { format } from 'date-fns';

@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Trash2, Eye } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Interview } from '../../types';
 import { format } from 'date-fns';
 
 const InterviewHistory: React.FC = () => {
-  const navigate = useNavigate();
   const { interviews, loadInterviews } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');

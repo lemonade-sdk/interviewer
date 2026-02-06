@@ -1,13 +1,16 @@
 import { InterviewerSettings, Message, InterviewFeedback, ModelConfig, Interview } from '../types';
 import { LemonadeClient } from './LemonadeClient';
+import { InterviewRepository } from '../database/repositories/InterviewRepository';
 
 export class InterviewService {
   private lemonadeClient: LemonadeClient;
   private activeInterviews: Map<string, InterviewSession> = new Map();
   private settings: InterviewerSettings;
+  private interviewRepo: InterviewRepository;
 
-  constructor(settings: InterviewerSettings) {
+  constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository) {
     this.settings = settings;
+    this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
   }
 
@@ -29,9 +32,9 @@ export class InterviewService {
     this.activeInterviews.set(interviewId, session);
 
     // Send initial greeting
+    // Note: session.messages already has the system prompt
     const greeting = await this.lemonadeClient.sendMessage(
-      session.messages,
-      `Please greet the candidate and ask the first question for this ${config.interviewType} interview for the ${config.position} position at ${config.company}.`
+      session.messages
     );
 
     session.messages.push({
@@ -59,8 +62,7 @@ export class InterviewService {
 
     // Get AI response
     const response = await this.lemonadeClient.sendMessage(
-      session.messages,
-      userMessage
+      session.messages
     );
 
     // Add assistant message
@@ -101,8 +103,15 @@ Format your response as JSON with the following structure:
 }`;
 
     const feedbackResponse = await this.lemonadeClient.sendMessage(
-      session.messages,
-      feedbackPrompt
+      [
+        ...session.messages,
+        {
+          id: Date.now().toString(),
+          role: 'user',
+          content: feedbackPrompt,
+          timestamp: new Date().toISOString()
+        }
+      ]
     );
 
     // Parse feedback
@@ -134,19 +143,19 @@ Format your response as JSON with the following structure:
     return await this.lemonadeClient.testConnection(modelId);
   }
 
-  async loadModel(modelId: string): Promise<boolean> {
+  async loadModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     return await this.lemonadeClient.loadModel(modelId);
   }
 
-  async unloadModel(modelId: string): Promise<boolean> {
+  async unloadModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     return await this.lemonadeClient.unloadModel(modelId);
   }
 
-  async pullModel(modelId: string): Promise<boolean> {
+  async pullModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     return await this.lemonadeClient.pullModel(modelId);
   }
 
-  async deleteModel(modelId: string): Promise<boolean> {
+  async deleteModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     return await this.lemonadeClient.deleteModel(modelId);
   }
 
@@ -156,6 +165,32 @@ Format your response as JSON with the following structure:
 
   async checkServerHealth(): Promise<boolean> {
     return await this.lemonadeClient.checkServerHealth();
+  }
+
+  async getSystemInfo(): Promise<any> {
+    return await this.lemonadeClient.fetchSystemInfo();
+  }
+
+  async getServerHealth(): Promise<any> {
+    return await this.lemonadeClient.fetchServerHealth();
+  }
+
+  async resumeInterview(interviewId: string): Promise<void> {
+    // Load interview from database
+    const interview = await this.interviewRepo.findById(interviewId);
+    if (!interview) {
+      throw new Error(`Interview ${interviewId} not found`);
+    }
+
+    // Restore session state
+    if (interview.transcript && interview.transcript.length > 0) {
+      this.activeInterviews.set(interviewId, {
+        interviewId,
+        messages: interview.transcript,
+        questionCount: interview.transcript.filter(m => m.role === 'assistant').length,
+      });
+      console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages`);
+    }
   }
 
   private buildSystemPrompt(config: Partial<Interview>): string {

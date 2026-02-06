@@ -3,9 +3,11 @@ import { Interview } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export class InterviewRepository {
-  private db = getDatabase();
+  private get store() {
+    return getDatabase().interviews;
+  }
 
-  create(interview: Partial<Interview>): Interview {
+  async create(interview: Partial<Interview>): Promise<Interview> {
     const now = new Date().toISOString();
     const newInterview: Interview = {
       id: uuidv4(),
@@ -21,112 +23,60 @@ export class InterviewRepository {
       jobId: interview.jobId,
     };
 
-    const stmt = this.db.prepare(`
-      INSERT INTO interviews (
-        id, job_id, title, company, position, interview_type,
-        status, started_at, transcript, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      newInterview.id,
-      newInterview.jobId || null,
-      newInterview.title,
-      newInterview.company,
-      newInterview.position,
-      newInterview.interviewType,
-      newInterview.status,
-      newInterview.startedAt,
-      JSON.stringify(newInterview.transcript),
-      newInterview.createdAt,
-      newInterview.updatedAt
-    );
-
-    return newInterview;
+    return await this.store.create(newInterview);
   }
 
-  findById(id: string): Interview | null {
-    const stmt = this.db.prepare('SELECT * FROM interviews WHERE id = ?');
-    const row = stmt.get(id) as any;
-    
-    if (!row) return null;
-    
-    return this.mapRowToInterview(row);
+  async findById(id: string): Promise<Interview | null> {
+    return await this.store.findById(id);
   }
 
-  findAll(): Interview[] {
-    const stmt = this.db.prepare('SELECT * FROM interviews ORDER BY created_at DESC');
-    const rows = stmt.all() as any[];
+  async findAll(): Promise<Interview[]> {
+    const interviews = await this.store.findAll();
     
-    return rows.map(row => this.mapRowToInterview(row));
+    // Sort by created_at descending (most recent first)
+    return interviews.sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }
 
-  update(id: string, updates: Partial<Interview>): Interview | null {
-    const existing = this.findById(id);
+  async update(id: string, updates: Partial<Interview>): Promise<Interview | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
     const updatedInterview = {
       ...existing,
       ...updates,
+      id, // Ensure ID doesn't change
       updatedAt: new Date().toISOString(),
     };
 
-    const stmt = this.db.prepare(`
-      UPDATE interviews SET
-        job_id = ?,
-        title = ?,
-        company = ?,
-        position = ?,
-        interview_type = ?,
-        status = ?,
-        ended_at = ?,
-        duration = ?,
-        transcript = ?,
-        feedback = ?,
-        updated_at = ?
-      WHERE id = ?
-    `);
+    return await this.store.update(id, updatedInterview);
+  }
 
-    stmt.run(
-      updatedInterview.jobId || null,
-      updatedInterview.title,
-      updatedInterview.company,
-      updatedInterview.position,
-      updatedInterview.interviewType,
-      updatedInterview.status,
-      updatedInterview.endedAt || null,
-      updatedInterview.duration || null,
-      JSON.stringify(updatedInterview.transcript),
-      updatedInterview.feedback ? JSON.stringify(updatedInterview.feedback) : null,
-      updatedInterview.updatedAt,
-      id
+  async delete(id: string): Promise<boolean> {
+    return await this.store.delete(id);
+  }
+
+  async updateTranscript(id: string, transcript: any[]): Promise<void> {
+    await this.update(id, {
+      transcript,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  // Additional query methods for convenience
+  
+  async findByStatus(status: string): Promise<Interview[]> {
+    return await this.store.findAll(i => i.status === status);
+  }
+
+  async findByCompany(company: string): Promise<Interview[]> {
+    return await this.store.findAll(i => 
+      i.company.toLowerCase().includes(company.toLowerCase())
     );
-
-    return updatedInterview;
   }
 
-  delete(id: string): boolean {
-    const stmt = this.db.prepare('DELETE FROM interviews WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  }
-
-  private mapRowToInterview(row: any): Interview {
-    return {
-      id: row.id,
-      jobId: row.job_id,
-      title: row.title,
-      company: row.company,
-      position: row.position,
-      interviewType: row.interview_type,
-      status: row.status,
-      startedAt: row.started_at,
-      endedAt: row.ended_at,
-      duration: row.duration,
-      transcript: JSON.parse(row.transcript),
-      feedback: row.feedback ? JSON.parse(row.feedback) : undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
+  async findByJobId(jobId: string): Promise<Interview[]> {
+    return await this.store.findAll(i => i.jobId === jobId);
   }
 }

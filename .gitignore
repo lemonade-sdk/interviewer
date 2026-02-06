@@ -1,12 +1,13 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json
 yarn.lock
 
 # Build outputs
 dist/
 build/
 out/
+release/
 
 # Database
 *.db
@@ -28,6 +29,7 @@ yarn-error.log*
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -47,3 +49,19 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Development certificates
+certs/
+
+# Internal tooling (not part of application)
+Nova-Agent/
+
+# Python virtual environments
+venv/
+env/
+.conda/
+*.pyc
+__pycache__/
+
+# Conda environment logs
+conda_create_*.txt

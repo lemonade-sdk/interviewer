@@ -3,7 +3,7 @@ import { AudioService } from './audio/AudioService';
 import { ASRService } from './audio/ASRService';
 import { TTSService } from './audio/TTSService';
 import { VADService } from './audio/VADService';
-import { AudioSettings, Message } from '../types';
+import { AudioSettings } from '../types';
 
 /**
  * VoiceInterviewManager - Orchestrates all voice-related services
@@ -33,7 +33,7 @@ export class VoiceInterviewManager extends EventEmitter {
   constructor(
     audioSettings: AudioSettings,
     asrBaseURL?: string,
-    asrModel?: string
+    asrModel?: "Whisper-Tiny" | "Whisper-Base" | "Whisper-Small"
   ) {
     super();
     
@@ -56,7 +56,7 @@ export class VoiceInterviewManager extends EventEmitter {
     try {
       // Initialize TTS voices
       await this.ttsService.getVoices();
-      await this.ttsService.setVoice(undefined, 'en'); // Default to English
+      await this.ttsService.setVoice('alloy'); // Default to Alloy
       
       this.isInitialized = true;
       console.log('VoiceInterviewManager initialized');

@@ -11,7 +11,7 @@ import axios from 'axios';
  */
 export class LemonadeClient {
   private settings: InterviewerSettings;
-  private client: OpenAI;
+  private client!: OpenAI;
   private baseURL: string = 'http://localhost:8000/api/v1';
   private apiKey: string = 'lemonade'; // Required but unused by Lemonade Server
   private isConnected: boolean = false;

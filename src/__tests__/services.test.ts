@@ -11,7 +11,7 @@ describe('Service Layer', () => {
 
   test('should handle API calls', async () => {
     // Mock API call
-    const mockApiCall = jest.fn().mockResolvedValue({ success: true });
+    const mockApiCall = jest.fn<() => Promise<{ success: boolean }>>().mockResolvedValue({ success: true });
     const result = await mockApiCall();
     
     expect(result.success).toBe(true);
@@ -19,7 +19,7 @@ describe('Service Layer', () => {
   });
 
   test('should handle service errors', async () => {
-    const mockFailingCall = jest.fn().mockRejectedValue(new Error('API Error'));
+    const mockFailingCall = jest.fn<() => Promise<never>>().mockRejectedValue(new Error('API Error'));
     
     await expect(mockFailingCall()).rejects.toThrow('API Error');
   });

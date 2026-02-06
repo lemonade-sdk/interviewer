@@ -51,6 +51,24 @@ export class TTSService {
   }
 
   /**
+   * Set pitch (0.5 - 2.0)
+   */
+  setPitch(pitch: number): void {
+    // Kokoro doesn't support pitch adjustment natively yet, 
+    // but we can store it for future use or client-side processing
+    console.log('Pitch adjustment not supported by backend yet');
+  }
+
+  /**
+   * Set volume (0.0 - 1.0)
+   */
+  setVolume(volume: number): void {
+    if (this.currentAudio) {
+      this.currentAudio.volume = Math.max(0, Math.min(1, volume));
+    }
+  }
+
+  /**
    * Speak text using Lemonade Server TTS
    * Per spec: POST /api/v1/audio/speech
    */
@@ -145,8 +163,8 @@ export class TTSService {
       // Handle streaming response
       // This is a placeholder - full implementation would require PCM audio handling
       response.data.on('data', (chunk: Buffer) => {
-        if (onChunk) {
-          onChunk(chunk.buffer);
+          if (onChunk) {
+          onChunk(chunk.buffer as ArrayBuffer);
         }
       });
 

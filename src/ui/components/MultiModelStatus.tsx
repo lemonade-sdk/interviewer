@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ServerHealth, LoadedModel } from '../../types';
 
-declare global {
-  interface Window {
-    electronAPI: {
-      getServerHealth: () => Promise<ServerHealth | null>;
-    };
-  }
-}
-
 export const MultiModelStatus: React.FC = () => {
   const [health, setHealth] = useState<ServerHealth | null>(null);
   const [loading, setLoading] = useState(true);

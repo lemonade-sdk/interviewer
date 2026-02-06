@@ -131,7 +131,7 @@ export class MCPManager extends EventEmitter {
   shutdown(): void {
     console.log('Shutting down MCP Manager...');
     
-    for (const [serverId, instance] of this.servers) {
+    for (const instance of this.servers.values()) {
       if (instance.isRunning) {
         instance.process.kill();
       }

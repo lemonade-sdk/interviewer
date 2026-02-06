@@ -53,7 +53,7 @@ function createWindow(): void {
           // Simple check if the port responds
           const http = await import('http');
           await new Promise<void>((resolve, reject) => {
-            const req = http.get(devURL, (res) => {
+            const req = http.get(devURL, (_res) => {
               console.log(`✓ Vite dev server found on port ${port}`);
               mainWindow?.loadURL(devURL);
               mainWindow?.webContents.openDevTools();
@@ -150,7 +150,7 @@ app.on('before-quit', () => {
 });
 
 // IPC Handlers - Interview Operations
-ipcMain.handle('interview:start', async (event: IpcMainInvokeEvent, config: any) => {
+ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any) => {
   try {
     const interview = await interviewRepo.create(config);
     await interviewService.startInterview(interview.id, config);
@@ -161,7 +161,7 @@ ipcMain.handle('interview:start', async (event: IpcMainInvokeEvent, config: any)
   }
 });
 
-ipcMain.handle('interview:end', async (event: IpcMainInvokeEvent, interviewId: string) => {
+ipcMain.handle('interview:end', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     const feedback = await interviewService.endInterview(interviewId);
     const interview = await interviewRepo.findById(interviewId);
@@ -187,7 +187,7 @@ ipcMain.handle('interview:end', async (event: IpcMainInvokeEvent, interviewId: s
   }
 });
 
-ipcMain.handle('interview:sendMessage', async (event: IpcMainInvokeEvent, interviewId: string, message: string) => {
+ipcMain.handle('interview:sendMessage', async (_event: IpcMainInvokeEvent, interviewId: string, message: string) => {
   try {
     const response = await interviewService.sendMessage(interviewId, message);
     
@@ -231,7 +231,7 @@ ipcMain.handle('interview:sendMessage', async (event: IpcMainInvokeEvent, interv
   }
 });
 
-ipcMain.handle('interview:get', async (event: IpcMainInvokeEvent, interviewId: string) => {
+ipcMain.handle('interview:get', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     return await interviewRepo.findById(interviewId);
   } catch (error) {
@@ -249,7 +249,7 @@ ipcMain.handle('interview:getAll', async () => {
   }
 });
 
-ipcMain.handle('interview:delete', async (event: IpcMainInvokeEvent, interviewId: string) => {
+ipcMain.handle('interview:delete', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     return await interviewRepo.delete(interviewId);
   } catch (error) {
@@ -258,7 +258,7 @@ ipcMain.handle('interview:delete', async (event: IpcMainInvokeEvent, interviewId
   }
 });
 
-ipcMain.handle('interview:updateTranscript', async (event: IpcMainInvokeEvent, interviewId: string, transcript: any[]) => {
+ipcMain.handle('interview:updateTranscript', async (_event: IpcMainInvokeEvent, interviewId: string, transcript: any[]) => {
   try {
     return await interviewRepo.updateTranscript(interviewId, transcript);
   } catch (error) {
@@ -268,7 +268,7 @@ ipcMain.handle('interview:updateTranscript', async (event: IpcMainInvokeEvent, i
 });
 
 // IPC Handlers - Job Operations
-ipcMain.handle('job:create', async (event: IpcMainInvokeEvent, jobData: any) => {
+ipcMain.handle('job:create', async (_event: IpcMainInvokeEvent, jobData: any) => {
   try {
     return await jobRepo.create(jobData);
   } catch (error) {
@@ -277,7 +277,7 @@ ipcMain.handle('job:create', async (event: IpcMainInvokeEvent, jobData: any) => 
   }
 });
 
-ipcMain.handle('job:update', async (event: IpcMainInvokeEvent, jobId: string, updates: any) => {
+ipcMain.handle('job:update', async (_event: IpcMainInvokeEvent, jobId: string, updates: any) => {
   try {
     return await jobRepo.update(jobId, updates);
   } catch (error) {
@@ -286,7 +286,7 @@ ipcMain.handle('job:update', async (event: IpcMainInvokeEvent, jobId: string, up
   }
 });
 
-ipcMain.handle('job:get', async (event: IpcMainInvokeEvent, jobId: string) => {
+ipcMain.handle('job:get', async (_event: IpcMainInvokeEvent, jobId: string) => {
   try {
     return await jobRepo.findById(jobId);
   } catch (error) {
@@ -304,7 +304,7 @@ ipcMain.handle('job:getAll', async () => {
   }
 });
 
-ipcMain.handle('job:delete', async (event: IpcMainInvokeEvent, jobId: string) => {
+ipcMain.handle('job:delete', async (_event: IpcMainInvokeEvent, jobId: string) => {
   try {
     return await jobRepo.delete(jobId);
   } catch (error) {
@@ -323,7 +323,7 @@ ipcMain.handle('settings:get', async () => {
   }
 });
 
-ipcMain.handle('settings:update', async (event: IpcMainInvokeEvent, updates: any) => {
+ipcMain.handle('settings:update', async (_event: IpcMainInvokeEvent, updates: any) => {
   try {
     return await settingsRepo.updateUserSettings(updates);
   } catch (error) {
@@ -341,7 +341,7 @@ ipcMain.handle('settings:getInterviewer', async () => {
   }
 });
 
-ipcMain.handle('settings:updateInterviewer', async (event: IpcMainInvokeEvent, updates: any) => {
+ipcMain.handle('settings:updateInterviewer', async (_event: IpcMainInvokeEvent, updates: any) => {
   try {
     const updated = await settingsRepo.updateInterviewerSettings(updates);
     // Reinitialize interview service with new settings
@@ -363,7 +363,7 @@ ipcMain.handle('model:getAvailable', async () => {
   }
 });
 
-ipcMain.handle('model:testConnection', async (event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:testConnection', async (_event: IpcMainInvokeEvent, modelId: string) => {
   try {
     return await interviewService.testModelConnection(modelId);
   } catch (error) {
@@ -372,7 +372,7 @@ ipcMain.handle('model:testConnection', async (event: IpcMainInvokeEvent, modelId
   }
 });
 
-ipcMain.handle('model:load', async (event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:load', async (_event: IpcMainInvokeEvent, modelId: string) => {
   try {
     return await interviewService.loadModel(modelId);
   } catch (error) {
@@ -381,7 +381,7 @@ ipcMain.handle('model:load', async (event: IpcMainInvokeEvent, modelId: string) 
   }
 });
 
-ipcMain.handle('model:unload', async (event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:unload', async (_event: IpcMainInvokeEvent, modelId: string) => {
   try {
     return await interviewService.unloadModel(modelId);
   } catch (error) {
@@ -390,7 +390,7 @@ ipcMain.handle('model:unload', async (event: IpcMainInvokeEvent, modelId: string
   }
 });
 
-ipcMain.handle('model:pull', async (event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:pull', async (_event: IpcMainInvokeEvent, modelId: string) => {
   try {
     return await interviewService.pullModel(modelId);
   } catch (error) {
@@ -399,7 +399,7 @@ ipcMain.handle('model:pull', async (event: IpcMainInvokeEvent, modelId: string) 
   }
 });
 
-ipcMain.handle('model:delete', async (event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:delete', async (_event: IpcMainInvokeEvent, modelId: string) => {
   try {
     return await interviewService.deleteModel(modelId);
   } catch (error) {
@@ -463,7 +463,7 @@ ipcMain.handle('server:getHealth', async () => {
 // IPC Handlers - Agent Personas
 // ===========================================
 
-ipcMain.handle('persona:create', async (event: IpcMainInvokeEvent, personaData: any) => {
+ipcMain.handle('persona:create', async (_event: IpcMainInvokeEvent, personaData: any) => {
   try {
     return await personaRepo.create(personaData);
   } catch (error) {
@@ -481,7 +481,7 @@ ipcMain.handle('persona:getAll', async () => {
   }
 });
 
-ipcMain.handle('persona:getById', async (event: IpcMainInvokeEvent, personaId: string) => {
+ipcMain.handle('persona:getById', async (_event: IpcMainInvokeEvent, personaId: string) => {
   try {
     return await personaRepo.findById(personaId);
   } catch (error) {
@@ -490,7 +490,7 @@ ipcMain.handle('persona:getById', async (event: IpcMainInvokeEvent, personaId: s
   }
 });
 
-ipcMain.handle('persona:update', async (event: IpcMainInvokeEvent, personaId: string, updates: any) => {
+ipcMain.handle('persona:update', async (_event: IpcMainInvokeEvent, personaId: string, updates: any) => {
   try {
     return await personaRepo.update(personaId, updates);
   } catch (error) {
@@ -499,7 +499,7 @@ ipcMain.handle('persona:update', async (event: IpcMainInvokeEvent, personaId: st
   }
 });
 
-ipcMain.handle('persona:delete', async (event: IpcMainInvokeEvent, personaId: string) => {
+ipcMain.handle('persona:delete', async (_event: IpcMainInvokeEvent, personaId: string) => {
   try {
     return await personaRepo.delete(personaId);
   } catch (error) {
@@ -508,7 +508,7 @@ ipcMain.handle('persona:delete', async (event: IpcMainInvokeEvent, personaId: st
   }
 });
 
-ipcMain.handle('persona:setDefault', async (event: IpcMainInvokeEvent, personaId: string) => {
+ipcMain.handle('persona:setDefault', async (_event: IpcMainInvokeEvent, personaId: string) => {
   try {
     return await personaRepo.setDefault(personaId);
   } catch (error) {
@@ -530,7 +530,7 @@ ipcMain.handle('persona:getDefault', async () => {
 // IPC Handlers - Audio Services
 // ===========================================
 
-ipcMain.handle('audio:saveRecording', async (event: IpcMainInvokeEvent, audioData: any) => {
+ipcMain.handle('audio:saveRecording', async (_event: IpcMainInvokeEvent, audioData: any) => {
   try {
     const { interviewId, messageId, audioBlob } = audioData;
     const filename = `${interviewId}_${messageId}_${Date.now()}.webm`;
@@ -551,7 +551,7 @@ ipcMain.handle('audio:getRecordingsPath', async () => {
   return audioRecordingsPath;
 });
 
-ipcMain.handle('audio:deleteRecording', async (event: IpcMainInvokeEvent, filepath: string) => {
+ipcMain.handle('audio:deleteRecording', async (_event: IpcMainInvokeEvent, filepath: string) => {
   try {
     if (fs.existsSync(filepath)) {
       fs.unlinkSync(filepath);
@@ -574,7 +574,7 @@ ipcMain.handle('mcp:getServers', async () => {
   }
 });
 
-ipcMain.handle('mcp:updateServers', async (event: IpcMainInvokeEvent, servers: any[]) => {
+ipcMain.handle('mcp:updateServers', async (_event: IpcMainInvokeEvent, servers: any[]) => {
   try {
     await mcpManager?.updateServers(servers);
   } catch (error) {

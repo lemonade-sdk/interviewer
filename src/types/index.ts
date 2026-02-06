@@ -121,6 +121,7 @@ export interface AudioSettings {
   echoCancellation: boolean;
   noiseSuppression: boolean;
   autoGainControl: boolean;
+  recordingQuality?: 'low' | 'medium' | 'high';
 }
 
 export interface MCPConfig {

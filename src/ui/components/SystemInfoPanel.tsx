@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SystemInfo } from '../../types';
 
-declare global {
-  interface Window {
-    electronAPI: {
-      getSystemInfo: () => Promise<SystemInfo | null>;
-    };
-  }
-}
-
 export const SystemInfoPanel: React.FC = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [loading, setLoading] = useState(true);

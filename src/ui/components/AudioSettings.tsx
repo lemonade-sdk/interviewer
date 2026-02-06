@@ -38,16 +38,16 @@ export const AudioSettings: React.FC<Props> = ({
       const inputs = devices
         .filter(device => device.kind === 'audioinput')
         .map(device => ({
-          id: device.deviceId,
-          name: device.label || `Microphone ${device.deviceId.slice(0, 5)}`,
+          deviceId: device.deviceId,
+          label: device.label || `Microphone ${device.deviceId.slice(0, 5)}`,
           kind: 'audioinput' as const,
         }));
 
       const outputs = devices
         .filter(device => device.kind === 'audiooutput')
         .map(device => ({
-          id: device.deviceId,
-          name: device.label || `Speaker ${device.deviceId.slice(0, 5)}`,
+          deviceId: device.deviceId,
+          label: device.label || `Speaker ${device.deviceId.slice(0, 5)}`,
           kind: 'audiooutput' as const,
         }));
 
@@ -56,10 +56,10 @@ export const AudioSettings: React.FC<Props> = ({
 
       // Set defaults if available
       if (inputs.length > 0 && selectedInputId === 'default') {
-        setSelectedInputId(inputs[0].id);
+        setSelectedInputId(inputs[0].deviceId);
       }
       if (outputs.length > 0 && selectedOutputId === 'default') {
-        setSelectedOutputId(outputs[0].id);
+        setSelectedOutputId(outputs[0].deviceId);
       }
     } catch (err) {
       console.error('Failed to load audio devices:', err);
@@ -139,8 +139,8 @@ export const AudioSettings: React.FC<Props> = ({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
         >
           {inputDevices.map((device) => (
-            <option key={device.id} value={device.id}>
-              {device.name}
+            <option key={device.deviceId} value={device.deviceId}>
+              {device.label}
             </option>
           ))}
         </select>
@@ -174,8 +174,8 @@ export const AudioSettings: React.FC<Props> = ({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
         >
           {outputDevices.map((device) => (
-            <option key={device.id} value={device.id}>
-              {device.name}
+            <option key={device.deviceId} value={device.deviceId}>
+              {device.label}
             </option>
           ))}
         </select>

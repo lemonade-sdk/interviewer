@@ -259,7 +259,7 @@ export class AudioService extends EventEmitter {
    * Get audio bitrate based on quality setting
    */
   private getAudioBitrate(): number {
-    const bitrates = {
+    const bitrates: Record<string, number> = {
       low: 32000,    // 32 kbps
       medium: 64000, // 64 kbps
       high: 128000,  // 128 kbps

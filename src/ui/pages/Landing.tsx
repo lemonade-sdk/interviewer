@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, AlertCircle, Loader2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
+import { InterviewType } from '../../types';
+
 const BUTTON_CLASS =
   'w-52 h-14 rounded-full font-semibold text-base tracking-wide transition-all duration-500 flex items-center justify-center';
 
+// Mock API removed - using real Lemonade API integration
 const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { loadSettings } = useStore();
@@ -18,6 +21,8 @@ const Landing: React.FC = () => {
   const [missingModels, setMissingModels] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   // Required Models
   const REQUIRED_MODELS = [
@@ -30,14 +35,23 @@ const Landing: React.FC = () => {
   }, []);
 
   const performBackgroundChecks = async () => {
+    // In browser mode, we might not have electronAPI. 
+    // We should handle this gracefully or assume Lemonade Server is direct access if configured.
+    if (!window.electronAPI) {
+      console.warn('Electron API not found - running in browser mode');
+      // We can't do full system checks without Electron, but we can try to hit the local server directly if needed.
+      // For now, we'll just stop the checking spinner and let the user try to proceed (which might fail later if they need Electron features).
+      setIsChecking(false);
+      return;
+    }
+
     setIsChecking(true);
     try {
       // 1. Check Server
       const serverStatus = await window.electronAPI.getServerStatus();
       if (!serverStatus.isRunning) {
         console.warn('Lemonade Server not running');
-        // We might choose to let them proceed but warn, or block. 
-        // For now, let's assume we proceed but maybe disable AI features later.
+        setStartError('Lemonade Server is not running. Please start it to enable AI features.');
       }
 
       // 2. Check Models
@@ -55,8 +69,9 @@ const Landing: React.FC = () => {
       // 3. Init API
       await loadSettings();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Background check failed:', error);
+      setStartError(`Connection failed: ${error.message || 'Unknown error'}`);
     } finally {
       setIsChecking(false);
     }
@@ -108,9 +123,36 @@ const Landing: React.FC = () => {
     }
   };
 
-  const handleSelection = (type: 'single' | 'multi') => {
-    console.log(`Selected: ${type}`);
-    // navigate(`/setup?type=${type}`);
+  const handleSelection = async (type: 'single' | 'multi') => {
+    if (isStarting) return;
+    setIsStarting(true);
+    setStartError(null);
+    
+    try {
+      if (!window.electronAPI) {
+        // If in browser, we can't start the full electron interview process.
+        // We should warn the user or redirect them if there's a web-only flow.
+        throw new Error('Electron API not available. Please run the desktop application.');
+      }
+
+      // Create a default interview configuration based on selection
+      const interviewConfig = {
+        title: type === 'single' ? 'One Stage Interview' : 'Multi-Stage Interview',
+        company: 'Nova Agent',
+        position: 'Candidate',
+        interviewType: (type === 'single' ? 'general' : 'behavioral') as InterviewType,
+      };
+
+      const interview = await window.electronAPI.startInterview(interviewConfig);
+      if (!interview) {
+        throw new Error('Failed to create interview session.');
+      }
+      navigate(`/interview/${interview.id}`);
+    } catch (error: any) {
+      console.error('Failed to start interview:', error);
+      setStartError(error.message || 'An unexpected error occurred.');
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -132,7 +174,7 @@ const Landing: React.FC = () => {
           className="w-20 h-20 mb-4 drop-shadow-lg"
         />
         <h1 className="text-3xl font-bold tracking-widest text-black">
-          NOVA AGENT
+          interviewer
         </h1>
 
         {/* Subtitle - selection step */}
@@ -192,6 +234,22 @@ const Landing: React.FC = () => {
           </button>
         </div>
 
+        {/* Error Message */}
+        {startError && (
+          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3 text-red-700 text-sm max-w-lg animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={18} className="flex-shrink-0" />
+              <p>{startError}</p>
+            </div>
+            <button 
+              onClick={performBackgroundChecks}
+              className="text-xs font-bold uppercase tracking-wider hover:underline text-left ml-7"
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
+
         {/* Selection Row: one stage / multi stage */}
         <div
           className={`flex items-center gap-6 mt-6 transition-all duration-700 delay-200 ${
@@ -202,16 +260,18 @@ const Landing: React.FC = () => {
         >
           <button
             onClick={() => handleSelection('single')}
-            className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
+            disabled={isStarting}
+            className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            one stage interview
+            {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'one stage interview'}
           </button>
 
           <button
             onClick={() => handleSelection('multi')}
-            className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
+            disabled={isStarting}
+            className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            multi stage interview
+            {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'multi stage interview'}
           </button>
         </div>
       </div>

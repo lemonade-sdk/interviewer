@@ -185,6 +185,9 @@ const Interview: React.FC = () => {
     if (!id) return;
     try {
       const interview = await window.electronAPI.getInterview(id);
+      if (!interview) {
+        throw new Error('Interview session not found in database.');
+      }
       setCurrentInterview(interview);
       
       // Restore messages from database (handles page refresh)
@@ -192,8 +195,10 @@ const Interview: React.FC = () => {
         setMessages(interview.transcript);
         console.log(`Restored ${interview.transcript.length} messages from database`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load interview:', error);
+      alert(`Error loading interview: ${error.message}`);
+      navigate('/dashboard');
     }
   };
 
@@ -344,7 +349,7 @@ const Interview: React.FC = () => {
           </h2>
           <div className="flex items-center gap-3 text-primary-600 mt-8">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
-            <span className="font-medium">Initializing environment...</span>
+            <span className="font-medium">Starting Interview Process...</span>
           </div>
         </div>
       </div>

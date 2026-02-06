@@ -1,6 +1,7 @@
 """
 Unit tests for Pydantic models
 """
+
 import pytest
 from lemonade_api.models import Message, ChatCompletionRequest
 
@@ -37,10 +38,7 @@ class TestChatCompletionRequest:
     def test_chat_request_creation(self):
         """Test creating a valid chat completion request"""
         messages = [Message(role="user", content="Hello")]
-        request = ChatCompletionRequest(
-            model="test-model",
-            messages=messages
-        )
+        request = ChatCompletionRequest(model="test-model", messages=messages)
         assert request.model == "test-model"
         assert len(request.messages) == 1
 
@@ -48,10 +46,7 @@ class TestChatCompletionRequest:
         """Test chat request with optional parameters"""
         messages = [Message(role="user", content="Hello")]
         request = ChatCompletionRequest(
-            model="test-model",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=100
+            model="test-model", messages=messages, temperature=0.7, max_tokens=100
         )
         assert request.temperature == 0.7
         assert request.max_tokens == 100
@@ -61,19 +56,14 @@ class TestChatCompletionRequest:
         """Test various temperature values"""
         messages = [Message(role="user", content="Hello")]
         request = ChatCompletionRequest(
-            model="test-model",
-            messages=messages,
-            temperature=temperature
+            model="test-model", messages=messages, temperature=temperature
         )
         assert request.temperature == temperature
 
     def test_request_serialization(self):
         """Test serializing request to JSON"""
         messages = [Message(role="user", content="Hello")]
-        request = ChatCompletionRequest(
-            model="test-model",
-            messages=messages
-        )
+        request = ChatCompletionRequest(model="test-model", messages=messages)
         request_dict = request.model_dump()
         assert isinstance(request_dict, dict)
         assert "model" in request_dict

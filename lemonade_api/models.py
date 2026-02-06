@@ -1,9 +1,11 @@
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 
+
 class Message(BaseModel):
     role: Literal["system", "user", "assistant"]
     content: str
+
 
 class ChatCompletionRequest(BaseModel):
     model: str

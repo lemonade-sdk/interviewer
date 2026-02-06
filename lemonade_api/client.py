@@ -3,9 +3,10 @@ import httpx
 from .models import ChatCompletionRequest
 from .exceptions import LemonadeAPIError
 
+
 class LemonadeClient:
     def __init__(self, base_url: str = "http://localhost:8000", api_key: Optional[str] = None):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self._client = httpx.Client(base_url=self.base_url)
         if api_key:

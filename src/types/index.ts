@@ -138,6 +138,17 @@ export interface MCPServer {
   enabled: boolean;
 }
 
+export interface UploadedDocument {
+  id: string;
+  type: 'resume' | 'job_post';
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  extractedText: string;
+  uploadedAt: string;
+}
+
 export interface LemonadeConfig {
   serverURL: string;
   models: ModelConfig[];
@@ -307,6 +318,12 @@ export interface IPC {
   saveAudioRecording: (audioData: { interviewId: string; messageId: string; audioBlob: string }) => Promise<{ success: boolean; filepath: string }>;
   getAudioRecordingsPath: () => Promise<string>;
   deleteAudioRecording: (filepath: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Document operations
+  uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => Promise<UploadedDocument>;
+  getDocuments: (type?: 'resume' | 'job_post') => Promise<UploadedDocument[]>;
+  getDocument: (id: string) => Promise<UploadedDocument | null>;
+  deleteDocument: (id: string) => Promise<boolean>;
 
   // MCP operations
   getMCPServers: () => Promise<MCPServer[]>;

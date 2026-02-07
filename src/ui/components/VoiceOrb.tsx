@@ -4,9 +4,10 @@ interface VoiceOrbProps {
   isListening: boolean;
   isSpeaking: boolean;
   audioLevel: number;
+  isVADActive?: boolean;
 }
 
-export const VoiceOrb: React.FC<VoiceOrbProps> = ({ isListening, isSpeaking, audioLevel }) => {
+export const VoiceOrb: React.FC<VoiceOrbProps> = ({ isListening, isSpeaking, audioLevel, isVADActive = false }) => {
   // Calculate scale based on audio level for dynamic effect
   const scale = 1 + Math.min(audioLevel, 1) * 0.5;
   
@@ -19,6 +20,11 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({ isListening, isSpeaking, aud
             isSpeaking ? 'bg-yellow-400' : 'bg-red-400'
           }`}
         />
+      )}
+
+      {/* VAD Active Indicator — green ring when speech is detected */}
+      {isListening && isVADActive && (
+        <div className="absolute inset-2 rounded-full border-4 border-green-400 opacity-70 animate-pulse z-20" />
       )}
       
       {/* Main Orb */}
@@ -41,9 +47,9 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({ isListening, isSpeaking, aud
       {/* Status Text */}
       <div className="absolute -bottom-12 text-center">
         <p className={`text-lg font-medium transition-colors ${
-          isSpeaking ? 'text-yellow-600' : isListening ? 'text-red-600' : 'text-gray-500'
+          isSpeaking ? 'text-yellow-600' : isListening && isVADActive ? 'text-green-600' : isListening ? 'text-red-600' : 'text-gray-500'
         }`}>
-          {isSpeaking ? 'Speaking...' : isListening ? 'Listening...' : 'Idle'}
+          {isSpeaking ? 'Speaking...' : isListening && isVADActive ? 'Speech detected' : isListening ? 'Listening...' : 'Idle'}
         </p>
       </div>
     </div>

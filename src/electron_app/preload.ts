@@ -41,6 +41,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServerHealth: () => ipcRenderer.invoke('server:getHealth'),
   checkLemonadeInstallation: () => ipcRenderer.invoke('server:checkInstallation'),
   
+  // Document operations
+  uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => ipcRenderer.invoke('document:upload', data),
+  getDocuments: (type?: string) => ipcRenderer.invoke('document:getAll', type),
+  getDocument: (id: string) => ipcRenderer.invoke('document:get', id),
+  deleteDocument: (id: string) => ipcRenderer.invoke('document:delete', id),
+  
   // MCP operations
   getMCPServers: () => ipcRenderer.invoke('mcp:getServers'),
   updateMCPServers: (servers: any[]) => ipcRenderer.invoke('mcp:updateServers', servers),

@@ -187,6 +187,11 @@ const NewInterviewModal: React.FC<NewInterviewModalProps> = ({ onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (!window.electronAPI) {
+        console.warn('Electron API not available — cannot start interview in browser mode');
+        onClose();
+        return;
+      }
       const interview = await window.electronAPI.startInterview(formData);
       navigate(`/interview/${interview.id}`);
     } catch (error) {

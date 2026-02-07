@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StopCircle, Settings, FileText, Mic, Volume2, VolumeX } from 'lucide-react';
+import { StopCircle, Settings, FileText, Mic, Volume2, VolumeX, Send } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Message, AgentPersona, AudioSettings as AudioSettingsType } from '../../types';
 import { format } from 'date-fns';
@@ -17,6 +17,7 @@ const Interview: React.FC = () => {
   const { currentInterview, setCurrentInterview } = useStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Stage Management
@@ -306,19 +307,6 @@ const Interview: React.FC = () => {
     }
   };
 
-  const handleToggleVoiceMode = () => {
-    setVoiceMode(!voiceMode);
-    if (!voiceMode) {
-      // Entering voice mode - ensure persona is selected
-      if (!selectedPersona) {
-        setShowPersonaSelector(true);
-      }
-    } else {
-      // Exiting voice mode - stop recording
-      setIsRecording(false);
-    }
-  };
-
   if (!currentInterview) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -419,7 +407,8 @@ const Interview: React.FC = () => {
           <VoiceOrb 
             isListening={isRecording} 
             isSpeaking={isSpeaking} 
-            audioLevel={audioLevel} 
+            audioLevel={audioLevel}
+            isVADActive={isVADActive}
           />
           
           {/* Voice Controls (Simplified) */}
@@ -456,6 +445,33 @@ const Interview: React.FC = () => {
             ))}
             <div ref={messagesEndRef} />
           </div>
+          {/* Text Input Fallback */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (textInput.trim()) {
+                handleSendMessage(textInput);
+                setTextInput('');
+              }
+            }}
+            className="px-4 py-3 border-t border-gray-100 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              placeholder="Type a message..."
+              disabled={isSending}
+              className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={isSending || !textInput.trim()}
+              className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Send size={18} />
+            </button>
+          </form>
         </div>
       </div>
     </div>

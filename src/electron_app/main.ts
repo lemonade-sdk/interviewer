@@ -8,6 +8,7 @@ import { JobRepository } from '../database/repositories/JobRepository';
 import { SettingsRepository } from '../database/repositories/SettingsRepository';
 import { PersonaRepository } from '../database/repositories/PersonaRepository';
 import { MCPManager } from '../mcp/MCPManager';
+import { DocumentRepository } from '../database/repositories/DocumentRepository';
 import { InterviewService } from '../services/InterviewService';
 
 // Define types for our repositories and services
@@ -19,6 +20,7 @@ let interviewRepo: InterviewRepository;
 let jobRepo: JobRepository;
 let settingsRepo: SettingsRepository;
 let personaRepo: PersonaRepository;
+let documentRepo: DocumentRepository;
 
 // Services
 let interviewService: InterviewService;
@@ -35,9 +37,8 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: process.env.NODE_ENV === 'development'
-        ? path.join(__dirname, '../../dist/electron/src/electron_app/preload.js')
-        : path.join(__dirname, 'preload.js'),
+      // preload.js is always compiled to the same directory as main.js
+      preload: path.join(__dirname, 'preload.js'),
     },
     backgroundColor: '#ffffff',
     show: false,
@@ -75,10 +76,18 @@ function createWindow(): void {
       console.error('Failed to load dev server:', err);
     });
   } else {
-    // In production, __dirname is: dist/electron/src/electron_app/
-    // We need to go up 4 levels to reach the app root, then into dist/renderer/
-    const htmlPath = path.join(__dirname, '../../../../dist/renderer/index.html');
+    // __dirname is: dist/electron/src/electron_app/
+    // Go up 4 levels to app root, then into dist/renderer/
+    const htmlPath = path.join(__dirname, '..', '..', '..', '..', 'dist', 'renderer', 'index.html');
     console.log('Loading production HTML from:', htmlPath);
+    console.log('App is packaged:', app.isPackaged);
+    console.log('Resolved path:', path.resolve(htmlPath));
+    
+    if (!fs.existsSync(htmlPath)) {
+      console.error('ERROR: Production HTML not found at:', htmlPath);
+      console.error('__dirname is:', __dirname);
+    }
+    
     mainWindow.loadFile(htmlPath);
   }
 
@@ -101,12 +110,19 @@ async function initializeApp(): Promise<void> {
     jobRepo = new JobRepository();
     settingsRepo = new SettingsRepository();
     personaRepo = new PersonaRepository();
+    documentRepo = new DocumentRepository();
     
-    // Setup audio recordings directory
+    // Setup directories
     const userDataPath = app.getPath('userData');
+    
     audioRecordingsPath = path.join(userDataPath, 'audio_recordings');
     if (!fs.existsSync(audioRecordingsPath)) {
       fs.mkdirSync(audioRecordingsPath, { recursive: true });
+    }
+
+    const documentsPath = path.join(userDataPath, 'documents');
+    if (!fs.existsSync(documentsPath)) {
+      fs.mkdirSync(documentsPath, { recursive: true });
     }
     
     // Initialize services
@@ -623,6 +639,109 @@ ipcMain.handle('audio:deleteRecording', async (_event: IpcMainInvokeEvent, filep
     return { success: false, error: 'File not found' };
   } catch (error) {
     console.error('Failed to delete audio recording:', error);
+    throw error;
+  }
+});
+
+// ===========================================
+// IPC Handlers - Document Operations
+// ===========================================
+
+ipcMain.handle('document:upload', async (_event: IpcMainInvokeEvent, data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => {
+  try {
+    const { type, fileName, fileData } = data;
+
+    // Save file to documents directory
+    const userDataPath = app.getPath('userData');
+    const documentsDir = path.join(userDataPath, 'documents');
+    const ext = path.extname(fileName).toLowerCase();
+    const safeFileName = `${type}_${Date.now()}${ext}`;
+    const filePath = path.join(documentsDir, safeFileName);
+
+    // Decode base64 file data and save
+    const buffer = Buffer.from(fileData, 'base64');
+    fs.writeFileSync(filePath, buffer);
+    console.log(`Document saved: ${filePath} (${buffer.length} bytes)`);
+
+    // Extract text from the document
+    let extractedText = '';
+    try {
+      if (ext === '.pdf') {
+        const pdfParse = require('pdf-parse');
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text || '';
+      } else if (ext === '.docx') {
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ buffer: buffer });
+        extractedText = result.value || '';
+      } else if (ext === '.doc') {
+        // .doc is a legacy format — store raw text extraction attempt
+        extractedText = buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+      } else if (ext === '.txt') {
+        extractedText = buffer.toString('utf-8');
+      }
+    } catch (parseError) {
+      console.error(`Failed to extract text from ${fileName}:`, parseError);
+      extractedText = `[Could not extract text from ${ext} file]`;
+    }
+
+    console.log(`Extracted ${extractedText.length} characters from ${fileName}`);
+
+    // Determine MIME type
+    const mimeTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.txt': 'text/plain',
+    };
+
+    // Store in JSON data store
+    const doc = await documentRepo.create({
+      type,
+      fileName,
+      filePath,
+      mimeType: mimeTypes[ext] || 'application/octet-stream',
+      fileSize: buffer.length,
+      extractedText,
+    });
+
+    return doc;
+  } catch (error) {
+    console.error('Failed to upload document:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:getAll', async (_event: IpcMainInvokeEvent, type?: string) => {
+  try {
+    if (type === 'resume' || type === 'job_post') {
+      return await documentRepo.findByType(type);
+    }
+    return await documentRepo.findAll();
+  } catch (error) {
+    console.error('Failed to get documents:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:get', async (_event: IpcMainInvokeEvent, id: string) => {
+  try {
+    return await documentRepo.findById(id);
+  } catch (error) {
+    console.error('Failed to get document:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:delete', async (_event: IpcMainInvokeEvent, id: string) => {
+  try {
+    const doc = await documentRepo.findById(id);
+    if (doc && fs.existsSync(doc.filePath)) {
+      fs.unlinkSync(doc.filePath);
+    }
+    return await documentRepo.delete(id);
+  } catch (error) {
+    console.error('Failed to delete document:', error);
     throw error;
   }
 });

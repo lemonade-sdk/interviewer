@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
 import { initializeDatabase, closeDatabase } from '../database/db';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 import { JobRepository } from '../database/repositories/JobRepository';
@@ -456,6 +457,68 @@ ipcMain.handle('server:getHealth', async () => {
   } catch (error) {
     console.error('Failed to get server health:', error);
     return null;
+  }
+});
+
+ipcMain.handle('server:checkInstallation', async () => {
+  try {
+    const isWindows = process.platform === 'win32';
+
+    // Primary check: look for lemonade-server.exe at the known install location
+    // Windows: %LOCALAPPDATA%\lemonade_server\bin\lemonade-server.exe
+    if (isWindows) {
+      const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local');
+      const binaryPath = path.join(localAppData, 'lemonade_server', 'bin', 'lemonade-server.exe');
+
+      if (fs.existsSync(binaryPath)) {
+        // Found at the known location — try to get version
+        const version = await new Promise<string | null>((resolve) => {
+          exec(`"${binaryPath}" --version`, (error, stdout) => {
+            resolve(error ? null : stdout.trim());
+          });
+        });
+
+        return {
+          installed: true,
+          version: version,
+          binaryPath: binaryPath,
+        };
+      }
+    }
+
+    // Fallback: check if lemonade-server is on PATH
+    const pathCmd = isWindows ? 'where lemonade-server' : 'which lemonade-server';
+    const onPath = await new Promise<boolean>((resolve) => {
+      exec(pathCmd, (error) => resolve(!error));
+    });
+
+    if (onPath) {
+      const version = await new Promise<string | null>((resolve) => {
+        exec('lemonade-server --version', (error, stdout) => {
+          resolve(error ? null : stdout.trim());
+        });
+      });
+
+      return {
+        installed: true,
+        version: version,
+        binaryPath: null,
+      };
+    }
+
+    // Not found anywhere
+    return {
+      installed: false,
+      version: null,
+      binaryPath: null,
+    };
+  } catch (error) {
+    console.error('Failed to check lemonade-server installation:', error);
+    return {
+      installed: false,
+      version: null,
+      binaryPath: null,
+    };
   }
 });
 

@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServerStatus: () => ipcRenderer.invoke('server:getStatus'),
   getSystemInfo: () => ipcRenderer.invoke('server:getSystemInfo'),
   getServerHealth: () => ipcRenderer.invoke('server:getHealth'),
+  checkLemonadeInstallation: () => ipcRenderer.invoke('server:checkInstallation'),
   
   // MCP operations
   getMCPServers: () => ipcRenderer.invoke('mcp:getServers'),

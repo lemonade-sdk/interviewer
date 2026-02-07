@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, AlertCircle, Loader2, Terminal, ExternalLink } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 import { InterviewType } from '../../types';
@@ -8,7 +8,6 @@ import { InterviewType } from '../../types';
 const BUTTON_CLASS =
   'w-52 h-14 rounded-full font-semibold text-base tracking-wide transition-all duration-500 flex items-center justify-center';
 
-// Mock API removed - using real Lemonade API integration
 const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { loadSettings } = useStore();
@@ -24,6 +23,10 @@ const Landing: React.FC = () => {
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
+  // Lemonade Installation State
+  const [lemonadeInstalled, setLemonadeInstalled] = useState<boolean | null>(null);
+  const [serverRunning, setServerRunning] = useState(false);
+
   // Required Models
   const REQUIRED_MODELS = [
     { id: 'Llama-3.2-1B-Instruct-Hybrid', name: 'Llama 3.2 1B (LLM)' },
@@ -35,26 +38,40 @@ const Landing: React.FC = () => {
   }, []);
 
   const performBackgroundChecks = async () => {
-    // In browser mode, we might not have electronAPI. 
-    // We should handle this gracefully or assume Lemonade Server is direct access if configured.
     if (!window.electronAPI) {
       console.warn('Electron API not found - running in browser mode');
-      // We can't do full system checks without Electron, but we can try to hit the local server directly if needed.
-      // For now, we'll just stop the checking spinner and let the user try to proceed (which might fail later if they need Electron features).
       setIsChecking(false);
       return;
     }
 
     setIsChecking(true);
+    setStartError(null);
     try {
-      // 1. Check Server
-      const serverStatus = await window.electronAPI.getServerStatus();
-      if (!serverStatus.isRunning) {
-        console.warn('Lemonade Server not running');
-        setStartError('Lemonade Server is not running. Please start it to enable AI features.');
+      // 1. Check if lemonade-server is installed on the system
+      const installation = await window.electronAPI.checkLemonadeInstallation();
+      setLemonadeInstalled(installation.installed);
+
+      if (!installation.installed) {
+        setStartError(
+          'Lemonade Server is not installed on this system. Download it from lemonade-server.ai to get started.'
+        );
+        setIsChecking(false);
+        return;
       }
 
-      // 2. Check Models
+      // 2. Check if the server is actually running
+      const serverStatus = await window.electronAPI.getServerStatus();
+      setServerRunning(serverStatus.isRunning);
+
+      if (!serverStatus.isRunning) {
+        setStartError(
+          'Lemonade Server is installed but not running. Start it with: lemonade-server serve'
+        );
+        setIsChecking(false);
+        return;
+      }
+
+      // 3. Check available models
       const availableModels = await window.electronAPI.getAvailableModels();
       const availableIds = availableModels.map((m: any) => m.id);
       const missing = REQUIRED_MODELS.filter(m => !availableIds.includes(m.id));
@@ -66,7 +83,7 @@ const Landing: React.FC = () => {
         setIsSystemReady(true);
       }
 
-      // 3. Init API
+      // 4. Load settings
       await loadSettings();
       
     } catch (error: any) {
@@ -78,22 +95,19 @@ const Landing: React.FC = () => {
   };
 
   const handleDownloadModels = async () => {
+    if (!window.electronAPI) return;
     setIsDownloading(true);
     try {
-      // Mock download process
       for (const modelId of missingModels) {
         setDownloadProgress(0);
-        // Simulate download
-        for (let i = 0; i <= 100; i += 20) {
-          setDownloadProgress(i);
-          await new Promise(r => setTimeout(r, 200));
-        }
-        // Real implementation would be: await window.electronAPI.pullModel(modelId);
+        await window.electronAPI.pullModel(modelId);
+        setDownloadProgress(100);
       }
       setMissingModels([]);
       setIsSystemReady(true);
     } catch (error) {
       console.error('Download failed:', error);
+      setStartError('Failed to download models. Please try again.');
     } finally {
       setIsDownloading(false);
     }
@@ -234,13 +248,40 @@ const Landing: React.FC = () => {
           </button>
         </div>
 
-        {/* Error Message */}
+        {/* Error / Status Message */}
         {startError && (
           <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3 text-red-700 text-sm max-w-lg animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
               <AlertCircle size={18} className="flex-shrink-0" />
               <p>{startError}</p>
             </div>
+
+            {/* Show download link if not installed */}
+            {lemonadeInstalled === false && (
+              <div className="ml-7 mt-1 flex flex-col gap-2">
+                <a
+                  href="https://lemonade-server.ai/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition-colors text-sm"
+                >
+                  <ExternalLink size={14} />
+                  Download Lemonade Server
+                </a>
+                <p className="text-xs text-gray-500">
+                  After installing, restart this application.
+                </p>
+              </div>
+            )}
+
+            {/* Show start command if installed but not running */}
+            {lemonadeInstalled === true && !serverRunning && (
+              <div className="ml-7 mt-1 p-3 bg-gray-900 text-green-400 rounded-lg font-mono text-xs flex items-center gap-2">
+                <Terminal size={14} className="flex-shrink-0 text-gray-500" />
+                <code>lemonade-server serve</code>
+              </div>
+            )}
+
             <button 
               onClick={performBackgroundChecks}
               className="text-xs font-bold uppercase tracking-wider hover:underline text-left ml-7"
@@ -276,8 +317,8 @@ const Landing: React.FC = () => {
         </div>
       </div>
 
-      {/* Missing Models Modal / Overlay */}
-      {!isChecking && missingModels.length > 0 && !isSystemReady && (
+      {/* Missing Models Modal / Overlay — only show when server is running but models are missing */}
+      {!isChecking && lemonadeInstalled && serverRunning && missingModels.length > 0 && !isSystemReady && (
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 text-center">
             <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">

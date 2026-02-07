@@ -44,7 +44,7 @@ export class LemonadeClient {
    */
   async checkServerHealth(): Promise<boolean> {
     try {
-      const response = await axios.get(`${this.baseURL.replace('/api/v1', '')}/api/v1/health`, {
+      const response = await axios.get(`${this.baseURL}/health`, {
         timeout: 5000,
       });
       this.isConnected = response.status === 200;
@@ -135,7 +135,7 @@ export class LemonadeClient {
       if (error.message?.includes('ECONNREFUSED') || error.code === 'ECONNREFUSED') {
         throw new Error(
           'Cannot connect to Lemonade Server. Please ensure Lemonade Server is running at ' +
-          this.baseURL.replace('/api/v1', '')
+          this.baseURL.replace('/api/v1', '').replace(/\/$/, '')
         );
       }
       

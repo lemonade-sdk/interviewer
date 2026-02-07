@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Briefcase, Settings, History } from 'lucide-react';
+import { Home, Settings, History } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 const Layout: React.FC = () => {
@@ -23,7 +23,6 @@ const Layout: React.FC = () => {
         <nav className="flex-1 p-3 space-y-1">
           <NavItem to="/dashboard" icon={<Home size={18} />} label="dashboard" />
           <NavItem to="/interview-history" icon={<History size={18} />} label="history" />
-          <NavItem to="/jobs" icon={<Briefcase size={18} />} label="applications" />
           <NavItem to="/settings" icon={<Settings size={18} />} label="settings" />
         </nav>
 

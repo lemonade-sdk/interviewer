@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Settings as SettingsIcon, Sparkles, Server } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { InterviewerSettings, UserSettings } from '../../types';
 import { SystemInfoPanel } from '../components/SystemInfoPanel';
 import { MultiModelStatus } from '../components/MultiModelStatus';
 
 const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'general' | 'interviewer' | 'mcp'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'interviewer'>('general');
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
@@ -29,19 +29,12 @@ const Settings: React.FC = () => {
                 icon={<Sparkles size={20} />}
                 label="Interviewer AI"
               />
-              <TabButton
-                active={activeTab === 'mcp'}
-                onClick={() => setActiveTab('mcp')}
-                icon={<Server size={20} />}
-                label="MCP Servers"
-              />
             </nav>
           </div>
 
           <div className="p-6">
             {activeTab === 'general' && <GeneralSettings />}
             {activeTab === 'interviewer' && <InterviewerSettingsPanel />}
-            {activeTab === 'mcp' && <MCPSettings />}
           </div>
         </div>
       </div>
@@ -467,28 +460,6 @@ const InterviewerSettingsPanel: React.FC = () => {
         <Save size={20} />
         {saved ? 'Saved!' : 'Save Changes'}
       </button>
-    </div>
-  );
-};
-
-const MCPSettings: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-sm text-yellow-800">
-          <strong>MCP (Model Context Protocol) Servers:</strong> Configure external tools and
-          services that can extend the interviewer&apos;s capabilities. This is an advanced feature.
-        </p>
-      </div>
-
-      <div className="text-center py-12">
-        <Server size={48} className="mx-auto text-gray-400 mb-4" />
-        <p className="text-gray-600">MCP server configuration coming soon.</p>
-        <p className="text-sm text-gray-500 mt-2">
-          This feature will allow you to connect external tools and services to enhance the
-          interview experience.
-        </p>
-      </div>
     </div>
   );
 };

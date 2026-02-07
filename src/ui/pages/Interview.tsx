@@ -31,6 +31,7 @@ const Interview: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isVADActive, setIsVADActive] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
   
   // Voice manager instance

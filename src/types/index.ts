@@ -288,6 +288,11 @@ export interface IPC {
   refreshModels: () => Promise<ModelConfig[]>;
   getSystemInfo: () => Promise<SystemInfo | null>;
   getServerHealth: () => Promise<ServerHealth | null>;
+  checkLemonadeInstallation: () => Promise<{
+    installed: boolean;
+    version: string | null;
+    binaryPath: string | null;
+  }>;
   
   // Persona operations
   createPersona: (personaData: Partial<AgentPersona>) => Promise<AgentPersona>;

@@ -3,7 +3,6 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Interview from './pages/Interview';
 import InterviewHistory from './pages/InterviewHistory';
-import Jobs from './pages/Jobs';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
 
@@ -18,7 +17,6 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/interview/:id" element={<Interview />} />
         <Route path="/interview-history" element={<InterviewHistory />} />
-        <Route path="/jobs" element={<Jobs />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>

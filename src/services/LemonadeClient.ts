@@ -140,6 +140,11 @@ export class LemonadeClient {
       }
       
       if (error.status === 404) {
+        // Surface the actual server error message (e.g. hardware incompatibility details)
+        const serverMessage = error.error?.message || error.message || '';
+        if (serverMessage.includes('not available on this system')) {
+          throw new Error(serverMessage);
+        }
         throw new Error(
           `Model "${this.settings.modelName}" not found. Please load the model in Lemonade Server first.`
         );
@@ -159,6 +164,43 @@ export class LemonadeClient {
       await this.fetchAvailableModels();
     }
     return this.availableModels;
+  }
+
+  /**
+   * List ALL models compatible with this machine (equivalent to `lemonade-server list`).
+   * Uses GET /api/v1/models?show_all=true to get every registered model,
+   * including not-yet-downloaded ones, with metadata about download status,
+   * suggested flag, labels (llm, audio, etc.), and recipe.
+   */
+  async listAllModels(): Promise<{
+    id: string;
+    downloaded: boolean;
+    suggested: boolean;
+    labels: string[];
+    recipe?: string;
+    size?: number;
+    checkpoint?: string;
+  }[]> {
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/models`,
+        { params: { show_all: 'true' }, timeout: 10000 }
+      );
+
+      const models = response.data?.data || [];
+      return models.map((m: any) => ({
+        id: m.id,
+        downloaded: m.downloaded ?? false,
+        suggested: m.suggested ?? false,
+        labels: m.labels || [],
+        recipe: m.recipe || undefined,
+        size: m.size || undefined,
+        checkpoint: m.checkpoint || undefined,
+      }));
+    } catch (error: any) {
+      console.error('Failed to list all models:', error);
+      return [];
+    }
   }
 
   /**
@@ -311,9 +353,14 @@ export class LemonadeClient {
       };
     } catch (error: any) {
       console.error('Failed to pull model:', error);
+      // Surface detailed server error (e.g. hardware incompatibility)
+      const serverError = error.response?.data?.error;
+      const detailedMessage = typeof serverError === 'string'
+        ? serverError
+        : serverError?.message || error.response?.data?.message || error.message || 'Failed to pull model';
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to pull model'
+        message: detailedMessage
       };
     }
   }

@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2, Terminal, ExternalLink, ChevronLeft, FileText, Briefcase, Check } from 'lucide-react';
+import {
+  AlertCircle, Loader2, Terminal, ExternalLink,
+  ChevronLeft, FileText, Briefcase, Check,
+} from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { InterviewType, UploadedDocument } from '../../types';
 
@@ -18,27 +21,22 @@ const Landing: React.FC = () => {
   const [step, setStep] = useState<Step>('initial');
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const jobPostInputRef = useRef<HTMLInputElement>(null);
-  
-  // System Check State
-  const [isSystemReady, setIsSystemReady] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-  const [missingModels, setMissingModels] = useState<string[]>([]);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [isStarting, setIsStarting] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
 
-  // Lemonade Installation State
+  // ── System Check State (server install + running only) ──
+  const [isChecking, setIsChecking] = useState(true);
+  const [startError, setStartError] = useState<string | null>(null);
   const [lemonadeInstalled, setLemonadeInstalled] = useState<boolean | null>(null);
   const [serverRunning, setServerRunning] = useState(false);
 
-  // Document Upload State
+  // ── Document Upload State ──
   const [resumeDoc, setResumeDoc] = useState<UploadedDocument | null>(null);
   const [jobPostDoc, setJobPostDoc] = useState<UploadedDocument | null>(null);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [isUploadingJobPost, setIsUploadingJobPost] = useState(false);
+  // Keep base64 in memory so the Preparing page can render the PDF without re-reading
+  const resumeBase64Ref = useRef<string | null>(null);
 
-  // Interview Setup Form
+  // ── Interview Setup Form ──
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -46,14 +44,11 @@ const Landing: React.FC = () => {
     interviewType: 'general' as InterviewType,
   });
 
-  // Required Models
-  const REQUIRED_MODELS = [
-    { id: 'Llama-3.2-1B-Instruct-Hybrid', name: 'Llama 3.2 1B (LLM)' },
-    { id: 'Whisper-Base', name: 'Whisper Base (ASR)' },
-  ];
-
   const bothDocsUploaded = resumeDoc !== null && jobPostDoc !== null;
+  const canBegin = bothDocsUploaded && !isChecking && lemonadeInstalled && serverRunning;
+  const isFormValid = formData.title.trim() && formData.company.trim() && formData.position.trim();
 
+  // ── Background checks: only server install + running ──
   useEffect(() => {
     performBackgroundChecks();
   }, []);
@@ -63,7 +58,6 @@ const Landing: React.FC = () => {
       console.info('Running in browser mode — Electron API not available');
       setLemonadeInstalled(true);
       setServerRunning(true);
-      setIsSystemReady(true);
       setIsChecking(false);
       return;
     }
@@ -71,7 +65,6 @@ const Landing: React.FC = () => {
     setIsChecking(true);
     setStartError(null);
     try {
-      // 1. Check if lemonade-server is installed
       const installation = await window.electronAPI.checkLemonadeInstallation();
       setLemonadeInstalled(installation.installed);
 
@@ -83,7 +76,6 @@ const Landing: React.FC = () => {
         return;
       }
 
-      // 2. Check if the server is running
       const serverStatus = await window.electronAPI.getServerStatus();
       setServerRunning(serverStatus.isRunning);
 
@@ -95,21 +87,7 @@ const Landing: React.FC = () => {
         return;
       }
 
-      // 3. Check available models
-      const availableModels = await window.electronAPI.getAvailableModels();
-      const availableIds = availableModels.map((m: any) => m.id);
-      const missing = REQUIRED_MODELS.filter(m => !availableIds.includes(m.id));
-      
-      if (missing.length > 0) {
-        setMissingModels(missing.map(m => m.id));
-        setIsSystemReady(false);
-      } else {
-        setIsSystemReady(true);
-      }
-
-      // 4. Load settings
       await loadSettings();
-      
     } catch (error: any) {
       console.error('Background check failed:', error);
       setStartError(`Connection failed: ${error.message || 'Unknown error'}`);
@@ -118,33 +96,13 @@ const Landing: React.FC = () => {
     }
   };
 
-  const handleDownloadModels = async () => {
-    if (!window.electronAPI) return;
-    setIsDownloading(true);
-    try {
-      for (const modelId of missingModels) {
-        setDownloadProgress(0);
-        await window.electronAPI.pullModel(modelId);
-        setDownloadProgress(100);
-      }
-      setMissingModels([]);
-      setIsSystemReady(true);
-    } catch (error) {
-      console.error('Download failed:', error);
-      setStartError('Failed to download models. Please try again.');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
+  // ── File helpers ──
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // Remove the data URL prefix to get pure base64
-        const base64 = result.split(',')[1];
-        resolve(base64);
+        resolve(result.split(',')[1]);
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
@@ -159,13 +117,14 @@ const Landing: React.FC = () => {
       setIsUploadingResume(true);
       try {
         const fileData = await fileToBase64(file);
+        resumeBase64Ref.current = fileData;
         const doc = await window.electronAPI.uploadDocument({
           type: 'resume',
           fileName: file.name,
           fileData,
         });
         setResumeDoc(doc);
-        console.log('Resume uploaded and parsed:', doc.fileName, `(${doc.extractedText.length} chars extracted)`);
+        console.log('Resume uploaded:', doc.fileName, `(${doc.extractedText.length} chars)`);
       } catch (error) {
         console.error('Failed to upload resume:', error);
         setStartError('Failed to upload resume. Please try again.');
@@ -173,7 +132,8 @@ const Landing: React.FC = () => {
         setIsUploadingResume(false);
       }
     } else {
-      // Browser mode — just track the file name
+      const fileData = await fileToBase64(file);
+      resumeBase64Ref.current = fileData;
       setResumeDoc({
         id: 'browser-resume',
         type: 'resume',
@@ -185,7 +145,6 @@ const Landing: React.FC = () => {
         uploadedAt: new Date().toISOString(),
       });
     }
-    // Reset input so same file can be re-selected
     e.target.value = '';
   };
 
@@ -203,7 +162,7 @@ const Landing: React.FC = () => {
           fileData,
         });
         setJobPostDoc(doc);
-        console.log('Job post uploaded and parsed:', doc.fileName, `(${doc.extractedText.length} chars extracted)`);
+        console.log('Job post uploaded:', doc.fileName, `(${doc.extractedText.length} chars)`);
       } catch (error) {
         console.error('Failed to upload job post:', error);
         setStartError('Failed to upload job post. Please try again.');
@@ -225,55 +184,30 @@ const Landing: React.FC = () => {
     e.target.value = '';
   };
 
+  // ── Step navigation ──
   const handleBeginClick = () => {
-    if (!bothDocsUploaded) return;
-    if (!isSystemReady && missingModels.length > 0) return;
+    if (!canBegin) return;
+    setStartError(null);
     setStep('setup');
   };
 
-  const handleDashboardClick = () => {
-    navigate('/dashboard');
-  };
-
   const handleSetupNext = () => {
-    if (!formData.title.trim() || !formData.company.trim() || !formData.position.trim()) {
-      return;
-    }
+    if (!isFormValid) return;
     setStep('selection');
   };
 
-  const handleStartInterview = async (type: 'single' | 'multi') => {
-    if (isStarting) return;
-    setIsStarting(true);
-    setStartError(null);
-    
-    try {
-      if (!window.electronAPI) {
-        console.info('Browser mode: redirecting to dashboard');
-        navigate('/dashboard');
-        return;
-      }
-
-      const interviewConfig = {
-        title: formData.title,
-        company: formData.company,
-        position: formData.position,
-        interviewType: (type === 'single' ? formData.interviewType : 'behavioral') as InterviewType,
-      };
-
-      const interview = await window.electronAPI.startInterview(interviewConfig);
-      if (!interview) {
-        throw new Error('Failed to create interview session.');
-      }
-      navigate(`/interview/${interview.id}`);
-    } catch (error: any) {
-      console.error('Failed to start interview:', error);
-      setStartError(error.message || 'An unexpected error occurred.');
-      setIsStarting(false);
-    }
+  // ── Selection → navigate to /preparing (a separate page) ──
+  const handleSelectionClick = (type: 'single' | 'multi') => {
+    navigate('/preparing', {
+      state: {
+        formData,
+        interviewMode: type,
+        resumeDocId: resumeDoc?.id || null,
+        resumeFileName: resumeDoc?.fileName || null,
+        resumeBase64: resumeBase64Ref.current,
+      },
+    });
   };
-
-  const isFormValid = formData.title.trim() && formData.company.trim() && formData.position.trim();
 
   return (
     <div className="h-screen w-full bg-lemonade-bg text-lemonade-fg overflow-hidden flex flex-col items-center justify-center relative">
@@ -300,11 +234,7 @@ const Landing: React.FC = () => {
           alt="lemonade"
           className="w-20 h-20 mb-4 drop-shadow-lg"
         />
-        <h1 className="text-3xl font-bold tracking-widest text-black">
-          interviewer
-        </h1>
-
-        {/* Subtitle */}
+        <h1 className="text-3xl font-bold tracking-widest text-black">interviewer</h1>
         <p
           className={`mt-3 text-sm tracking-wide text-gray-500 transition-all duration-700 ${
             step !== 'initial'
@@ -312,7 +242,11 @@ const Landing: React.FC = () => {
               : 'opacity-0 -translate-y-2 pointer-events-none'
           }`}
         >
-          {step === 'setup' ? 'set up your interview' : step === 'selection' ? 'select your interview process' : ''}
+          {step === 'setup'
+            ? 'set up your interview'
+            : step === 'selection'
+              ? 'select your interview process'
+              : ''}
         </p>
       </div>
 
@@ -321,7 +255,6 @@ const Landing: React.FC = () => {
         <div className="flex flex-col items-center">
           {/* Upload Areas */}
           <div className="flex items-center gap-6 mb-8">
-            {/* Upload Resume */}
             <button
               onClick={() => resumeInputRef.current?.click()}
               disabled={isUploadingResume}
@@ -346,7 +279,6 @@ const Landing: React.FC = () => {
               )}
             </button>
 
-            {/* Upload Job Post */}
             <button
               onClick={() => jobPostInputRef.current?.click()}
               disabled={isUploadingJobPost}
@@ -374,26 +306,20 @@ const Landing: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-6">
-            {/* begin — white until both docs uploaded, then yellow */}
             <button
               onClick={handleBeginClick}
-              disabled={!bothDocsUploaded || isChecking}
+              disabled={!canBegin}
               className={`${BUTTON_CLASS} shadow-md active:scale-95 disabled:cursor-not-allowed transition-all duration-500 ${
-                bothDocsUploaded && !isChecking
+                canBegin
                   ? 'bg-lemonade-accent text-black hover:bg-lemonade-accent-hover hover:shadow-lg'
                   : 'bg-white text-gray-400 border-2 border-gray-200'
               }`}
             >
-              {isChecking ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                'begin'
-              )}
+              {isChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : 'begin'}
             </button>
 
-            {/* dashboard */}
             <button
-              onClick={handleDashboardClick}
+              onClick={() => navigate('/dashboard')}
               className={`${BUTTON_CLASS} border-2 border-lemonade-accent bg-white text-black hover:bg-lemonade-bg hover:shadow-md active:scale-95`}
             >
               dashboard
@@ -407,7 +333,7 @@ const Landing: React.FC = () => {
             </p>
           )}
 
-          {/* Error / Status Message */}
+          {/* Error — only server install/running issues */}
           {startError && (
             <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3 text-red-700 text-sm max-w-lg">
               <div className="flex items-center gap-3">
@@ -426,9 +352,7 @@ const Landing: React.FC = () => {
                     <ExternalLink size={14} />
                     Download Lemonade Server
                   </a>
-                  <p className="text-xs text-gray-500">
-                    After installing, restart this application.
-                  </p>
+                  <p className="text-xs text-gray-500">After installing, restart this application.</p>
                 </div>
               )}
 
@@ -439,7 +363,7 @@ const Landing: React.FC = () => {
                 </div>
               )}
 
-              <button 
+              <button
                 onClick={performBackgroundChecks}
                 className="text-xs font-bold uppercase tracking-wider hover:underline text-left ml-7"
               >
@@ -450,7 +374,7 @@ const Landing: React.FC = () => {
         </div>
       )}
 
-      {/* ===== STEP: SETUP (Interview Details Form) ===== */}
+      {/* ===== STEP: SETUP ===== */}
       {step === 'setup' && (
         <div className="w-full max-w-md px-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-white rounded-2xl border border-gray-100 p-7 shadow-sm">
@@ -505,7 +429,6 @@ const Landing: React.FC = () => {
               </div>
             </div>
 
-            {/* Uploaded docs summary */}
             <div className="mt-5 pt-4 border-t border-gray-100 flex gap-3 text-xs text-gray-500">
               {resumeDoc && (
                 <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-lg">
@@ -539,10 +462,9 @@ const Landing: React.FC = () => {
         </div>
       )}
 
-      {/* ===== STEP: SELECTION (One Stage / Multi Stage) ===== */}
+      {/* ===== STEP: SELECTION ===== */}
       {step === 'selection' && (
         <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
-          {/* Interview summary */}
           <div className="mb-8 text-center">
             <p className="text-lg font-semibold text-black">{formData.title}</p>
             <p className="text-sm text-gray-500 mt-1">
@@ -552,74 +474,26 @@ const Landing: React.FC = () => {
 
           <div className="flex items-center gap-6">
             <button
-              onClick={() => handleStartInterview('single')}
-              disabled={isStarting}
-              className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+              onClick={() => handleSelectionClick('single')}
+              className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
             >
-              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'one stage interview'}
+              one stage interview
             </button>
-
             <button
-              onClick={() => handleStartInterview('multi')}
-              disabled={isStarting}
-              className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+              onClick={() => handleSelectionClick('multi')}
+              className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
             >
-              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'multi stage interview'}
+              multi stage interview
             </button>
           </div>
 
           <button
             onClick={() => setStep('setup')}
-            disabled={isStarting}
-            className="mt-6 flex items-center gap-1 text-sm text-gray-500 hover:text-black transition-colors disabled:opacity-50"
+            className="mt-6 flex items-center gap-1 text-sm text-gray-500 hover:text-black transition-colors"
           >
             <ChevronLeft size={14} />
             back to details
           </button>
-
-          {startError && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm max-w-lg">
-              <AlertCircle size={16} className="flex-shrink-0" />
-              <p>{startError}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Missing Models Modal */}
-      {!isChecking && lemonadeInstalled && serverRunning && missingModels.length > 0 && !isSystemReady && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 text-center">
-            <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={32} />
-            </div>
-            <h2 className="text-xl font-bold text-black mb-2">Setup Required</h2>
-            <p className="text-gray-600 mb-6">
-              To use Nova Agent, we need to download {missingModels.length} AI models to your device.
-            </p>
-            
-            {isDownloading ? (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-medium text-gray-500">
-                  <span>Downloading...</span>
-                  <span>{downloadProgress}%</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-lemonade-accent transition-all duration-300" 
-                    style={{ width: `${downloadProgress}%` }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={handleDownloadModels}
-                className="w-full py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
-              >
-                Download Models
-              </button>
-            )}
-          </div>
         </div>
       )}
     </div>

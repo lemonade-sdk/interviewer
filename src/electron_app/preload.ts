@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pullModel: (modelId: string) => ipcRenderer.invoke('model:pull', modelId),
   deleteModel: (modelId: string) => ipcRenderer.invoke('model:delete', modelId),
   refreshModels: () => ipcRenderer.invoke('model:refresh'),
+  listAllModels: () => ipcRenderer.invoke('model:listAll'),
   
   // Server operations
   checkServerHealth: () => ipcRenderer.invoke('server:checkHealth'),
@@ -45,6 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => ipcRenderer.invoke('document:upload', data),
   getDocuments: (type?: string) => ipcRenderer.invoke('document:getAll', type),
   getDocument: (id: string) => ipcRenderer.invoke('document:get', id),
+  getDocumentFileData: (id: string) => ipcRenderer.invoke('document:getFileData', id),
   deleteDocument: (id: string) => ipcRenderer.invoke('document:delete', id),
   
   // MCP operations

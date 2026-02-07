@@ -149,6 +149,16 @@ export interface UploadedDocument {
   uploadedAt: string;
 }
 
+export interface CompatibleModel {
+  id: string;
+  downloaded: boolean;
+  suggested: boolean;
+  labels: string[];
+  recipe?: string;
+  size?: number;
+  checkpoint?: string;
+}
+
 export interface LemonadeConfig {
   serverURL: string;
   models: ModelConfig[];
@@ -288,10 +298,11 @@ export interface IPC {
   // Model operations
   getAvailableModels: () => Promise<ModelConfig[]>;
   testModelConnection: (modelId: string) => Promise<boolean>;
-  loadModel: (modelId: string) => Promise<boolean>;
-  unloadModel: (modelId: string) => Promise<boolean>;
-  pullModel: (modelId: string) => Promise<boolean>;
-  deleteModel: (modelId: string) => Promise<boolean>;
+  loadModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  unloadModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  pullModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  deleteModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  listAllModels: () => Promise<CompatibleModel[]>;
   
   // Server operations
   checkServerHealth: () => Promise<boolean>;
@@ -323,6 +334,7 @@ export interface IPC {
   uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => Promise<UploadedDocument>;
   getDocuments: (type?: 'resume' | 'job_post') => Promise<UploadedDocument[]>;
   getDocument: (id: string) => Promise<UploadedDocument | null>;
+  getDocumentFileData: (id: string) => Promise<{ base64: string; mimeType: string; fileName: string } | null>;
   deleteDocument: (id: string) => Promise<boolean>;
 
   // MCP operations

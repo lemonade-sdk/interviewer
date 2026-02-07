@@ -163,6 +163,10 @@ Format your response as JSON with the following structure:
     return await this.lemonadeClient.fetchAvailableModels();
   }
 
+  async listAllModels() {
+    return await this.lemonadeClient.listAllModels();
+  }
+
   async checkServerHealth(): Promise<boolean> {
     return await this.lemonadeClient.checkServerHealth();
   }

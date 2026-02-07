@@ -434,6 +434,15 @@ ipcMain.handle('model:refresh', async () => {
   }
 });
 
+ipcMain.handle('model:listAll', async () => {
+  try {
+    return await interviewService.listAllModels();
+  } catch (error) {
+    console.error('Failed to list all models:', error);
+    return [];
+  }
+});
+
 // IPC Handlers - Server Operations
 ipcMain.handle('server:checkHealth', async () => {
   try {
@@ -667,9 +676,13 @@ ipcMain.handle('document:upload', async (_event: IpcMainInvokeEvent, data: { typ
     let extractedText = '';
     try {
       if (ext === '.pdf') {
-        const pdfParse = require('pdf-parse');
-        const pdfData = await pdfParse(buffer);
-        extractedText = pdfData.text || '';
+        const { PDFParse } = require('pdf-parse');
+        const parser = new PDFParse(new Uint8Array(buffer));
+        await parser.load();
+        const result = await parser.getText();
+        extractedText = result.pages
+          ? result.pages.map((p: { text: string }) => p.text).join('\n')
+          : '';
       } else if (ext === '.docx') {
         const mammoth = require('mammoth');
         const result = await mammoth.extractRawText({ buffer: buffer });
@@ -730,6 +743,24 @@ ipcMain.handle('document:get', async (_event: IpcMainInvokeEvent, id: string) =>
   } catch (error) {
     console.error('Failed to get document:', error);
     throw error;
+  }
+});
+
+ipcMain.handle('document:getFileData', async (_event: IpcMainInvokeEvent, id: string) => {
+  try {
+    const doc = await documentRepo.findById(id);
+    if (!doc || !fs.existsSync(doc.filePath)) {
+      return null;
+    }
+    const buffer = fs.readFileSync(doc.filePath);
+    return {
+      base64: buffer.toString('base64'),
+      mimeType: doc.mimeType,
+      fileName: doc.fileName,
+    };
+  } catch (error) {
+    console.error('Failed to get document file data:', error);
+    return null;
   }
 });
 

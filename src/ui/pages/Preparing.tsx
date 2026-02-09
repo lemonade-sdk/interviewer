@@ -282,10 +282,25 @@ const Preparing: React.FC = () => {
       setPhase('loading-model');
 
       if (loadedLLM && loadedLLM.model_name === model.id) {
-        // The correct LLM is already loaded — skip loading entirely
-        console.log(`LLM ${model.id} is already loaded, skipping load`);
-        setStatusText(`${model.id} already active`);
-        await new Promise(r => setTimeout(r, 300)); // Brief visual acknowledgment
+        // The correct LLM is already loaded, but the context window may be
+        // too small (server default is 4096).  We need ctx_size >= 16384 for
+        // persona generation.  Force a reload with the desired ctx_size
+        // because the /health endpoint doesn't expose the current n_ctx.
+        console.log(`LLM ${model.id} is already loaded — reloading with ctx_size=16384`);
+        setStatusText(`Optimizing ${model.id} context window...`);
+        try {
+          await window.electronAPI.unloadModel(model.id);
+        } catch (e) {
+          console.warn('Unload before ctx_size reload failed (non-fatal):', e);
+        }
+        const reloadOpts: Record<string, any> = { ctx_size: 16384 };
+        if (model.recipe === 'llamacpp') {
+          reloadOpts.llamacpp_backend = 'vulkan';
+        }
+        const reload = await window.electronAPI.loadModel(model.id, reloadOpts);
+        if (reload === false || (reload && !reload.success)) {
+          console.warn('Reload with ctx_size failed, continuing with existing config:', reload);
+        }
       } else {
         // Unload any stale LLM first to free memory (only 1 LLM should be active)
         if (loadedLLM) {

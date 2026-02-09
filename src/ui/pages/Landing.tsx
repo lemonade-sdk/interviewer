@@ -205,6 +205,8 @@ const Landing: React.FC = () => {
         resumeDocId: resumeDoc?.id || null,
         resumeFileName: resumeDoc?.fileName || null,
         resumeBase64: resumeBase64Ref.current,
+        jobPostDocId: jobPostDoc?.id || null,
+        jobPostFileName: jobPostDoc?.fileName || null,
       },
     });
   };

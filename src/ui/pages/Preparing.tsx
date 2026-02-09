@@ -12,8 +12,11 @@ import {
   Cpu,
   Zap,
   ArrowRight,
+  User,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
-import { InterviewType, CompatibleModel, UploadedDocument } from '../../types';
+import { InterviewType, CompatibleModel, UploadedDocument, AgentPersona, LoadedModel } from '../../types';
 
 /* ────────────────────────────────────────────────────────────────────
    Route state passed from Landing
@@ -29,6 +32,8 @@ interface PreparingState {
   resumeDocId: string | null;
   resumeFileName: string | null;
   resumeBase64: string | null;
+  jobPostDocId: string | null;
+  jobPostFileName: string | null;
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -51,8 +56,18 @@ type PrepPhase =
   | 'select'
   | 'downloading'
   | 'loading-model'
+  | 'generating-persona'
   | 'starting'
   | 'error';
+
+/* ────────────────────────────────────────────────────────────────────
+   Sub-steps within persona generation for visual feedback
+   ──────────────────────────────────────────────────────────────────── */
+type PersonaGenStep =
+  | 'analyzing-job'
+  | 'analyzing-resume'
+  | 'crafting-persona'
+  | 'done';
 
 /* ── helpers ───────────────────────────────────────────────────────── */
 
@@ -110,6 +125,12 @@ const Preparing: React.FC = () => {
   /* ── resume preview ── */
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [resumeText, setResumeText] = useState<string | null>(null);
+
+  /* ── persona generation ── */
+  const [personaGenStep, setPersonaGenStep] = useState<PersonaGenStep>('analyzing-job');
+  const [generatedPersona, setGeneratedPersona] = useState<AgentPersona | null>(null);
+  const [jobAnalysis, setJobAnalysis] = useState<string | null>(null);
+  const [resumeAnalysis, setResumeAnalysis] = useState<string | null>(null);
 
   /* ── guards ── */
   const didFetchRef = useRef(false);
@@ -212,7 +233,33 @@ const Preparing: React.FC = () => {
     setErrorText(null);
 
     try {
-      /* download */
+      /* ════════════════════════════════════════════════════════════
+         SMART MODEL MANAGEMENT
+         Before loading anything, check what's already loaded on the
+         server to avoid redundant loads and prevent multi-loading.
+         Only ONE LLM and ONE ASR model should ever be active.
+         ════════════════════════════════════════════════════════════ */
+
+      // Query current server state to see what's already loaded
+      // and what model types the server supports (max_models)
+      let loadedModels: LoadedModel[] = [];
+      let serverSupportsAudio = false;
+      try {
+        const health = await window.electronAPI.getServerHealth();
+        loadedModels = health?.all_models_loaded ?? [];
+        // Check if the server has an audio slot (some configs don't support audio at all)
+        const maxModels = (health as any)?.max_models;
+        serverSupportsAudio = maxModels?.audio != null && maxModels.audio > 0;
+        console.log('Currently loaded models:', loadedModels.map(m => `${m.model_name} (${m.type})`));
+        console.log('Server supports audio models:', serverSupportsAudio, '| max_models:', maxModels);
+      } catch {
+        console.warn('Could not query server health, will proceed with fresh loads');
+      }
+
+      const loadedLLM = loadedModels.find(m => m.type === 'llm');
+      const loadedASR = loadedModels.find(m => m.type === 'audio');
+
+      /* ── download selected LLM if needed ── */
       if (!model.downloaded) {
         setPhase('downloading');
         setDlProgress({ percent: 0 });
@@ -231,40 +278,173 @@ const Preparing: React.FC = () => {
         setLlmModels(prev => prev.map(m => m.id === model.id ? { ...m, downloaded: true } : m));
       }
 
-      /* load */
+      /* ── load LLM (smart: skip if already active, unload stale if different) ── */
       setPhase('loading-model');
-      setStatusText(`Loading ${model.id}...`);
-      const opts = model.recipe === 'llamacpp' ? { llamacpp_backend: 'vulkan' as const } : undefined;
-      const load = await window.electronAPI.loadModel(model.id, opts);
-      if (load === false || (load && !load.success)) {
-        setPhase('error');
-        setErrorText(`Load failed: ${load && load.message ? load.message : 'Unknown error'}`);
-        return;
+
+      if (loadedLLM && loadedLLM.model_name === model.id) {
+        // The correct LLM is already loaded — skip loading entirely
+        console.log(`LLM ${model.id} is already loaded, skipping load`);
+        setStatusText(`${model.id} already active`);
+        await new Promise(r => setTimeout(r, 300)); // Brief visual acknowledgment
+      } else {
+        // Unload any stale LLM first to free memory (only 1 LLM should be active)
+        if (loadedLLM) {
+          setStatusText(`Unloading ${loadedLLM.model_name}...`);
+          console.log(`Unloading stale LLM: ${loadedLLM.model_name}`);
+          try {
+            await window.electronAPI.unloadModel(loadedLLM.model_name);
+          } catch (unloadErr) {
+            console.warn('Failed to unload stale LLM (non-fatal):', unloadErr);
+          }
+        }
+
+        // Load the selected LLM
+        setStatusText(`Loading ${model.id}...`);
+        const opts = model.recipe === 'llamacpp' ? { llamacpp_backend: 'vulkan' as const } : undefined;
+        const load = await window.electronAPI.loadModel(model.id, opts);
+        if (load === false || (load && !load.success)) {
+          setPhase('error');
+          setErrorText(`Load failed: ${load && load.message ? load.message : 'Unknown error'}`);
+          return;
+        }
       }
 
-      /* configure */
-      setPhase('starting');
-      setStatusText('Configuring...');
-      const allNow = await window.electronAPI.listAllModels();
-      const asrs = allNow.filter(m => m.labels.includes('audio'));
-      const bestASR =
-        asrs.find(m => m.suggested && m.downloaded) ||
-        asrs.find(m => m.suggested) ||
-        asrs.find(m => m.downloaded) ||
-        asrs[0] || null;
+      /* ── configure ASR (Whisper) — smart load ── */
+      // Only attempt ASR setup if the server actually supports audio models.
+      // The server's max_models must have an `audio` slot; without it, loading
+      // Whisper will 500. Voice features are optional — text interview works fine.
+      let bestASR: CompatibleModel | null = null;
+
+      if (serverSupportsAudio) {
+        setStatusText('Preparing speech recognition...');
+        const allNow = await window.electronAPI.listAllModels();
+        const asrs = allNow.filter(m => m.labels.includes('audio'));
+        bestASR =
+          asrs.find(m => m.suggested && m.downloaded) ||
+          asrs.find(m => m.suggested) ||
+          asrs.find(m => m.downloaded) ||
+          asrs[0] || null;
+
+        if (bestASR) {
+          // Download the ASR model if not already available
+          if (!bestASR.downloaded) {
+            setStatusText(`Downloading ${bestASR.id} for speech recognition...`);
+            window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
+            const asrPull = await window.electronAPI.pullModelStreaming(bestASR.id);
+            window.electronAPI.offPullProgress();
+
+            if (asrPull === false || (asrPull && !asrPull.success)) {
+              console.warn('ASR model download failed, voice features may not work:', asrPull);
+            } else {
+              bestASR.downloaded = true;
+            }
+          }
+
+          // Load the ASR model (smart: skip if already active, unload stale if different)
+          if (bestASR.downloaded) {
+            if (loadedASR && loadedASR.model_name === bestASR.id) {
+              console.log(`ASR model ${bestASR.id} is already loaded, skipping load`);
+            } else {
+              if (loadedASR) {
+                console.log(`Unloading stale ASR: ${loadedASR.model_name}`);
+                try {
+                  await window.electronAPI.unloadModel(loadedASR.model_name);
+                } catch (unloadErr) {
+                  console.warn('Failed to unload stale ASR (non-fatal):', unloadErr);
+                }
+              }
+
+              setStatusText(`Loading ${bestASR.id}...`);
+              const asrLoad = await window.electronAPI.loadModel(bestASR.id);
+              if (asrLoad === false || (asrLoad && !asrLoad.success)) {
+                console.warn('ASR model load failed, voice features may not work:', asrLoad);
+              } else {
+                console.log(`ASR model ${bestASR.id} loaded successfully`);
+              }
+            }
+          }
+        }
+      } else {
+        console.log('Server does not support audio models (no audio slot in max_models). Skipping ASR setup — voice features disabled, text interview available.');
+      }
+
       await window.electronAPI.updateInterviewerSettings({ modelName: model.id, asrModel: bestASR?.id });
 
-      /* start */
+      /* ════════════════════════════════════════════════════════════
+         PERSONA GENERATION PHASE
+         The AI reads the job description, then the resume,
+         then synthesizes an interviewer persona.
+         ════════════════════════════════════════════════════════════ */
+      setPhase('generating-persona');
+      setPersonaGenStep('analyzing-job');
+      setStatusText('Analyzing job description...');
+
+      // Fetch both documents' extracted text
+      let jobText = '';
+      let resumeDocText = '';
+
+      if (state.jobPostDocId) {
+        const jobDoc = await window.electronAPI.getDocument(state.jobPostDocId);
+        jobText = jobDoc?.extractedText || '';
+      }
+
+      if (state.resumeDocId) {
+        const resumeDoc = await window.electronAPI.getDocument(state.resumeDocId);
+        resumeDocText = resumeDoc?.extractedText || '';
+      }
+
+      // Visual step progression (the actual generation is one LLM call,
+      // but we show incremental steps for user feedback)
+      await new Promise(r => setTimeout(r, 800));
+      setPersonaGenStep('analyzing-resume');
+      setStatusText('Analyzing your resume...');
+      await new Promise(r => setTimeout(r, 800));
+      setPersonaGenStep('crafting-persona');
+      setStatusText('Crafting interviewer persona...');
+
+      let personaId: string | undefined;
+
+      if (jobText && resumeDocText) {
+        try {
+          const result = await window.electronAPI.generatePersona({
+            jobDescriptionText: jobText,
+            resumeText: resumeDocText,
+            interviewType: state.interviewMode === 'single'
+              ? state.formData.interviewType
+              : 'behavioral',
+            company: state.formData.company,
+            position: state.formData.position,
+          });
+
+          setGeneratedPersona(result.persona);
+          setJobAnalysis(result.jobAnalysis);
+          setResumeAnalysis(result.resumeAnalysis);
+          personaId = result.persona.id;
+        } catch (personaErr: any) {
+          console.warn('Persona generation failed, proceeding with default prompt:', personaErr);
+          // Non-fatal: continue without a persona
+        }
+      }
+
+      setPersonaGenStep('done');
+      setStatusText('Persona ready!');
+      await new Promise(r => setTimeout(r, 500));
+
+      /* ── start interview ── */
+      setPhase('starting');
       setStatusText('Starting interview...');
-      const interview = await window.electronAPI.startInterview({
-        title: state.formData.title,
-        company: state.formData.company,
-        position: state.formData.position,
-        interviewType:
-          state.interviewMode === 'single'
-            ? state.formData.interviewType
-            : ('behavioral' as InterviewType),
-      });
+      const interview = await window.electronAPI.startInterview(
+        {
+          title: state.formData.title,
+          company: state.formData.company,
+          position: state.formData.position,
+          interviewType:
+            state.interviewMode === 'single'
+              ? state.formData.interviewType
+              : ('behavioral' as InterviewType),
+        },
+        personaId,
+      );
       if (!interview) { setPhase('error'); setErrorText('Failed to create interview.'); return; }
 
       setStatusText('Ready!');
@@ -281,7 +461,7 @@ const Preparing: React.FC = () => {
   if (!state) return null;
 
   const selectedModel = llmModels.find(m => m.id === selectedModelId) || null;
-  const isWorking = phase === 'downloading' || phase === 'loading-model' || phase === 'starting';
+  const isWorking = phase === 'downloading' || phase === 'loading-model' || phase === 'generating-persona' || phase === 'starting';
 
   /* ══════════════════════════════════════════════════════════════════
      RENDER
@@ -563,6 +743,153 @@ const Preparing: React.FC = () => {
                   Warming up the model — this can take a moment
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              GENERATING PERSONA PHASE
+             ══════════════════════════════════════════════ */}
+          {phase === 'generating-persona' && (
+            <div className="flex-1 flex flex-col px-8 pt-10">
+              {/* icon */}
+              <div className="w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center mb-6">
+                <Sparkles size={24} className="text-purple-600" />
+              </div>
+
+              <h2 className="text-sm font-bold text-black uppercase tracking-widest mb-1">
+                Preparing Your Interview
+              </h2>
+              <p className="text-[11px] text-gray-400 mb-6 leading-relaxed">
+                The AI is reading your documents and crafting a personalized interviewer.
+              </p>
+
+              {/* Step indicators */}
+              <div className="space-y-4">
+                {/* Step 1: Analyzing Job */}
+                <div className="flex items-start gap-3">
+                  <div className={`
+                    flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500
+                    ${personaGenStep === 'analyzing-job'
+                      ? 'bg-lemonade-accent/20'
+                      : 'bg-green-50'
+                    }
+                  `}>
+                    {personaGenStep === 'analyzing-job' ? (
+                      <Loader2 size={14} className="animate-spin text-lemonade-accent-hover" />
+                    ) : (
+                      <Check size={14} className="text-green-500" />
+                    )}
+                  </div>
+                  <div className="pt-1">
+                    <p className={`text-[13px] font-semibold transition-colors duration-300 ${
+                      personaGenStep === 'analyzing-job' ? 'text-black' : 'text-green-600'
+                    }`}>
+                      Reading job description
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Understanding role requirements, skills, and expectations
+                    </p>
+                    {jobAnalysis && personaGenStep !== 'analyzing-job' && (
+                      <p className="text-[10px] text-gray-500 mt-1.5 bg-gray-50 rounded-lg p-2 leading-relaxed">
+                        {jobAnalysis}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2: Analyzing Resume */}
+                <div className="flex items-start gap-3">
+                  <div className={`
+                    flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500
+                    ${personaGenStep === 'analyzing-resume'
+                      ? 'bg-lemonade-accent/20'
+                      : personaGenStep === 'analyzing-job'
+                        ? 'bg-gray-100'
+                        : 'bg-green-50'
+                    }
+                  `}>
+                    {personaGenStep === 'analyzing-resume' ? (
+                      <Loader2 size={14} className="animate-spin text-lemonade-accent-hover" />
+                    ) : personaGenStep === 'analyzing-job' ? (
+                      <User size={14} className="text-gray-300" />
+                    ) : (
+                      <Check size={14} className="text-green-500" />
+                    )}
+                  </div>
+                  <div className="pt-1">
+                    <p className={`text-[13px] font-semibold transition-colors duration-300 ${
+                      personaGenStep === 'analyzing-resume'
+                        ? 'text-black'
+                        : personaGenStep === 'analyzing-job'
+                          ? 'text-gray-300'
+                          : 'text-green-600'
+                    }`}>
+                      Analyzing your resume
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Mapping your experience to the role requirements
+                    </p>
+                    {resumeAnalysis && (personaGenStep === 'crafting-persona' || personaGenStep === 'done') && (
+                      <p className="text-[10px] text-gray-500 mt-1.5 bg-gray-50 rounded-lg p-2 leading-relaxed">
+                        {resumeAnalysis}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 3: Crafting Persona */}
+                <div className="flex items-start gap-3">
+                  <div className={`
+                    flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500
+                    ${personaGenStep === 'crafting-persona'
+                      ? 'bg-purple-100'
+                      : personaGenStep === 'done'
+                        ? 'bg-green-50'
+                        : 'bg-gray-100'
+                    }
+                  `}>
+                    {personaGenStep === 'crafting-persona' ? (
+                      <Loader2 size={14} className="animate-spin text-purple-500" />
+                    ) : personaGenStep === 'done' ? (
+                      <Check size={14} className="text-green-500" />
+                    ) : (
+                      <Bot size={14} className="text-gray-300" />
+                    )}
+                  </div>
+                  <div className="pt-1">
+                    <p className={`text-[13px] font-semibold transition-colors duration-300 ${
+                      personaGenStep === 'crafting-persona'
+                        ? 'text-black'
+                        : personaGenStep === 'done'
+                          ? 'text-green-600'
+                          : 'text-gray-300'
+                    }`}>
+                      Crafting interviewer persona
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Building a tailored interviewer for this specific role
+                    </p>
+                    {generatedPersona && personaGenStep === 'done' && (
+                      <div className="mt-2 bg-purple-50/80 border border-purple-100 rounded-xl p-3">
+                        <p className="text-[12px] font-bold text-purple-800">{generatedPersona.name}</p>
+                        <p className="text-[10px] text-purple-600 mt-0.5 leading-relaxed">{generatedPersona.description}</p>
+                        <div className="flex gap-1.5 mt-2">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-purple-500 bg-purple-100 px-1.5 py-[2px] rounded-md">
+                            {generatedPersona.interviewStyle}
+                          </span>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-purple-500 bg-purple-100 px-1.5 py-[2px] rounded-md">
+                            {generatedPersona.questionDifficulty}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-gray-300 mt-auto pb-6">
+                This ensures your interview is tailored to the exact role and your background.
+              </p>
             </div>
           )}
 

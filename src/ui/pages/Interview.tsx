@@ -30,6 +30,8 @@ const Interview: React.FC = () => {
   const [voiceMode, setVoiceMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isVADActive, setIsVADActive] = useState(false);
@@ -56,7 +58,7 @@ const Interview: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTranscribing, isThinking]);
 
   // Auto-save transcript on every message change
   useEffect(() => {
@@ -165,7 +167,13 @@ const Interview: React.FC = () => {
         console.log('Speech ended');
       });
 
+      manager.on('transcription-started', () => {
+        setIsTranscribing(true);
+        console.log('Transcription started (Whisper processing...)');
+      });
+
       manager.on('transcription-complete', async (text: string) => {
+        setIsTranscribing(false);
         console.log('Transcription:', text);
         // Send transcribed text as message
         if (text.trim() && id) {
@@ -244,7 +252,11 @@ const Interview: React.FC = () => {
     setMessages(prev => [...prev, tempUserMsg]);
 
     try {
+      // Show "AI is thinking..." state
+      setIsThinking(true);
+
       const response = await window.electronAPI.sendMessage(id, text);
+      setIsThinking(false);
       setMessages(prev => [...prev, response]);
       
       // Auto-play TTS if voice mode is enabled
@@ -260,6 +272,7 @@ const Interview: React.FC = () => {
       await loadInterview();
     } catch (error) {
       console.error('Failed to send message:', error);
+      setIsThinking(false);
     } finally {
       setIsSending(false);
     }
@@ -424,6 +437,8 @@ const Interview: React.FC = () => {
             isSpeaking={isSpeaking} 
             audioLevel={audioLevel}
             isVADActive={isVADActive}
+            isTranscribing={isTranscribing}
+            isThinking={isThinking}
           />
           
           {/* Voice Controls (Simplified) */}
@@ -451,13 +466,80 @@ const Interview: React.FC = () => {
 
         {/* Transcript Area - Bottom */}
         <div className="h-1/3 border-t border-gray-200 bg-white flex flex-col">
-          <div className="px-6 py-2 border-b border-gray-100 bg-gray-50">
+          <div className="px-6 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Live Transcript</h3>
+            <div className="flex items-center gap-3">
+              {isRecording && (
+                <span className="flex items-center gap-1.5 text-[10px] font-bold text-red-600 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  Recording
+                </span>
+              )}
+              {isTranscribing && (
+                <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  Whisper ASR
+                </span>
+              )}
+              {isSpeaking && (
+                <span className="flex items-center gap-1.5 text-[10px] font-bold text-yellow-600 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                  TTS Playing
+                </span>
+              )}
+              {isThinking && (
+                <span className="flex items-center gap-1.5 text-[10px] font-bold text-purple-600 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                  Generating
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.filter(m => m.role !== 'system').map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
+
+            {/* Transcribing indicator */}
+            {isTranscribing && (
+              <div className="flex justify-end">
+                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 flex items-center gap-2">
+                  <div className="flex items-center gap-0.5">
+                    {[0, 1, 2, 3].map(i => (
+                      <div
+                        key={i}
+                        className="w-0.5 bg-blue-400 rounded-full animate-pulse"
+                        style={{
+                          height: `${8 + i * 3}px`,
+                          animationDelay: `${i * 0.1}s`,
+                          animationDuration: '0.5s',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-blue-600 font-medium">Transcribing speech...</span>
+                </div>
+              </div>
+            )}
+
+            {/* AI thinking indicator */}
+            {isThinking && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-lg px-4 py-3 flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2].map(i => (
+                      <div
+                        key={i}
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: `${i * 0.15}s` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-500">AI is thinking...</span>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
           {/* Text Input Fallback */}

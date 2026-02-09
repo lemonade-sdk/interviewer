@@ -10,6 +10,7 @@ import { PersonaRepository } from '../database/repositories/PersonaRepository';
 import { MCPManager } from '../mcp/MCPManager';
 import { DocumentRepository } from '../database/repositories/DocumentRepository';
 import { InterviewService } from '../services/InterviewService';
+import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -167,10 +168,17 @@ app.on('before-quit', () => {
 });
 
 // IPC Handlers - Interview Operations
-ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any) => {
+ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string) => {
   try {
     const interview = await interviewRepo.create(config);
-    await interviewService.startInterview(interview.id, config);
+
+    // If a persona ID is provided, look it up and pass it to the interview service
+    let persona = null;
+    if (personaId) {
+      persona = await personaRepo.findById(personaId);
+    }
+
+    await interviewService.startInterview(interview.id, config, persona);
     return interview;
   } catch (error) {
     console.error('Failed to start interview:', error);
@@ -633,6 +641,44 @@ ipcMain.handle('persona:getDefault', async () => {
   } catch (error) {
     console.error('Failed to get default persona:', error);
     return null;
+  }
+});
+
+// ===========================================
+// IPC Handlers - Persona Generation
+// ===========================================
+
+ipcMain.handle('persona:generate', async (_event: IpcMainInvokeEvent, input: {
+  jobDescriptionText: string;
+  resumeText: string;
+  interviewType: string;
+  company: string;
+  position: string;
+}) => {
+  try {
+    const lemonadeClient = interviewService.getLemonadeClient();
+    const generator = new PersonaGeneratorService(lemonadeClient);
+
+    const result = await generator.generatePersona(input as PersonaGenerationInput);
+
+    // Persist the generated persona
+    const savedPersona = await personaRepo.create({
+      name: result.persona.name,
+      description: result.persona.description,
+      systemPrompt: result.persona.systemPrompt,
+      interviewStyle: result.persona.interviewStyle,
+      questionDifficulty: result.persona.questionDifficulty,
+      isDefault: false,
+    });
+
+    return {
+      persona: savedPersona,
+      jobAnalysis: result.jobAnalysis,
+      resumeAnalysis: result.resumeAnalysis,
+    };
+  } catch (error) {
+    console.error('Failed to generate persona:', error);
+    throw error;
   }
 });
 

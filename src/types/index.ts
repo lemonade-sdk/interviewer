@@ -274,7 +274,7 @@ export interface ServerHealth {
 
 export interface IPC {
   // Interview operations
-  startInterview: (config: Partial<Interview>) => Promise<Interview>;
+  startInterview: (config: Partial<Interview>, personaId?: string) => Promise<Interview>;
   endInterview: (interviewId: string) => Promise<Interview>;
   sendMessage: (interviewId: string, message: string) => Promise<Message>;
   getInterview: (interviewId: string) => Promise<Interview>;
@@ -339,6 +339,17 @@ export interface IPC {
   deletePersona: (personaId: string) => Promise<boolean>;
   setDefaultPersona: (personaId: string) => Promise<boolean>;
   getDefaultPersona: () => Promise<AgentPersona | null>;
+  generatePersona: (input: {
+    jobDescriptionText: string;
+    resumeText: string;
+    interviewType: string;
+    company: string;
+    position: string;
+  }) => Promise<{
+    persona: AgentPersona;
+    jobAnalysis: string;
+    resumeAnalysis: string;
+  }>;
 
   // Audio operations
   saveAudioRecording: (audioData: { interviewId: string; messageId: string; audioBlob: string }) => Promise<{ success: boolean; filepath: string }>;

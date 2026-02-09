@@ -121,15 +121,20 @@ export class LemonadeClient {
         stream: false,
       });
 
-      const responseContent = completion.choices[0]?.message?.content;
-      
+      // Defensive: `choices` can be undefined if the server returns an unexpected
+      // response shape (e.g. model not fully ready, or server error masked as 200).
+      const responseContent = completion?.choices?.[0]?.message?.content;
+
       if (!responseContent) {
-        throw new Error('Empty response from Lemonade Server');
+        // Log the raw response to aid debugging when choices is missing
+        console.warn('Unexpected completion response (no choices):', JSON.stringify(completion)?.slice(0, 500));
+        throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }
 
       return responseContent;
     } catch (error: any) {
-      console.error('Error sending message to Lemonade Server:', error);
+      // Log concisely — avoid dumping entire error objects
+      console.error('Error sending message to Lemonade Server:', error.message ?? error);
       
       // Provide helpful error messages
       if (error.message?.includes('ECONNREFUSED') || error.code === 'ECONNREFUSED') {
@@ -222,7 +227,7 @@ export class LemonadeClient {
           max_tokens: 10,
         });
         
-        return !!testCompletion.choices[0]?.message?.content;
+        return !!testCompletion?.choices?.[0]?.message?.content;
       }
 
       return true;
@@ -261,12 +266,13 @@ export class LemonadeClient {
         message: response.data.message
       };
     } catch (error: any) {
-      console.error('Failed to load model:', error);
       // Surface detailed server error (e.g. hardware incompatibility, missing backend)
       const serverError = error.response?.data?.error;
       const detailedMessage = typeof serverError === 'string'
         ? serverError
         : serverError?.message || error.response?.data?.message || error.message || 'Failed to load model';
+      // Log concisely — avoid dumping the entire AxiosError (hundreds of lines)
+      console.error(`Failed to load model "${modelId}":`, detailedMessage, `(HTTP ${error.response?.status ?? 'N/A'})`);
       return {
         success: false,
         message: detailedMessage
@@ -293,11 +299,11 @@ export class LemonadeClient {
         message: response.data.message
       };
     } catch (error: any) {
-      console.error('Failed to unload model:', error);
       const serverError = error.response?.data?.error;
       const detailedMessage = typeof serverError === 'string'
         ? serverError
         : serverError?.message || error.response?.data?.message || error.message || 'Failed to unload model';
+      console.error(`Failed to unload model "${modelId ?? 'all'}":`, detailedMessage, `(HTTP ${error.response?.status ?? 'N/A'})`);
       return {
         success: false,
         message: detailedMessage

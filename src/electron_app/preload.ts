@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Interview operations
-  startInterview: (config: any) => ipcRenderer.invoke('interview:start', config),
+  startInterview: (config: any, personaId?: string) => ipcRenderer.invoke('interview:start', config, personaId),
   endInterview: (interviewId: string) => ipcRenderer.invoke('interview:end', interviewId),
   sendMessage: (interviewId: string, message: string) => ipcRenderer.invoke('interview:sendMessage', interviewId, message),
   getInterview: (interviewId: string) => ipcRenderer.invoke('interview:get', interviewId),
@@ -68,6 +68,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deletePersona: (personaId: string) => ipcRenderer.invoke('persona:delete', personaId),
   setDefaultPersona: (personaId: string) => ipcRenderer.invoke('persona:setDefault', personaId),
   getDefaultPersona: () => ipcRenderer.invoke('persona:getDefault'),
+  generatePersona: (input: {
+    jobDescriptionText: string;
+    resumeText: string;
+    interviewType: string;
+    company: string;
+    position: string;
+  }) => ipcRenderer.invoke('persona:generate', input),
   
   // Audio operations
   saveAudioRecording: (audioData: any) => ipcRenderer.invoke('audio:saveRecording', audioData),

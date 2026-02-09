@@ -298,9 +298,24 @@ export interface IPC {
   // Model operations
   getAvailableModels: () => Promise<ModelConfig[]>;
   testModelConnection: (modelId: string) => Promise<boolean>;
-  loadModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  loadModel: (modelId: string, options?: {
+    ctx_size?: number;
+    llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+    llamacpp_args?: string;
+    save_options?: boolean;
+  }) => Promise<{ success: boolean; message?: string } | false>;
   unloadModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
   pullModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  pullModelStreaming: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  onPullProgress: (callback: (data: {
+    file?: string;
+    fileIndex?: number;
+    totalFiles?: number;
+    bytesDownloaded?: number;
+    bytesTotal?: number;
+    percent: number;
+  }) => void) => void;
+  offPullProgress: () => void;
   deleteModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
   listAllModels: () => Promise<CompatibleModel[]>;
   

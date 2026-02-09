@@ -389,9 +389,14 @@ ipcMain.handle('model:testConnection', async (_event: IpcMainInvokeEvent, modelI
   }
 });
 
-ipcMain.handle('model:load', async (_event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:load', async (_event: IpcMainInvokeEvent, modelId: string, options?: {
+  ctx_size?: number;
+  llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+  llamacpp_args?: string;
+  save_options?: boolean;
+}) => {
   try {
-    return await interviewService.loadModel(modelId);
+    return await interviewService.loadModel(modelId, options);
   } catch (error) {
     console.error('Failed to load model:', error);
     return false;
@@ -412,6 +417,23 @@ ipcMain.handle('model:pull', async (_event: IpcMainInvokeEvent, modelId: string)
     return await interviewService.pullModel(modelId);
   } catch (error) {
     console.error('Failed to pull model:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('model:pullStreaming', async (event: IpcMainInvokeEvent, modelId: string) => {
+  try {
+    const result = await interviewService.pullModelStreaming(modelId, (progressData) => {
+      // Relay each SSE progress event to the renderer process
+      try {
+        event.sender.send('pull:progress', progressData);
+      } catch {
+        // sender may have been destroyed if window closed during download
+      }
+    });
+    return result;
+  } catch (error) {
+    console.error('Failed to pull model (streaming):', error);
     return false;
   }
 });

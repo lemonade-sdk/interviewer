@@ -143,8 +143,13 @@ Format your response as JSON with the following structure:
     return await this.lemonadeClient.testConnection(modelId);
   }
 
-  async loadModel(modelId: string): Promise<{ success: boolean; message?: string }> {
-    return await this.lemonadeClient.loadModel(modelId);
+  async loadModel(modelId: string, options?: {
+    ctx_size?: number;
+    llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+    llamacpp_args?: string;
+    save_options?: boolean;
+  }): Promise<{ success: boolean; message?: string }> {
+    return await this.lemonadeClient.loadModel(modelId, options);
   }
 
   async unloadModel(modelId: string): Promise<{ success: boolean; message?: string }> {
@@ -153,6 +158,20 @@ Format your response as JSON with the following structure:
 
   async pullModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     return await this.lemonadeClient.pullModel(modelId);
+  }
+
+  async pullModelStreaming(
+    modelId: string,
+    onProgress: (data: {
+      file?: string;
+      fileIndex?: number;
+      totalFiles?: number;
+      bytesDownloaded?: number;
+      bytesTotal?: number;
+      percent: number;
+    }) => void,
+  ): Promise<{ success: boolean; message?: string }> {
+    return await this.lemonadeClient.pullModelStreaming(modelId, onProgress);
   }
 
   async deleteModel(modelId: string): Promise<{ success: boolean; message?: string }> {

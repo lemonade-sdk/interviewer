@@ -28,9 +28,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Model operations
   getAvailableModels: () => ipcRenderer.invoke('model:getAvailable'),
   testModelConnection: (modelId: string) => ipcRenderer.invoke('model:testConnection', modelId),
-  loadModel: (modelId: string) => ipcRenderer.invoke('model:load', modelId),
+  loadModel: (modelId: string, options?: Record<string, any>) => ipcRenderer.invoke('model:load', modelId, options),
   unloadModel: (modelId: string) => ipcRenderer.invoke('model:unload', modelId),
   pullModel: (modelId: string) => ipcRenderer.invoke('model:pull', modelId),
+  pullModelStreaming: (modelId: string) => ipcRenderer.invoke('model:pullStreaming', modelId),
+  onPullProgress: (callback: (data: any) => void) => {
+    ipcRenderer.on('pull:progress', (_event: any, data: any) => callback(data));
+  },
+  offPullProgress: () => {
+    ipcRenderer.removeAllListeners('pull:progress');
+  },
   deleteModel: (modelId: string) => ipcRenderer.invoke('model:delete', modelId),
   refreshModels: () => ipcRenderer.invoke('model:refresh'),
   listAllModels: () => ipcRenderer.invoke('model:listAll'),

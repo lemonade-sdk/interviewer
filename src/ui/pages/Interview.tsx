@@ -118,11 +118,26 @@ const Interview: React.FC = () => {
         autoGainControl: true,
       };
 
+      // Read ASR model from interviewer settings (set by Preparing page)
+      let asrModel: 'Whisper-Tiny' | 'Whisper-Base' | 'Whisper-Small' = 'Whisper-Base';
+      try {
+        const settings = await window.electronAPI.getInterviewerSettings();
+        if (settings?.asrModel) {
+          // Validate the model name matches one of the allowed whisper models
+          const validModels = ['Whisper-Tiny', 'Whisper-Base', 'Whisper-Small'];
+          if (validModels.includes(settings.asrModel)) {
+            asrModel = settings.asrModel as typeof asrModel;
+          }
+        }
+      } catch {
+        console.warn('Could not read ASR model from settings, using default');
+      }
+
       // Create voice manager instance
       const manager = new VoiceInterviewManager(
         defaultAudioSettings,
         'http://localhost:8000/api/v1', // ASR base URL
-        'Whisper-Base' // ASR model
+        asrModel
       );
 
       // Set up event listeners

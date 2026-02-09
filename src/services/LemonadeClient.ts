@@ -253,7 +253,7 @@ export class LemonadeClient {
           model_name: modelId,  // Per spec: use model_name not model
           ...options
         },
-        { timeout: 60000 } // Model loading can take time (increased to 60s)
+        { timeout: 120000 } // Model loading can take time (120s — load may also install)
       );
       
       return {
@@ -262,9 +262,14 @@ export class LemonadeClient {
       };
     } catch (error: any) {
       console.error('Failed to load model:', error);
+      // Surface detailed server error (e.g. hardware incompatibility, missing backend)
+      const serverError = error.response?.data?.error;
+      const detailedMessage = typeof serverError === 'string'
+        ? serverError
+        : serverError?.message || error.response?.data?.message || error.message || 'Failed to load model';
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to load model'
+        message: detailedMessage
       };
     }
   }
@@ -289,9 +294,13 @@ export class LemonadeClient {
       };
     } catch (error: any) {
       console.error('Failed to unload model:', error);
+      const serverError = error.response?.data?.error;
+      const detailedMessage = typeof serverError === 'string'
+        ? serverError
+        : serverError?.message || error.response?.data?.message || error.message || 'Failed to unload model';
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to unload model'
+        message: detailedMessage
       };
     }
   }
@@ -366,6 +375,121 @@ export class LemonadeClient {
   }
 
   /**
+   * Pull/download a model with real-time SSE streaming progress.
+   * Per spec: POST /api/v1/pull with stream=true returns Server-Sent Events:
+   *   event: progress
+   *   data: {"file":"model.gguf","file_index":1,"total_files":2,"bytes_downloaded":...,"bytes_total":...,"percent":40}
+   *   event: complete
+   *   data: {"file_index":2,"total_files":2,"percent":100}
+   */
+  async pullModelStreaming(
+    modelId: string,
+    onProgress: (data: {
+      file?: string;
+      fileIndex?: number;
+      totalFiles?: number;
+      bytesDownloaded?: number;
+      bytesTotal?: number;
+      percent: number;
+    }) => void,
+  ): Promise<{ success: boolean; message?: string }> {
+    return new Promise((resolve) => {
+      const payload = JSON.stringify({ model_name: modelId, stream: true });
+
+      // Use Node http to parse SSE stream (axios doesn't handle SSE well)
+      const url = new URL(`${this.baseURL}/pull`);
+      const isHttps = url.protocol === 'https:';
+      const httpModule = isHttps ? require('https') : require('http');
+
+      const req = httpModule.request(
+        {
+          hostname: url.hostname,
+          port: url.port || (isHttps ? 443 : 80),
+          path: url.pathname,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+          },
+        },
+        (res: any) => {
+          if (res.statusCode !== 200) {
+            let body = '';
+            res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+            res.on('end', () => {
+              try {
+                const parsed = JSON.parse(body);
+                const errMsg = parsed?.error?.message || parsed?.error || parsed?.message || `HTTP ${res.statusCode}`;
+                resolve({ success: false, message: errMsg });
+              } catch {
+                resolve({ success: false, message: `HTTP ${res.statusCode}: ${body.slice(0, 200)}` });
+              }
+            });
+            return;
+          }
+
+          let buffer = '';
+          let currentEvent = '';
+
+          res.on('data', (chunk: Buffer) => {
+            buffer += chunk.toString();
+
+            // Parse SSE: lines separated by \n, events separated by \n\n
+            const parts = buffer.split('\n');
+            buffer = parts.pop() || ''; // keep incomplete line
+
+            for (const line of parts) {
+              const trimmed = line.trim();
+              if (trimmed.startsWith('event:')) {
+                currentEvent = trimmed.slice(6).trim();
+              } else if (trimmed.startsWith('data:')) {
+                const dataStr = trimmed.slice(5).trim();
+                try {
+                  const data = JSON.parse(dataStr);
+                  if (currentEvent === 'progress' || currentEvent === '') {
+                    onProgress({
+                      file: data.file,
+                      fileIndex: data.file_index,
+                      totalFiles: data.total_files,
+                      bytesDownloaded: data.bytes_downloaded,
+                      bytesTotal: data.bytes_total,
+                      percent: data.percent ?? 0,
+                    });
+                  }
+                  // 'complete' event means we're done
+                  if (currentEvent === 'complete') {
+                    onProgress({ percent: 100 });
+                  }
+                } catch {
+                  // Ignore unparseable lines
+                }
+                currentEvent = '';
+              }
+            }
+          });
+
+          res.on('end', () => {
+            resolve({ success: true, message: `Installed model: ${modelId}` });
+          });
+
+          res.on('error', (err: Error) => {
+            resolve({ success: false, message: err.message });
+          });
+        },
+      );
+
+      req.on('error', (err: Error) => {
+        resolve({ success: false, message: err.message });
+      });
+
+      // No timeout — downloads can take a very long time
+      req.setTimeout(0);
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  /**
    * Delete a model from Lemonade Server
    * Per spec: POST /api/v1/delete (NOT DELETE verb) with model_name parameter
    */
@@ -383,9 +507,13 @@ export class LemonadeClient {
       };
     } catch (error: any) {
       console.error('Failed to delete model:', error);
+      const serverError = error.response?.data?.error;
+      const detailedMessage = typeof serverError === 'string'
+        ? serverError
+        : serverError?.message || error.response?.data?.message || error.message || 'Failed to delete model';
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to delete model'
+        message: detailedMessage
       };
     }
   }

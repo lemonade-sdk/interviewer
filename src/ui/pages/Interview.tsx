@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { StopCircle, Settings, FileText, Mic, Volume2, VolumeX, Send } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Message, AgentPersona, AudioSettings as AudioSettingsType } from '../../types';
@@ -14,7 +14,11 @@ type InterviewStage = 'selection' | 'interview';
 const Interview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentInterview, setCurrentInterview } = useStore();
+
+  // Voice capability passed from Preparing page (ASR + TTS both loaded)
+  const voiceEnabled = (location.state as any)?.voiceEnabled ?? true;
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [textInput, setTextInput] = useState('');
@@ -44,7 +48,11 @@ const Interview: React.FC = () => {
     if (id) {
       loadInterview();
       loadDefaultPersona();
-      initializeVoiceManager();
+      if (voiceEnabled) {
+        initializeVoiceManager();
+      } else {
+        console.warn('Voice features disabled (ASR/TTS models not loaded). Text-only interview mode.');
+      }
     }
     
     // Cleanup on unmount
@@ -73,17 +81,18 @@ const Interview: React.FC = () => {
 
   // Transition logic
   useEffect(() => {
-    if (currentInterview && voiceManagerRef.current && !isLoaded) {
-      // Simulate a brief check/loading period for visual effect
+    // When voice is disabled, don't wait for voiceManagerRef — go straight to interview
+    const voiceReady = voiceEnabled ? !!voiceManagerRef.current : true;
+    if (currentInterview && voiceReady && !isLoaded) {
       const timer = setTimeout(() => {
         setIsLoaded(true);
         setStage('interview');
-        // Auto-enable voice mode when entering interview stage if desired
-        setVoiceMode(true);
-      }, 3000); // 3 seconds delay as per "ONCE WE HAVE CONFIRMED..."
+        // Auto-enable voice mode only when ASR+TTS are available
+        setVoiceMode(voiceEnabled);
+      }, voiceEnabled ? 3000 : 1000);
       return () => clearTimeout(timer);
     }
-  }, [currentInterview, isLoaded]);
+  }, [currentInterview, isLoaded, voiceEnabled]);
 
   const saveTranscript = async () => {
     if (!id || messages.length === 0) return;

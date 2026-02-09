@@ -330,63 +330,132 @@ const Preparing: React.FC = () => {
         }
       }
 
-      /* ── configure ASR (Whisper) — smart load ── */
-      // Only attempt ASR setup if the server actually supports audio models.
-      // The server's max_models must have an `audio` slot; without it, loading
-      // Whisper will 500. Voice features are optional — text interview works fine.
+      /* ════════════════════════════════════════════════════════════
+         AUDIO MODELS: ASR (Whisper) + TTS (Kokoro)
+         Always attempt to load audio models regardless of the
+         max_models.audio value — the server may support audio even
+         if the health endpoint doesn't report the slot. If loading
+         truly fails we degrade gracefully (text-only interview).
+         ════════════════════════════════════════════════════════════ */
       let bestASR: CompatibleModel | null = null;
+      let ttsReady = false;
+      let asrReady = false;
 
-      if (serverSupportsAudio) {
-        setStatusText('Preparing speech recognition...');
-        const allNow = await window.electronAPI.listAllModels();
-        const asrs = allNow.filter(m => m.labels.includes('audio'));
-        bestASR =
-          asrs.find(m => m.suggested && m.downloaded) ||
-          asrs.find(m => m.suggested) ||
-          asrs.find(m => m.downloaded) ||
-          asrs[0] || null;
+      setStatusText('Preparing voice features...');
 
-        if (bestASR) {
-          // Download the ASR model if not already available
-          if (!bestASR.downloaded) {
-            setStatusText(`Downloading ${bestASR.id} for speech recognition...`);
-            window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
-            const asrPull = await window.electronAPI.pullModelStreaming(bestASR.id);
-            window.electronAPI.offPullProgress();
+      // Fetch the full model catalog to find audio models
+      let allModels: CompatibleModel[] = [];
+      try {
+        allModels = await window.electronAPI.listAllModels();
+      } catch {
+        console.warn('Could not list models for audio setup');
+      }
 
-            if (asrPull === false || (asrPull && !asrPull.success)) {
-              console.warn('ASR model download failed, voice features may not work:', asrPull);
-            } else {
-              bestASR.downloaded = true;
-            }
+      /* ── ASR (Whisper) — speech-to-text ── */
+      const asrs = allModels.filter(m => m.labels.includes('audio') && !m.id.toLowerCase().includes('kokoro'));
+      bestASR =
+        asrs.find(m => m.suggested && m.downloaded) ||
+        asrs.find(m => m.suggested) ||
+        asrs.find(m => m.downloaded) ||
+        asrs[0] || null;
+
+      if (bestASR) {
+        // Download ASR model if needed
+        if (!bestASR.downloaded) {
+          setStatusText(`Downloading ${bestASR.id} for speech recognition...`);
+          window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
+          const asrPull = await window.electronAPI.pullModelStreaming(bestASR.id);
+          window.electronAPI.offPullProgress();
+
+          if (asrPull === false || (asrPull && !asrPull.success)) {
+            console.warn('ASR model download failed:', asrPull);
+          } else {
+            bestASR.downloaded = true;
           }
+        }
 
-          // Load the ASR model (smart: skip if already active, unload stale if different)
-          if (bestASR.downloaded) {
-            if (loadedASR && loadedASR.model_name === bestASR.id) {
-              console.log(`ASR model ${bestASR.id} is already loaded, skipping load`);
+        // Load ASR model (smart: skip if already active)
+        if (bestASR.downloaded) {
+          if (loadedASR && loadedASR.model_name === bestASR.id) {
+            console.log(`ASR model ${bestASR.id} is already loaded`);
+            asrReady = true;
+          } else {
+            if (loadedASR) {
+              try { await window.electronAPI.unloadModel(loadedASR.model_name); } catch {}
+            }
+            setStatusText(`Loading ${bestASR.id}...`);
+            const asrLoad = await window.electronAPI.loadModel(bestASR.id);
+            if (asrLoad === false || (asrLoad && !asrLoad.success)) {
+              const msg = asrLoad && asrLoad.message ? asrLoad.message : 'Unknown error';
+              console.warn(`ASR model load failed: ${msg}`);
+              if (msg.includes('max_models') || msg.includes('audio') || !serverSupportsAudio) {
+                console.error(
+                  '╔══════════════════════════════════════════════════════════╗\n' +
+                  '║  AUDIO MODELS UNAVAILABLE                               ║\n' +
+                  '║  Your Lemonade Server has no audio model slot.           ║\n' +
+                  '║  Restart the server with:                                ║\n' +
+                  '║    lemonade-server --max-loaded-models 1 1 1 2           ║\n' +
+                  '║  (LLMs, Embeddings, Reranking, Audio)                    ║\n' +
+                  '║  This enables both Whisper (ASR) and Kokoro (TTS).       ║\n' +
+                  '╚══════════════════════════════════════════════════════════╝'
+                );
+              }
             } else {
-              if (loadedASR) {
-                console.log(`Unloading stale ASR: ${loadedASR.model_name}`);
-                try {
-                  await window.electronAPI.unloadModel(loadedASR.model_name);
-                } catch (unloadErr) {
-                  console.warn('Failed to unload stale ASR (non-fatal):', unloadErr);
-                }
-              }
-
-              setStatusText(`Loading ${bestASR.id}...`);
-              const asrLoad = await window.electronAPI.loadModel(bestASR.id);
-              if (asrLoad === false || (asrLoad && !asrLoad.success)) {
-                console.warn('ASR model load failed, voice features may not work:', asrLoad);
-              } else {
-                console.log(`ASR model ${bestASR.id} loaded successfully`);
-              }
+              console.log(`ASR model ${bestASR.id} loaded successfully`);
+              asrReady = true;
             }
           }
         }
       } else {
-        console.log('Server does not support audio models (no audio slot in max_models). Skipping ASR setup — voice features disabled, text interview available.');
+        console.warn('No ASR (Whisper) model found in model catalog');
+      }
+
+      /* ── TTS (Kokoro) — text-to-speech ── */
+      // kokoro-v1 is the TTS model that powers /api/v1/audio/speech.
+      // It may appear in the model list, or it may need to be loaded by name.
+      const ttsModelId = 'kokoro-v1';
+      const loadedTTS = loadedModels.find(
+        m => m.model_name.toLowerCase().includes('kokoro')
+      );
+
+      if (loadedTTS) {
+        console.log(`TTS model ${loadedTTS.model_name} is already loaded`);
+        ttsReady = true;
+      } else {
+        // Try to find kokoro in the catalog
+        const kokoroModel = allModels.find(m => m.id.toLowerCase().includes('kokoro'));
+
+        if (kokoroModel && !kokoroModel.downloaded) {
+          setStatusText(`Downloading ${kokoroModel.id} for text-to-speech...`);
+          window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
+          const ttsPull = await window.electronAPI.pullModelStreaming(kokoroModel.id);
+          window.electronAPI.offPullProgress();
+          if (ttsPull && ttsPull.success) kokoroModel.downloaded = true;
+        }
+
+        // Attempt to load the TTS model
+        const ttsId = kokoroModel?.id || ttsModelId;
+        setStatusText(`Loading ${ttsId} for speech...`);
+        try {
+          const ttsLoad = await window.electronAPI.loadModel(ttsId);
+          if (ttsLoad && ttsLoad.success) {
+            console.log(`TTS model ${ttsId} loaded successfully`);
+            ttsReady = true;
+          } else {
+            console.warn(`TTS model load failed: ${ttsLoad && typeof ttsLoad !== 'boolean' ? ttsLoad.message : 'Unknown error'}`);
+          }
+        } catch (ttsErr: any) {
+          console.warn('TTS model load error:', ttsErr.message || ttsErr);
+        }
+      }
+
+      // Log final audio readiness
+      console.log(`Voice features: ASR=${asrReady ? 'ready' : 'unavailable'}, TTS=${ttsReady ? 'ready' : 'unavailable'}`);
+      if (!asrReady && !ttsReady && !serverSupportsAudio) {
+        console.error(
+          'Voice features disabled. To enable, restart Lemonade Server with:\n' +
+          '  lemonade-server --max-loaded-models 1 1 1 2'
+        );
       }
 
       await window.electronAPI.updateInterviewerSettings({ modelName: model.id, asrModel: bestASR?.id });
@@ -470,7 +539,10 @@ const Preparing: React.FC = () => {
 
       setStatusText('Ready!');
       await new Promise(r => setTimeout(r, 350));
-      navigate(`/interview/${interview.id}`, { replace: true });
+      navigate(`/interview/${interview.id}`, {
+        replace: true,
+        state: { voiceEnabled: asrReady && ttsReady },
+      });
     } catch (e: any) {
       console.error('Preparation failed:', e);
       setPhase('error');

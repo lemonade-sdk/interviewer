@@ -82,9 +82,11 @@ class LemonadeClient:
             raise APIError(
                 message=str(e),
                 status_code=e.response.status_code,
-                error_type=e.response.json().get("error", {}).get("type")
-                if e.response.headers.get("content-type", "").startswith("application/json")
-                else None,
+                error_type=(
+                    e.response.json().get("error", {}).get("type")
+                    if e.response.headers.get("content-type", "").startswith("application/json")
+                    else None
+                ),
             ) from e
         except httpx.HTTPError as e:
             raise LemonadeError(f"HTTP error: {e}") from e
@@ -103,9 +105,11 @@ class LemonadeClient:
             raise APIError(
                 message=str(e),
                 status_code=e.response.status_code,
-                error_type=e.response.json().get("error", {}).get("type")
-                if e.response.headers.get("content-type", "").startswith("application/json")
-                else None,
+                error_type=(
+                    e.response.json().get("error", {}).get("type")
+                    if e.response.headers.get("content-type", "").startswith("application/json")
+                    else None
+                ),
             ) from e
         except httpx.HTTPError as e:
             raise LemonadeError(f"HTTP error: {e}") from e
@@ -145,6 +149,7 @@ class LemonadeClient:
                                 return
                             try:
                                 import json as json_module
+
                                 yield json_module.loads(data_str)
                             except Exception:
                                 continue

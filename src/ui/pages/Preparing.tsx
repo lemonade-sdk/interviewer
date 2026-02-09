@@ -298,9 +298,15 @@ const Preparing: React.FC = () => {
           }
         }
 
-        // Load the selected LLM
+        // Load the selected LLM with an expanded context window.
+        // The persona generation prompt needs ~5-6K tokens (JD + resume + instructions + output),
+        // and the default 4096 is too small.  Request 16384 so there's ample room for both
+        // persona generation and multi-turn interview conversations.
         setStatusText(`Loading ${model.id}...`);
-        const opts = model.recipe === 'llamacpp' ? { llamacpp_backend: 'vulkan' as const } : undefined;
+        const opts: Record<string, any> = { ctx_size: 16384 };
+        if (model.recipe === 'llamacpp') {
+          opts.llamacpp_backend = 'vulkan';
+        }
         const load = await window.electronAPI.loadModel(model.id, opts);
         if (load === false || (load && !load.success)) {
           setPhase('error');

@@ -126,7 +126,22 @@ export class LemonadeClient {
       const responseContent = completion?.choices?.[0]?.message?.content;
 
       if (!responseContent) {
-        // Log the raw response to aid debugging when choices is missing
+        // The Lemonade Server router can return HTTP 200 even when the backend
+        // (llama-server) returns an error.  The body will contain an `error`
+        // object instead of `choices`.  Parse it to surface the *real* message.
+        const raw = completion as any;
+        const embeddedError =
+          raw?.error?.details?.response?.error?.message  // llama-server nested error
+          ?? raw?.error?.message                         // router-level error
+          ?? raw?.error                                  // plain string error
+          ?? null;
+
+        if (embeddedError) {
+          console.error('Lemonade Server backend error (masked as 200):', embeddedError);
+          throw new Error(`Lemonade Server error: ${embeddedError}`);
+        }
+
+        // Truly empty / unexpected shape — log for debugging
         console.warn('Unexpected completion response (no choices):', JSON.stringify(completion)?.slice(0, 500));
         throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }

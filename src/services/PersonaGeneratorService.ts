@@ -37,97 +37,58 @@ export class PersonaGeneratorService {
     this.lemonadeClient = lemonadeClient;
   }
 
+  /* ── Token-budget safety ──
+   * Small local models typically load with 4-16K context.  The prompt
+   * template itself is ~600 tokens, so we cap each document at ~4000
+   * characters (~1000-1200 tokens) to stay safely within a 4K window
+   * while still leaving room for the model's output.  When the context
+   * is larger (16K+), truncation is rarely hit because real JDs/resumes
+   * seldom exceed 4K chars.
+   */
+  private static readonly MAX_DOC_CHARS = 4000;
+
+  private truncate(text: string, maxChars: number = PersonaGeneratorService.MAX_DOC_CHARS): string {
+    if (text.length <= maxChars) return text;
+    return text.slice(0, maxChars) + '\n[...truncated for length]';
+  }
+
   /**
    * The master prompt that instructs the AI to:
    * 1. Analyze the job description
    * 2. Analyze the resume
    * 3. Generate a complete interviewer persona
+   *
+   * Kept concise to fit within small-model context windows (4K-16K).
    */
   private buildPersonaGenerationPrompt(input: PersonaGenerationInput): string {
-    return `You are an expert interview preparation system. Your task is to analyze two documents and generate a tailored interviewer persona.
+    const jd = this.truncate(input.jobDescriptionText);
+    const resume = this.truncate(input.resumeText);
 
-═══════════════════════════════════════════════════════════════
-STEP 1: ANALYZE THE JOB DESCRIPTION
-═══════════════════════════════════════════════════════════════
-
-Read the following job description carefully. Identify:
-- The exact role title and seniority level
-- The company's domain/industry
-- Required technical skills and qualifications
-- Preferred/nice-to-have skills
-- Key responsibilities
-- Team structure and reporting lines (if mentioned)
-- Company culture indicators
-- What would make an ideal candidate
+    return `You are an expert interview preparation system. Analyze the job description and resume below, then generate a tailored interviewer persona as a JSON object.
 
 <JOB_DESCRIPTION>
-${input.jobDescriptionText}
+${jd}
 </JOB_DESCRIPTION>
 
-═══════════════════════════════════════════════════════════════
-STEP 2: ANALYZE THE CANDIDATE'S RESUME
-═══════════════════════════════════════════════════════════════
-
-Now read the candidate's resume. With the job requirements fresh in your mind, identify:
-- The candidate's current experience level and career trajectory
-- Skills that MATCH the job requirements (strengths to validate)
-- Skills that are MISSING or WEAK relative to the job (gaps to probe)
-- Notable projects or achievements relevant to this role
-- Potential red flags or areas needing clarification
-- How well the candidate's background aligns with the role overall
-
 <RESUME>
-${input.resumeText}
+${resume}
 </RESUME>
 
-═══════════════════════════════════════════════════════════════
-STEP 3: GENERATE THE INTERVIEWER PERSONA
-═══════════════════════════════════════════════════════════════
+Interview type: ${input.interviewType}
+Company: ${input.company}
+Position: ${input.position}
 
-Based on your analysis, generate a JSON object for the interviewer persona.
-
-The interview type is: ${input.interviewType}
-The company is: ${input.company}
-The position is: ${input.position}
-
-Generate the persona as a JSON object with EXACTLY these fields:
+Respond with ONLY a valid JSON object (no markdown, no explanation) with these fields:
 
 {
-  "name": "A realistic interviewer name appropriate for the company/industry",
-  "description": "A 1-2 sentence description of who this interviewer is (their role, expertise, why they're conducting this interview)",
-  "interviewStyle": "One of: conversational, formal, challenging, supportive - choose based on the role seniority and company culture",
-  "questionDifficulty": "One of: easy, medium, hard - calibrate based on the role seniority and candidate experience",
-  "systemPrompt": "A comprehensive system prompt (see detailed instructions below)",
-  "jobAnalysis": "A concise 3-5 sentence summary of what you found in the job description",
-  "resumeAnalysis": "A concise 3-5 sentence summary of what you found in the resume and how it maps to the role"
-}
-
-CRITICAL INSTRUCTIONS FOR THE "systemPrompt" FIELD:
-
-The systemPrompt is the instruction set that YOU (the AI) will follow during the actual interview.
-It must be a self-contained, comprehensive prompt that includes:
-
-1. YOUR IDENTITY: Who you are (name, title, department at the company)
-2. THE ROLE CONTEXT: What position you're hiring for, what the team needs, what success looks like
-3. CANDIDATE KNOWLEDGE: What you know about this candidate from their resume (reference specific experience, projects, skills)
-4. INTERVIEW STRATEGY: 
-   - Opening approach (how to greet and set the tone)
-   - Core questions to explore (tailored to this candidate + this role)
-   - Specific areas to probe (gaps between resume and job requirements)
-   - Follow-up strategies for each topic area
-   - Technical depth to target
-5. EVALUATION CRITERIA: What you're looking for in responses
-6. BEHAVIORAL GUIDELINES:
-   - Maintain natural conversation flow
-   - Ask one question at a time
-   - Listen actively and reference previous answers
-   - Be professional but ${input.interviewType === 'behavioral' ? 'warm and encouraging' : 'appropriately rigorous'}
-   - Keep track of time and topics covered
-   - Wrap up naturally when enough ground has been covered
-
-The systemPrompt should be 300-500 words and read like instructions to an interviewer who has already studied both the job description and the candidate's resume.
-
-IMPORTANT: Respond with ONLY the JSON object. No markdown, no code fences, no explanation before or after. Just the raw JSON.`;
+  "name": "Realistic interviewer name",
+  "description": "1-2 sentence description of the interviewer",
+  "interviewStyle": "conversational | formal | challenging | supportive",
+  "questionDifficulty": "easy | medium | hard",
+  "systemPrompt": "200-400 word instruction prompt for the interviewer (include: interviewer identity, role context, candidate strengths & gaps from resume, key questions to ask, evaluation criteria, behavioral guidelines — ask one question at a time, be ${input.interviewType === 'behavioral' ? 'warm and encouraging' : 'professionally rigorous'})",
+  "jobAnalysis": "3-5 sentence summary of the job requirements",
+  "resumeAnalysis": "3-5 sentence summary of the candidate's fit"
+}`;
   }
 
   /**

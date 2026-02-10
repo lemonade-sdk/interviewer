@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { Mic, Square } from 'lucide-react';
 
 interface VoiceOrbProps {
   isListening: boolean;
@@ -7,6 +8,8 @@ interface VoiceOrbProps {
   isVADActive?: boolean;
   isTranscribing?: boolean;
   isThinking?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
 }
 
 export const VoiceOrb: React.FC<VoiceOrbProps> = ({
@@ -16,160 +19,167 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
   isVADActive = false,
   isTranscribing = false,
   isThinking = false,
+  onClick,
+  disabled = false,
 }) => {
-  // Calculate scale based on audio level for dynamic effect
-  const scale = 1 + Math.min(audioLevel, 1) * 0.5;
+  const animFrameRef = useRef<number>(0);
+  const barsRef = useRef<HTMLDivElement>(null);
 
-  // Determine the current state for rendering priority
-  // Priority: speaking > transcribing > thinking > listening+VAD > listening > idle
-  const getOrbState = () => {
+  // Determine visual state (priority order)
+  const getState = (): 'speaking' | 'processing' | 'active' | 'listening' | 'idle' => {
     if (isSpeaking) return 'speaking';
-    if (isTranscribing) return 'transcribing';
-    if (isThinking) return 'thinking';
-    if (isListening && isVADActive) return 'speech-detected';
+    if (isTranscribing || isThinking) return 'processing';
+    if (isListening && isVADActive) return 'active';
     if (isListening) return 'listening';
     return 'idle';
   };
 
-  const orbState = getOrbState();
+  const state = getState();
+  const isActive = state !== 'idle';
 
-  const orbStyles: Record<string, { bg: string; glow: string; text: string; label: string }> = {
-    idle: {
-      bg: 'bg-gradient-to-br from-gray-300 to-gray-400',
-      glow: '',
-      text: 'text-gray-500',
-      label: 'Ready',
-    },
-    listening: {
-      bg: 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-300/50',
-      glow: 'bg-red-400',
-      text: 'text-red-600',
-      label: 'Listening...',
-    },
-    'speech-detected': {
-      bg: 'bg-gradient-to-br from-green-400 to-green-600 shadow-green-300/50',
-      glow: 'bg-green-400',
-      text: 'text-green-600',
-      label: 'Speech detected',
-    },
-    transcribing: {
-      bg: 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-300/50',
-      glow: 'bg-blue-400',
-      text: 'text-blue-600',
-      label: 'Transcribing...',
-    },
-    thinking: {
-      bg: 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-purple-300/50',
-      glow: 'bg-purple-400',
-      text: 'text-purple-600',
-      label: 'AI is thinking...',
-    },
-    speaking: {
-      bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-yellow-300/50',
-      glow: 'bg-yellow-400',
-      text: 'text-yellow-600',
-      label: 'Speaking...',
-    },
-  };
+  // Audio-reactive scale
+  const level = Math.min(audioLevel, 1);
+  const orbScale =
+    state === 'listening' || state === 'active'
+      ? 1 + level * 0.2
+      : state === 'speaking'
+      ? 1 + level * 0.15
+      : 1;
 
-  const style = orbStyles[orbState];
+  // Glow intensity
+  const glowOpacity = isActive ? 0.25 + level * 0.15 : 0.08;
+  const glowSpread = isActive ? 50 + level * 30 : 25;
+
+  // Animate processing bars
+  useEffect(() => {
+    if (state !== 'processing' || !barsRef.current) return;
+    let frame = 0;
+    const animate = () => {
+      if (!barsRef.current) return;
+      const bars = barsRef.current.children;
+      for (let i = 0; i < bars.length; i++) {
+        const h = 10 + Math.sin(frame * 0.08 + i * 1.2) * 8;
+        (bars[i] as HTMLElement).style.height = `${h}px`;
+      }
+      frame++;
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+    animFrameRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [state]);
+
+  const statusLabel = {
+    idle: 'Tap to speak',
+    listening: 'Listening...',
+    active: 'Hearing you...',
+    processing: isTranscribing ? 'Transcribing...' : 'Thinking...',
+    speaking: 'Speaking...',
+  }[state];
 
   return (
-    <div className="relative flex flex-col items-center justify-center w-64 h-64">
-      {/* Outer Glow / Ripple */}
-      {style.glow && (
-        <div
-          className={`absolute inset-0 rounded-full opacity-20 animate-ping ${style.glow}`}
-        />
-      )}
-
-      {/* Secondary ring for transcribing / thinking */}
-      {(orbState === 'transcribing' || orbState === 'thinking') && (
-        <div
-          className={`absolute inset-4 rounded-full border-4 opacity-50 animate-spin ${
-            orbState === 'transcribing'
-              ? 'border-blue-300 border-t-blue-600'
-              : 'border-purple-300 border-t-purple-600'
-          }`}
-          style={{ animationDuration: '1.5s' }}
-        />
-      )}
-
-      {/* VAD Active Indicator — green ring when speech is detected while listening */}
-      {orbState === 'speech-detected' && (
-        <div className="absolute inset-2 rounded-full border-4 border-green-400 opacity-70 animate-pulse z-20" />
-      )}
-
-      {/* Main Orb */}
-      <div
-        className={`relative z-10 w-32 h-32 rounded-full shadow-lg transition-all duration-150 flex items-center justify-center ${style.bg}`}
-        style={{
-          transform: `scale(${
-            orbState === 'listening' || orbState === 'speech-detected' || orbState === 'speaking'
-              ? scale
-              : orbState === 'transcribing' || orbState === 'thinking'
-              ? 1.05
-              : 1
-          })`,
-        }}
+    <div className="relative flex flex-col items-center select-none">
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="relative group cursor-pointer focus:outline-none disabled:cursor-not-allowed"
+        aria-label={isListening ? 'Stop recording' : 'Start recording'}
       >
-        {/* Inner Core */}
-        <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-          {/* Transcribing wave animation */}
-          {orbState === 'transcribing' && (
-            <div className="flex items-center gap-1">
-              {[0, 1, 2, 3, 4].map(i => (
-                <div
-                  key={i}
-                  className="w-1 bg-white/80 rounded-full animate-pulse"
-                  style={{
-                    height: `${12 + Math.sin(Date.now() / 200 + i) * 8}px`,
-                    animationDelay: `${i * 0.15}s`,
-                    animationDuration: '0.6s',
-                  }}
-                />
-              ))}
-            </div>
-          )}
+        {/* Ambient glow */}
+        <div
+          className="absolute rounded-full transition-all duration-700 pointer-events-none"
+          style={{
+            inset: '-40px',
+            background: `radial-gradient(circle, rgba(255,215,68,${glowOpacity}) 0%, transparent 70%)`,
+          }}
+        />
 
-          {/* Thinking dots animation */}
-          {orbState === 'thinking' && (
-            <div className="flex items-center gap-1.5">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="w-2.5 h-2.5 bg-white/80 rounded-full animate-bounce"
-                  style={{ animationDelay: `${i * 0.2}s` }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Status Text */}
-      <div className="absolute -bottom-14 text-center">
-        <p className={`text-lg font-medium transition-colors duration-300 ${style.text}`}>
-          {style.label}
-        </p>
-
-        {/* Audio level indicator for listening states */}
-        {(orbState === 'listening' || orbState === 'speech-detected') && (
-          <div className="mt-2 flex items-center justify-center gap-1">
-            <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-100 ${
-                  audioLevel > 0.7 ? 'bg-red-500' : audioLevel > 0.4 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min(audioLevel * 100, 100)}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-mono text-gray-400 w-8 text-right">
-              {Math.round(audioLevel * 100)}%
-            </span>
-          </div>
+        {/* Ripple ring — listening / speaking */}
+        {(state === 'listening' || state === 'active' || state === 'speaking') && (
+          <div
+            className="absolute rounded-full border border-lemonade-accent/25 pointer-events-none"
+            style={{
+              inset: '-16px',
+              animation: 'orbPing 2s cubic-bezier(0,0,0.2,1) infinite',
+            }}
+          />
         )}
-      </div>
+
+        {/* Second ripple — speaking only */}
+        {state === 'speaking' && (
+          <div
+            className="absolute rounded-full border border-lemonade-accent/15 pointer-events-none"
+            style={{
+              inset: '-28px',
+              animation: 'orbPing 2.5s cubic-bezier(0,0,0.2,1) infinite 0.4s',
+            }}
+          />
+        )}
+
+        {/* Spin ring — processing */}
+        {state === 'processing' && (
+          <div
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              inset: '-10px',
+              border: '2px solid transparent',
+              borderTopColor: 'rgba(255,215,68,0.5)',
+              borderRightColor: 'rgba(255,215,68,0.2)',
+              animation: 'spin 1.5s linear infinite',
+            }}
+          />
+        )}
+
+        {/* Main orb */}
+        <div
+          className="relative w-36 h-36 rounded-full transition-transform duration-150 ease-out"
+          style={{ transform: `scale(${orbScale})` }}
+        >
+          {/* Gradient fill */}
+          <div
+            className="absolute inset-0 rounded-full transition-all duration-500"
+            style={{
+              background: isActive
+                ? 'linear-gradient(135deg, #FFD744 0%, #E5A800 50%, #FFD744 100%)'
+                : 'linear-gradient(135deg, rgba(255,215,68,0.5) 0%, rgba(229,152,0,0.35) 100%)',
+              boxShadow: `0 0 ${glowSpread}px rgba(255,215,68,${glowOpacity})`,
+            }}
+          />
+
+          {/* Highlight */}
+          <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+            <div
+              className="absolute rounded-full bg-white/15 blur-xl"
+              style={{ top: '-20%', left: '-15%', width: '65%', height: '65%' }}
+            />
+          </div>
+
+          {/* Center content */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            {state === 'processing' ? (
+              <div ref={barsRef} className="flex items-end gap-[3px]">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] rounded-full bg-black/35"
+                    style={{ height: '10px', transition: 'height 80ms ease' }}
+                  />
+                ))}
+              </div>
+            ) : isListening ? (
+              <Square className="w-6 h-6 text-black/40" fill="currentColor" />
+            ) : (
+              <Mic
+                className="w-7 h-7 text-black/30 group-hover:text-black/50 transition-colors duration-200"
+              />
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/* Status label */}
+      <p className="mt-8 text-[13px] font-medium tracking-wide text-white/40 transition-colors duration-300">
+        {statusLabel}
+      </p>
     </div>
   );
 };

@@ -12,6 +12,7 @@ import { AudioSettings } from '../types';
  * Events:
  * - recording-started: When recording begins
  * - recording-stopped: When recording ends
+ * - transcription-started: When Whisper ASR begins processing (for UI feedback)
  * - transcription-complete: (text: string) When speech is transcribed
  * - speaking-started: When TTS starts
  * - speaking-stopped: When TTS ends
@@ -141,8 +142,15 @@ export class VoiceInterviewManager extends EventEmitter {
       const audioBlob = await this.audioService.stopRecording();
       this.isRecording = false;
 
+      // Signal that transcription is starting (for UI feedback)
+      this.emit('transcription-started');
+
+      // Convert to WAV format (Whisper/Lemonade Server requires WAV)
+      // AudioService records in WebM; Whisper needs WAV
+      const wavBlob = await this.asrService.convertToWav(audioBlob);
+
       // Transcribe audio
-      const transcription = await this.asrService.transcribe(audioBlob);
+      const transcription = await this.asrService.transcribe(wavBlob);
       const text = transcription.text;
 
       this.emit('transcription-complete', text);
@@ -151,6 +159,7 @@ export class VoiceInterviewManager extends EventEmitter {
       return text;
     } catch (error: any) {
       this.isRecording = false;
+      this.emit('transcription-complete', ''); // Clear transcribing state on error
       this.emit('error', error);
       throw error;
     }

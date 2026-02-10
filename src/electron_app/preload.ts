@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Interview operations
-  startInterview: (config: any) => ipcRenderer.invoke('interview:start', config),
+  startInterview: (config: any, personaId?: string) => ipcRenderer.invoke('interview:start', config, personaId),
   endInterview: (interviewId: string) => ipcRenderer.invoke('interview:end', interviewId),
   sendMessage: (interviewId: string, message: string) => ipcRenderer.invoke('interview:sendMessage', interviewId, message),
   getInterview: (interviewId: string) => ipcRenderer.invoke('interview:get', interviewId),
@@ -28,17 +28,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Model operations
   getAvailableModels: () => ipcRenderer.invoke('model:getAvailable'),
   testModelConnection: (modelId: string) => ipcRenderer.invoke('model:testConnection', modelId),
-  loadModel: (modelId: string) => ipcRenderer.invoke('model:load', modelId),
+  loadModel: (modelId: string, options?: Record<string, any>) => ipcRenderer.invoke('model:load', modelId, options),
   unloadModel: (modelId: string) => ipcRenderer.invoke('model:unload', modelId),
   pullModel: (modelId: string) => ipcRenderer.invoke('model:pull', modelId),
+  pullModelStreaming: (modelId: string) => ipcRenderer.invoke('model:pullStreaming', modelId),
+  onPullProgress: (callback: (data: any) => void) => {
+    ipcRenderer.on('pull:progress', (_event: any, data: any) => callback(data));
+  },
+  offPullProgress: () => {
+    ipcRenderer.removeAllListeners('pull:progress');
+  },
   deleteModel: (modelId: string) => ipcRenderer.invoke('model:delete', modelId),
   refreshModels: () => ipcRenderer.invoke('model:refresh'),
+  listAllModels: () => ipcRenderer.invoke('model:listAll'),
   
   // Server operations
   checkServerHealth: () => ipcRenderer.invoke('server:checkHealth'),
   getServerStatus: () => ipcRenderer.invoke('server:getStatus'),
   getSystemInfo: () => ipcRenderer.invoke('server:getSystemInfo'),
   getServerHealth: () => ipcRenderer.invoke('server:getHealth'),
+  checkLemonadeInstallation: () => ipcRenderer.invoke('server:checkInstallation'),
+  
+  // Document operations
+  uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => ipcRenderer.invoke('document:upload', data),
+  getDocuments: (type?: string) => ipcRenderer.invoke('document:getAll', type),
+  getDocument: (id: string) => ipcRenderer.invoke('document:get', id),
+  getDocumentFileData: (id: string) => ipcRenderer.invoke('document:getFileData', id),
+  deleteDocument: (id: string) => ipcRenderer.invoke('document:delete', id),
   
   // MCP operations
   getMCPServers: () => ipcRenderer.invoke('mcp:getServers'),
@@ -52,6 +68,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deletePersona: (personaId: string) => ipcRenderer.invoke('persona:delete', personaId),
   setDefaultPersona: (personaId: string) => ipcRenderer.invoke('persona:setDefault', personaId),
   getDefaultPersona: () => ipcRenderer.invoke('persona:getDefault'),
+  generatePersona: (input: {
+    jobDescriptionText: string;
+    resumeText: string;
+    interviewType: string;
+    company: string;
+    position: string;
+  }) => ipcRenderer.invoke('persona:generate', input),
   
   // Audio operations
   saveAudioRecording: (audioData: any) => ipcRenderer.invoke('audio:saveRecording', audioData),

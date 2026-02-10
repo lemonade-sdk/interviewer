@@ -1,13 +1,16 @@
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
 import { initializeDatabase, closeDatabase } from '../database/db';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 import { JobRepository } from '../database/repositories/JobRepository';
 import { SettingsRepository } from '../database/repositories/SettingsRepository';
 import { PersonaRepository } from '../database/repositories/PersonaRepository';
 import { MCPManager } from '../mcp/MCPManager';
+import { DocumentRepository } from '../database/repositories/DocumentRepository';
 import { InterviewService } from '../services/InterviewService';
+import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -18,6 +21,7 @@ let interviewRepo: InterviewRepository;
 let jobRepo: JobRepository;
 let settingsRepo: SettingsRepository;
 let personaRepo: PersonaRepository;
+let documentRepo: DocumentRepository;
 
 // Services
 let interviewService: InterviewService;
@@ -34,9 +38,8 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: process.env.NODE_ENV === 'development'
-        ? path.join(__dirname, '../../dist/electron/src/electron_app/preload.js')
-        : path.join(__dirname, 'preload.js'),
+      // preload.js is always compiled to the same directory as main.js
+      preload: path.join(__dirname, 'preload.js'),
     },
     backgroundColor: '#ffffff',
     show: false,
@@ -74,10 +77,18 @@ function createWindow(): void {
       console.error('Failed to load dev server:', err);
     });
   } else {
-    // In production, __dirname is: dist/electron/src/electron_app/
-    // We need to go up 4 levels to reach the app root, then into dist/renderer/
-    const htmlPath = path.join(__dirname, '../../../../dist/renderer/index.html');
+    // __dirname is: dist/electron/src/electron_app/
+    // Go up 4 levels to app root, then into dist/renderer/
+    const htmlPath = path.join(__dirname, '..', '..', '..', '..', 'dist', 'renderer', 'index.html');
     console.log('Loading production HTML from:', htmlPath);
+    console.log('App is packaged:', app.isPackaged);
+    console.log('Resolved path:', path.resolve(htmlPath));
+    
+    if (!fs.existsSync(htmlPath)) {
+      console.error('ERROR: Production HTML not found at:', htmlPath);
+      console.error('__dirname is:', __dirname);
+    }
+    
     mainWindow.loadFile(htmlPath);
   }
 
@@ -100,12 +111,19 @@ async function initializeApp(): Promise<void> {
     jobRepo = new JobRepository();
     settingsRepo = new SettingsRepository();
     personaRepo = new PersonaRepository();
+    documentRepo = new DocumentRepository();
     
-    // Setup audio recordings directory
+    // Setup directories
     const userDataPath = app.getPath('userData');
+    
     audioRecordingsPath = path.join(userDataPath, 'audio_recordings');
     if (!fs.existsSync(audioRecordingsPath)) {
       fs.mkdirSync(audioRecordingsPath, { recursive: true });
+    }
+
+    const documentsPath = path.join(userDataPath, 'documents');
+    if (!fs.existsSync(documentsPath)) {
+      fs.mkdirSync(documentsPath, { recursive: true });
     }
     
     // Initialize services
@@ -150,10 +168,17 @@ app.on('before-quit', () => {
 });
 
 // IPC Handlers - Interview Operations
-ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any) => {
+ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string) => {
   try {
     const interview = await interviewRepo.create(config);
-    await interviewService.startInterview(interview.id, config);
+
+    // If a persona ID is provided, look it up and pass it to the interview service
+    let persona = null;
+    if (personaId) {
+      persona = await personaRepo.findById(personaId);
+    }
+
+    await interviewService.startInterview(interview.id, config, persona);
     return interview;
   } catch (error) {
     console.error('Failed to start interview:', error);
@@ -372,9 +397,14 @@ ipcMain.handle('model:testConnection', async (_event: IpcMainInvokeEvent, modelI
   }
 });
 
-ipcMain.handle('model:load', async (_event: IpcMainInvokeEvent, modelId: string) => {
+ipcMain.handle('model:load', async (_event: IpcMainInvokeEvent, modelId: string, options?: {
+  ctx_size?: number;
+  llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+  llamacpp_args?: string;
+  save_options?: boolean;
+}) => {
   try {
-    return await interviewService.loadModel(modelId);
+    return await interviewService.loadModel(modelId, options);
   } catch (error) {
     console.error('Failed to load model:', error);
     return false;
@@ -399,6 +429,23 @@ ipcMain.handle('model:pull', async (_event: IpcMainInvokeEvent, modelId: string)
   }
 });
 
+ipcMain.handle('model:pullStreaming', async (event: IpcMainInvokeEvent, modelId: string) => {
+  try {
+    const result = await interviewService.pullModelStreaming(modelId, (progressData) => {
+      // Relay each SSE progress event to the renderer process
+      try {
+        event.sender.send('pull:progress', progressData);
+      } catch {
+        // sender may have been destroyed if window closed during download
+      }
+    });
+    return result;
+  } catch (error) {
+    console.error('Failed to pull model (streaming):', error);
+    return false;
+  }
+});
+
 ipcMain.handle('model:delete', async (_event: IpcMainInvokeEvent, modelId: string) => {
   try {
     return await interviewService.deleteModel(modelId);
@@ -414,6 +461,15 @@ ipcMain.handle('model:refresh', async () => {
   } catch (error) {
     console.error('Failed to refresh models:', error);
     throw error;
+  }
+});
+
+ipcMain.handle('model:listAll', async () => {
+  try {
+    return await interviewService.listAllModels();
+  } catch (error) {
+    console.error('Failed to list all models:', error);
+    return [];
   }
 });
 
@@ -456,6 +512,68 @@ ipcMain.handle('server:getHealth', async () => {
   } catch (error) {
     console.error('Failed to get server health:', error);
     return null;
+  }
+});
+
+ipcMain.handle('server:checkInstallation', async () => {
+  try {
+    const isWindows = process.platform === 'win32';
+
+    // Primary check: look for lemonade-server.exe at the known install location
+    // Windows: %LOCALAPPDATA%\lemonade_server\bin\lemonade-server.exe
+    if (isWindows) {
+      const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local');
+      const binaryPath = path.join(localAppData, 'lemonade_server', 'bin', 'lemonade-server.exe');
+
+      if (fs.existsSync(binaryPath)) {
+        // Found at the known location — try to get version
+        const version = await new Promise<string | null>((resolve) => {
+          exec(`"${binaryPath}" --version`, (error, stdout) => {
+            resolve(error ? null : stdout.trim());
+          });
+        });
+
+        return {
+          installed: true,
+          version: version,
+          binaryPath: binaryPath,
+        };
+      }
+    }
+
+    // Fallback: check if lemonade-server is on PATH
+    const pathCmd = isWindows ? 'where lemonade-server' : 'which lemonade-server';
+    const onPath = await new Promise<boolean>((resolve) => {
+      exec(pathCmd, (error) => resolve(!error));
+    });
+
+    if (onPath) {
+      const version = await new Promise<string | null>((resolve) => {
+        exec('lemonade-server --version', (error, stdout) => {
+          resolve(error ? null : stdout.trim());
+        });
+      });
+
+      return {
+        installed: true,
+        version: version,
+        binaryPath: null,
+      };
+    }
+
+    // Not found anywhere
+    return {
+      installed: false,
+      version: null,
+      binaryPath: null,
+    };
+  } catch (error) {
+    console.error('Failed to check lemonade-server installation:', error);
+    return {
+      installed: false,
+      version: null,
+      binaryPath: null,
+    };
   }
 });
 
@@ -527,6 +645,44 @@ ipcMain.handle('persona:getDefault', async () => {
 });
 
 // ===========================================
+// IPC Handlers - Persona Generation
+// ===========================================
+
+ipcMain.handle('persona:generate', async (_event: IpcMainInvokeEvent, input: {
+  jobDescriptionText: string;
+  resumeText: string;
+  interviewType: string;
+  company: string;
+  position: string;
+}) => {
+  try {
+    const lemonadeClient = interviewService.getLemonadeClient();
+    const generator = new PersonaGeneratorService(lemonadeClient);
+
+    const result = await generator.generatePersona(input as PersonaGenerationInput);
+
+    // Persist the generated persona
+    const savedPersona = await personaRepo.create({
+      name: result.persona.name,
+      description: result.persona.description,
+      systemPrompt: result.persona.systemPrompt,
+      interviewStyle: result.persona.interviewStyle,
+      questionDifficulty: result.persona.questionDifficulty,
+      isDefault: false,
+    });
+
+    return {
+      persona: savedPersona,
+      jobAnalysis: result.jobAnalysis,
+      resumeAnalysis: result.resumeAnalysis,
+    };
+  } catch (error) {
+    console.error('Failed to generate persona:', error);
+    throw error;
+  }
+});
+
+// ===========================================
 // IPC Handlers - Audio Services
 // ===========================================
 
@@ -560,6 +716,131 @@ ipcMain.handle('audio:deleteRecording', async (_event: IpcMainInvokeEvent, filep
     return { success: false, error: 'File not found' };
   } catch (error) {
     console.error('Failed to delete audio recording:', error);
+    throw error;
+  }
+});
+
+// ===========================================
+// IPC Handlers - Document Operations
+// ===========================================
+
+ipcMain.handle('document:upload', async (_event: IpcMainInvokeEvent, data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => {
+  try {
+    const { type, fileName, fileData } = data;
+
+    // Save file to documents directory
+    const userDataPath = app.getPath('userData');
+    const documentsDir = path.join(userDataPath, 'documents');
+    const ext = path.extname(fileName).toLowerCase();
+    const safeFileName = `${type}_${Date.now()}${ext}`;
+    const filePath = path.join(documentsDir, safeFileName);
+
+    // Decode base64 file data and save
+    const buffer = Buffer.from(fileData, 'base64');
+    fs.writeFileSync(filePath, buffer);
+    console.log(`Document saved: ${filePath} (${buffer.length} bytes)`);
+
+    // Extract text from the document
+    let extractedText = '';
+    try {
+      if (ext === '.pdf') {
+        const { PDFParse } = require('pdf-parse');
+        const parser = new PDFParse(new Uint8Array(buffer));
+        await parser.load();
+        const result = await parser.getText();
+        extractedText = result.pages
+          ? result.pages.map((p: { text: string }) => p.text).join('\n')
+          : '';
+      } else if (ext === '.docx') {
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ buffer: buffer });
+        extractedText = result.value || '';
+      } else if (ext === '.doc') {
+        // .doc is a legacy format — store raw text extraction attempt
+        extractedText = buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+      } else if (ext === '.txt') {
+        extractedText = buffer.toString('utf-8');
+      }
+    } catch (parseError) {
+      console.error(`Failed to extract text from ${fileName}:`, parseError);
+      extractedText = `[Could not extract text from ${ext} file]`;
+    }
+
+    console.log(`Extracted ${extractedText.length} characters from ${fileName}`);
+
+    // Determine MIME type
+    const mimeTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.txt': 'text/plain',
+    };
+
+    // Store in JSON data store
+    const doc = await documentRepo.create({
+      type,
+      fileName,
+      filePath,
+      mimeType: mimeTypes[ext] || 'application/octet-stream',
+      fileSize: buffer.length,
+      extractedText,
+    });
+
+    return doc;
+  } catch (error) {
+    console.error('Failed to upload document:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:getAll', async (_event: IpcMainInvokeEvent, type?: string) => {
+  try {
+    if (type === 'resume' || type === 'job_post') {
+      return await documentRepo.findByType(type);
+    }
+    return await documentRepo.findAll();
+  } catch (error) {
+    console.error('Failed to get documents:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:get', async (_event: IpcMainInvokeEvent, id: string) => {
+  try {
+    return await documentRepo.findById(id);
+  } catch (error) {
+    console.error('Failed to get document:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:getFileData', async (_event: IpcMainInvokeEvent, id: string) => {
+  try {
+    const doc = await documentRepo.findById(id);
+    if (!doc || !fs.existsSync(doc.filePath)) {
+      return null;
+    }
+    const buffer = fs.readFileSync(doc.filePath);
+    return {
+      base64: buffer.toString('base64'),
+      mimeType: doc.mimeType,
+      fileName: doc.fileName,
+    };
+  } catch (error) {
+    console.error('Failed to get document file data:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('document:delete', async (_event: IpcMainInvokeEvent, id: string) => {
+  try {
+    const doc = await documentRepo.findById(id);
+    if (doc && fs.existsSync(doc.filePath)) {
+      fs.unlinkSync(doc.filePath);
+    }
+    return await documentRepo.delete(id);
+  } catch (error) {
+    console.error('Failed to delete document:', error);
     throw error;
   }
 });

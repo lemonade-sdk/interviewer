@@ -1,21 +1,27 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Interview from './pages/Interview';
 import InterviewHistory from './pages/InterviewHistory';
-import Jobs from './pages/Jobs';
 import Settings from './pages/Settings';
+import Landing from './pages/Landing';
+import Preparing from './pages/Preparing';
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="interview/:id" element={<Interview />} />
-        <Route path="interview-history" element={<InterviewHistory />} />
-        <Route path="jobs" element={<Jobs />} />
-        <Route path="settings" element={<Settings />} />
+      {/* Landing Page as the root */}
+      <Route path="/" element={<Landing />} />
+
+      {/* Preparing: transitional phase between Landing and Interview */}
+      <Route path="/preparing" element={<Preparing />} />
+
+      {/* Main App Routes wrapped in Layout */}
+      <Route element={<Layout />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/interview/:id" element={<Interview />} />
+        <Route path="/interview-history" element={<InterviewHistory />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
   );

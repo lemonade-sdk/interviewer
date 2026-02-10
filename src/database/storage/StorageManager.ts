@@ -10,7 +10,7 @@ import path from 'path';
 import { IDataStore } from './IDataStore';
 import { JsonFileStore } from './JsonFileStore';
 import { CachedStore } from './CachedStore';
-import { Interview, Job, AgentPersona, UserSettings, InterviewerSettings } from '../../types';
+import { Interview, Job, AgentPersona, UserSettings, InterviewerSettings, UploadedDocument } from '../../types';
 
 /**
  * Singleton settings store (only one instance of each setting type)
@@ -74,6 +74,7 @@ export class StorageManager {
   public interviews!: IDataStore<Interview>;
   public jobs!: IDataStore<Job>;
   public personas!: IDataStore<AgentPersona>;
+  public documents!: IDataStore<UploadedDocument>;
   
   // Settings stores (singleton pattern)
   public userSettings!: SingletonStore<UserSettings>;
@@ -109,6 +110,10 @@ export class StorageManager {
       new JsonFileStore<AgentPersona>(this.basePath, 'personas')
     );
 
+    this.documents = new CachedStore(
+      new JsonFileStore<UploadedDocument>(this.basePath, 'documents')
+    );
+
     // Create settings stores (singleton pattern, no caching needed)
     const settingsBackend = new JsonFileStore<any>(this.basePath, 'settings');
     await settingsBackend.initialize();
@@ -121,6 +126,7 @@ export class StorageManager {
       this.interviews.initialize(),
       this.jobs.initialize(),
       this.personas.initialize(),
+      this.documents.initialize(),
       this.userSettings.initialize(),
       this.interviewerSettings.initialize(),
     ]);
@@ -189,6 +195,7 @@ export class StorageManager {
       interviews: await this.interviews.count(),
       jobs: await this.jobs.count(),
       personas: await this.personas.count(),
+      documents: await this.documents.count(),
       basePath: this.basePath,
     };
   }

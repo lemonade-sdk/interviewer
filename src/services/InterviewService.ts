@@ -1,4 +1,4 @@
-import { InterviewerSettings, Message, InterviewFeedback, ModelConfig, Interview } from '../types';
+import { InterviewerSettings, Message, InterviewFeedback, ModelConfig, Interview, AgentPersona } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 
@@ -14,8 +14,15 @@ export class InterviewService {
     this.lemonadeClient = new LemonadeClient(settings);
   }
 
-  async startInterview(interviewId: string, config: Partial<Interview>): Promise<void> {
-    const systemPrompt = this.buildSystemPrompt(config);
+  /**
+   * Get the LemonadeClient instance (used by PersonaGeneratorService).
+   */
+  getLemonadeClient(): LemonadeClient {
+    return this.lemonadeClient;
+  }
+
+  async startInterview(interviewId: string, config: Partial<Interview>, persona?: AgentPersona | null): Promise<void> {
+    const systemPrompt = this.buildSystemPrompt(config, persona);
     const session: InterviewSession = {
       interviewId,
       messages: [
@@ -143,8 +150,13 @@ Format your response as JSON with the following structure:
     return await this.lemonadeClient.testConnection(modelId);
   }
 
-  async loadModel(modelId: string): Promise<{ success: boolean; message?: string }> {
-    return await this.lemonadeClient.loadModel(modelId);
+  async loadModel(modelId: string, options?: {
+    ctx_size?: number;
+    llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+    llamacpp_args?: string;
+    save_options?: boolean;
+  }): Promise<{ success: boolean; message?: string }> {
+    return await this.lemonadeClient.loadModel(modelId, options);
   }
 
   async unloadModel(modelId: string): Promise<{ success: boolean; message?: string }> {
@@ -155,12 +167,30 @@ Format your response as JSON with the following structure:
     return await this.lemonadeClient.pullModel(modelId);
   }
 
+  async pullModelStreaming(
+    modelId: string,
+    onProgress: (data: {
+      file?: string;
+      fileIndex?: number;
+      totalFiles?: number;
+      bytesDownloaded?: number;
+      bytesTotal?: number;
+      percent: number;
+    }) => void,
+  ): Promise<{ success: boolean; message?: string }> {
+    return await this.lemonadeClient.pullModelStreaming(modelId, onProgress);
+  }
+
   async deleteModel(modelId: string): Promise<{ success: boolean; message?: string }> {
     return await this.lemonadeClient.deleteModel(modelId);
   }
 
   async refreshModels(): Promise<ModelConfig[]> {
     return await this.lemonadeClient.fetchAvailableModels();
+  }
+
+  async listAllModels() {
+    return await this.lemonadeClient.listAllModels();
   }
 
   async checkServerHealth(): Promise<boolean> {
@@ -193,10 +223,37 @@ Format your response as JSON with the following structure:
     }
   }
 
-  private buildSystemPrompt(config: Partial<Interview>): string {
+  private buildSystemPrompt(config: Partial<Interview>, persona?: AgentPersona | null): string {
     const { interviewType, position, company } = config;
     const { interviewStyle, questionDifficulty, numberOfQuestions, includeFollowUps } = this.settings;
 
+    // If we have a generated persona with a rich system prompt (from document analysis),
+    // use it as the primary prompt and augment with interview settings
+    if (persona?.systemPrompt) {
+      return `${persona.systemPrompt}
+
+═══════════════════════════════════════════════════════════════
+INTERVIEW SESSION PARAMETERS
+═══════════════════════════════════════════════════════════════
+Interview type: ${interviewType}
+Position: ${position}
+Company: ${company}
+Your interview style: ${persona.interviewStyle || interviewStyle}
+Question difficulty: ${persona.questionDifficulty || questionDifficulty}
+Target number of questions: ${numberOfQuestions}
+${includeFollowUps ? 'Include follow-up questions based on candidate responses.' : 'Limit follow-up questions.'}
+
+IMPORTANT BEHAVIORAL RULES:
+- Start with a warm, professional greeting. Introduce yourself by name and briefly explain the interview format.
+- Ask ONE question at a time. Wait for the candidate to respond before asking the next.
+- Reference the candidate's specific experience from their resume when relevant.
+- Probe deeper when answers are vague or when the topic is critical for the role.
+- Keep track of time — wrap up naturally after ${numberOfQuestions} core questions.
+- End by asking if the candidate has questions for you.
+- Throughout the interview, maintain a natural conversational tone. You are a real person, not a bot.`;
+    }
+
+    // Fallback: generic prompt when no persona is available
     return `You are an experienced interviewer conducting a ${interviewType} interview for the position of ${position} at ${company}.
 
 Your interview style is ${interviewStyle}.

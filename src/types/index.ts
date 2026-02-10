@@ -138,6 +138,27 @@ export interface MCPServer {
   enabled: boolean;
 }
 
+export interface UploadedDocument {
+  id: string;
+  type: 'resume' | 'job_post';
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  extractedText: string;
+  uploadedAt: string;
+}
+
+export interface CompatibleModel {
+  id: string;
+  downloaded: boolean;
+  suggested: boolean;
+  labels: string[];
+  recipe?: string;
+  size?: number;
+  checkpoint?: string;
+}
+
 export interface LemonadeConfig {
   serverURL: string;
   models: ModelConfig[];
@@ -253,7 +274,7 @@ export interface ServerHealth {
 
 export interface IPC {
   // Interview operations
-  startInterview: (config: Partial<Interview>) => Promise<Interview>;
+  startInterview: (config: Partial<Interview>, personaId?: string) => Promise<Interview>;
   endInterview: (interviewId: string) => Promise<Interview>;
   sendMessage: (interviewId: string, message: string) => Promise<Message>;
   getInterview: (interviewId: string) => Promise<Interview>;
@@ -277,10 +298,26 @@ export interface IPC {
   // Model operations
   getAvailableModels: () => Promise<ModelConfig[]>;
   testModelConnection: (modelId: string) => Promise<boolean>;
-  loadModel: (modelId: string) => Promise<boolean>;
-  unloadModel: (modelId: string) => Promise<boolean>;
-  pullModel: (modelId: string) => Promise<boolean>;
-  deleteModel: (modelId: string) => Promise<boolean>;
+  loadModel: (modelId: string, options?: {
+    ctx_size?: number;
+    llamacpp_backend?: 'vulkan' | 'rocm' | 'metal' | 'cpu';
+    llamacpp_args?: string;
+    save_options?: boolean;
+  }) => Promise<{ success: boolean; message?: string } | false>;
+  unloadModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  pullModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  pullModelStreaming: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  onPullProgress: (callback: (data: {
+    file?: string;
+    fileIndex?: number;
+    totalFiles?: number;
+    bytesDownloaded?: number;
+    bytesTotal?: number;
+    percent: number;
+  }) => void) => void;
+  offPullProgress: () => void;
+  deleteModel: (modelId: string) => Promise<{ success: boolean; message?: string } | false>;
+  listAllModels: () => Promise<CompatibleModel[]>;
   
   // Server operations
   checkServerHealth: () => Promise<boolean>;
@@ -288,6 +325,11 @@ export interface IPC {
   refreshModels: () => Promise<ModelConfig[]>;
   getSystemInfo: () => Promise<SystemInfo | null>;
   getServerHealth: () => Promise<ServerHealth | null>;
+  checkLemonadeInstallation: () => Promise<{
+    installed: boolean;
+    version: string | null;
+    binaryPath: string | null;
+  }>;
   
   // Persona operations
   createPersona: (personaData: Partial<AgentPersona>) => Promise<AgentPersona>;
@@ -297,11 +339,29 @@ export interface IPC {
   deletePersona: (personaId: string) => Promise<boolean>;
   setDefaultPersona: (personaId: string) => Promise<boolean>;
   getDefaultPersona: () => Promise<AgentPersona | null>;
+  generatePersona: (input: {
+    jobDescriptionText: string;
+    resumeText: string;
+    interviewType: string;
+    company: string;
+    position: string;
+  }) => Promise<{
+    persona: AgentPersona;
+    jobAnalysis: string;
+    resumeAnalysis: string;
+  }>;
 
   // Audio operations
   saveAudioRecording: (audioData: { interviewId: string; messageId: string; audioBlob: string }) => Promise<{ success: boolean; filepath: string }>;
   getAudioRecordingsPath: () => Promise<string>;
   deleteAudioRecording: (filepath: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Document operations
+  uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => Promise<UploadedDocument>;
+  getDocuments: (type?: 'resume' | 'job_post') => Promise<UploadedDocument[]>;
+  getDocument: (id: string) => Promise<UploadedDocument | null>;
+  getDocumentFileData: (id: string) => Promise<{ base64: string; mimeType: string; fileName: string } | null>;
+  deleteDocument: (id: string) => Promise<boolean>;
 
   // MCP operations
   getMCPServers: () => Promise<MCPServer[]>;

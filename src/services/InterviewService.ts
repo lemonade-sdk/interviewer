@@ -8,10 +8,86 @@ export class InterviewService {
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
 
+  /* ── Context-window management ──────────────────────────────────────
+   * With a 16K context window, we must ensure the combined size of
+   *   system prompt + conversation history + model output
+   * stays within budget.  We use a sliding window: always keep the
+   * system message(s), then retain only the most recent N exchange
+   * pairs (user + assistant).  The full transcript is preserved in
+   * session.messages for feedback generation and persistence.
+   *
+   * Budget estimate (16 384 tokens):
+   *   System prompt ≈ 400-800 tokens
+   *   6 Q&A pairs  ≈ 4 800 tokens  (avg ~400 tok/pair)
+   *   Output reserve = max_tokens (default 2 000)
+   *   ─────────────────────────────
+   *   Total ≈ 7 200-7 600 → safe headroom
+   */
+  private static readonly MAX_CONTEXT_PAIRS = 6;
+
   constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository) {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
+  }
+
+  /**
+   * Build a windowed view of the conversation for the model.
+   * Keeps all system messages + the last `maxPairs` exchange pairs.
+   * Does NOT mutate the original array.
+   */
+  private buildWindowedMessages(
+    messages: Message[],
+    maxPairs: number = InterviewService.MAX_CONTEXT_PAIRS,
+  ): Message[] {
+    const systemMsgs = messages.filter(m => m.role === 'system');
+    const history    = messages.filter(m => m.role !== 'system');
+
+    if (history.length <= maxPairs * 2) {
+      // Conversation is short enough — send everything
+      return messages;
+    }
+
+    // Keep only the most recent messages (pairs of user + assistant)
+    const trimmed = history.slice(-(maxPairs * 2));
+    return [...systemMsgs, ...trimmed];
+  }
+
+  /**
+   * Rough token estimator (~3.5 chars per token for English text).
+   * Used as a safety check, not a precise tokenizer.
+   */
+  private static estimateTokens(text: string): number {
+    return Math.ceil(text.length / 3.5);
+  }
+
+  /**
+   * Token-aware trimming: walks backward from the newest messages,
+   * keeping as many as fit within the token budget.
+   * Always preserves system messages.
+   */
+  private trimToTokenBudget(messages: Message[], ctxSize: number = 16384): Message[] {
+    const systemMsgs  = messages.filter(m => m.role === 'system');
+    const history      = messages.filter(m => m.role !== 'system');
+
+    const systemTokens = systemMsgs.reduce(
+      (sum, m) => sum + InterviewService.estimateTokens(m.content), 0,
+    );
+    const outputReserve = this.settings.maxTokens || 2000;
+    let budget = ctxSize - systemTokens - outputReserve;
+
+    const kept: Message[] = [];
+    for (let i = history.length - 1; i >= 0 && budget > 0; i--) {
+      const cost = InterviewService.estimateTokens(history[i].content);
+      if (cost <= budget) {
+        kept.unshift(history[i]);
+        budget -= cost;
+      } else {
+        break;
+      }
+    }
+
+    return [...systemMsgs, ...kept];
   }
 
   /**
@@ -58,7 +134,7 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
 
-    // Add user message to conversation
+    // Add user message to the full transcript (never trimmed)
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -67,9 +143,13 @@ export class InterviewService {
     };
     session.messages.push(userMsg);
 
+    // Build a windowed view so we stay within the model's context budget.
+    // session.messages keeps the full history; only the API call is trimmed.
+    const windowedMessages = this.buildWindowedMessages(session.messages);
+
     // Get AI response
     const response = await this.lemonadeClient.sendMessage(
-      session.messages
+      windowedMessages
     );
 
     // Add assistant message
@@ -109,16 +189,23 @@ Format your response as JSON with the following structure:
   "detailedFeedback": string
 }`;
 
+    // For feedback we want as much history as possible, but still must
+    // respect the context window.  Use token-aware trimming instead of
+    // the tighter sliding window so that shorter interviews send the
+    // full transcript while very long ones are safely capped.
+    const feedbackMessages: Message[] = [
+      ...session.messages,
+      {
+        id: Date.now().toString(),
+        role: 'user',
+        content: feedbackPrompt,
+        timestamp: new Date().toISOString(),
+      },
+    ];
+    const safeFeedbackMessages = this.trimToTokenBudget(feedbackMessages);
+
     const feedbackResponse = await this.lemonadeClient.sendMessage(
-      [
-        ...session.messages,
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: feedbackPrompt,
-          timestamp: new Date().toISOString()
-        }
-      ]
+      safeFeedbackMessages
     );
 
     // Parse feedback

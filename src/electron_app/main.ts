@@ -753,9 +753,14 @@ ipcMain.handle('document:upload', async (_event: IpcMainInvokeEvent, data: { typ
     let extractedText = '';
     try {
       if (ext === '.pdf') {
-        const pdfParse = (await import('pdf-parse')).default;
-        const result = await pdfParse(buffer);
-        extractedText = result.text || '';
+        // pdf-parse v2.x API: class-based with PDFParse
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: buffer });
+        await parser.load();
+        const textResult = await parser.getText();
+        extractedText = textResult.pages
+          .map((page: any) => page.text)
+          .join('\n');
       } else if (ext === '.docx') {
         const mammoth = await import('mammoth');
         const result = await mammoth.extractRawText({ buffer });

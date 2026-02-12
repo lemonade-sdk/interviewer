@@ -667,6 +667,8 @@ export class LemonadeClient {
       reranking: number;
       audio: number;
     };
+    /** Dynamic WebSocket port reported by the server */
+    websocket_port?: number;
   } | null> {
     try {
       const response = await axios.get(

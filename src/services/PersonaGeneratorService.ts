@@ -111,7 +111,7 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
         content: prompt,
         timestamp: new Date().toISOString(),
       },
-    ]);
+    ], { maxTokens: 8192 });
 
     // Parse the response
     const parsed = this.parsePersonaResponse(response, input);

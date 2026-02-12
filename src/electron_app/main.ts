@@ -497,6 +497,15 @@ ipcMain.handle('server:getStatus', async () => {
   }
 });
 
+ipcMain.handle('server:getWebSocketPort', async () => {
+  try {
+    return await interviewService.getWebSocketPort();
+  } catch (error) {
+    console.error('Failed to get WebSocket port:', error);
+    return null;
+  }
+});
+
 ipcMain.handle('server:getSystemInfo', async () => {
   try {
     return await interviewService.getSystemInfo();
@@ -744,16 +753,12 @@ ipcMain.handle('document:upload', async (_event: IpcMainInvokeEvent, data: { typ
     let extractedText = '';
     try {
       if (ext === '.pdf') {
-        const { PDFParse } = require('pdf-parse');
-        const parser = new PDFParse(new Uint8Array(buffer));
-        await parser.load();
-        const result = await parser.getText();
-        extractedText = result.pages
-          ? result.pages.map((p: { text: string }) => p.text).join('\n')
-          : '';
+        const pdfParse = (await import('pdf-parse')).default;
+        const result = await pdfParse(buffer);
+        extractedText = result.text || '';
       } else if (ext === '.docx') {
-        const mammoth = require('mammoth');
-        const result = await mammoth.extractRawText({ buffer: buffer });
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer });
         extractedText = result.value || '';
       } else if (ext === '.doc') {
         // .doc is a legacy format — store raw text extraction attempt

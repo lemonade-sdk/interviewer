@@ -1,4 +1,6 @@
 import OpenAI from 'openai';
+import http from 'http';
+import https from 'https';
 import { InterviewerSettings, Message, ModelConfig } from '../types';
 import axios from 'axios';
 
@@ -92,7 +94,7 @@ export class LemonadeClient {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(conversationHistory: Message[]): Promise<string> {
+  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number }): Promise<string> {
     try {
       // Check server connection first
       if (!this.isConnected) {
@@ -117,7 +119,7 @@ export class LemonadeClient {
         model: this.settings.modelName,
         messages: messages,
         temperature: this.settings.temperature,
-        max_tokens: this.settings.maxTokens,
+        max_tokens: options?.maxTokens ?? this.settings.maxTokens,
         stream: false,
       });
 
@@ -420,7 +422,7 @@ export class LemonadeClient {
       // Use Node http to parse SSE stream (axios doesn't handle SSE well)
       const url = new URL(`${this.baseURL}/pull`);
       const isHttps = url.protocol === 'https:';
-      const httpModule = isHttps ? require('https') : require('http');
+      const httpModule = isHttps ? https : http;
 
       const req = httpModule.request(
         {
@@ -536,6 +538,19 @@ export class LemonadeClient {
         success: false,
         message: detailedMessage
       };
+    }
+  }
+
+  /**
+   * Get dynamic WebSocket port from /health endpoint
+   */
+  async getWebSocketPort(): Promise<number | null> {
+    try {
+      const health = await this.fetchServerHealth();
+      return health?.websocket_port ?? null;
+    } catch (error) {
+      console.error('Failed to get WebSocket port:', error);
+      return null;
     }
   }
 

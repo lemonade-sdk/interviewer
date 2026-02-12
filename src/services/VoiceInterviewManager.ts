@@ -1,8 +1,8 @@
 import { EventEmitter } from '../utils/EventEmitter';
 import { AudioService } from './audio/AudioService';
-import { ASRService } from './audio/ASRService';
 import { TTSService } from './audio/TTSService';
 import { VADService } from './audio/VADService';
+import { RealtimeASRService } from './audio/RealtimeASRService';
 import { AudioSettings } from '../types';
 
 /**
@@ -14,6 +14,7 @@ import { AudioSettings } from '../types';
  * - recording-stopped: When recording ends
  * - transcription-started: When Whisper ASR begins processing (for UI feedback)
  * - transcription-complete: (text: string) When speech is transcribed
+ * - transcription-delta: (text: string) Live transcription delta
  * - speaking-started: When TTS starts
  * - speaking-stopped: When TTS ends
  * - audio-level: (level: number) Current audio input level (0-1)
@@ -23,24 +24,31 @@ import { AudioSettings } from '../types';
  */
 export class VoiceInterviewManager extends EventEmitter {
   private audioService: AudioService;
-  private asrService: ASRService;
   private ttsService: TTSService;
+  private realtimeASR: RealtimeASRService | null = null;
   private vadService: VADService | null = null;
   private isInitialized: boolean = false;
   private isRecording: boolean = false;
   private isSpeaking: boolean = false;
   private currentAudioStream: MediaStream | null = null;
+  private wsPort: number | null = null;
+  private asrModel: string;
+
+  // Accumulator for Tap-to-Speak mode
+  private accumulatedTranscript: string = '';
 
   constructor(
     audioSettings: AudioSettings,
     asrBaseURL?: string,
-    asrModel?: "Whisper-Tiny" | "Whisper-Base" | "Whisper-Small"
+    asrModel: string = "Whisper-Base",
+    wsPort?: number
   ) {
     super();
     
     this.audioService = new AudioService(audioSettings);
-    this.asrService = new ASRService(asrBaseURL, asrModel);
     this.ttsService = new TTSService();
+    this.wsPort = wsPort ?? null;
+    this.asrModel = asrModel;
     
     this.setupEventListeners();
   }
@@ -68,7 +76,67 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Start voice input (recording with VAD)
+   * Start real-time streaming (WebSocket)
+   */
+  async startRealtimeStreaming(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('VoiceInterviewManager not initialized');
+    }
+
+    if (this.realtimeASR) {
+      console.warn('Realtime streaming already active');
+      return;
+    }
+
+    if (!this.wsPort) {
+      console.error('WebSocket port not provided to VoiceInterviewManager');
+      throw new Error('Realtime streaming unavailable: WebSocket port not found');
+    }
+
+    try {
+      // Get shared stream from AudioService
+      const stream = await this.audioService.getStream();
+      this.currentAudioStream = stream;
+
+      const wsUrl = `ws://localhost:${this.wsPort}`;
+      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel);
+
+      this.realtimeASR.on('delta', (delta: string) => {
+        this.emit('transcription-delta', delta);
+      });
+
+      this.realtimeASR.on('complete', (text: string) => {
+        this.emit('transcription-complete', text);
+      });
+
+      this.realtimeASR.on('error', (error: Error) => {
+        this.emit('error', error);
+      });
+
+      await this.realtimeASR.start(stream);
+      this.isRecording = true;
+      this.emit('recording-started');
+    } catch (error) {
+      console.error('Failed to start realtime streaming:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop real-time streaming
+   */
+  stopRealtimeStreaming(): void {
+    if (this.realtimeASR) {
+      this.realtimeASR.stop();
+      this.realtimeASR = null;
+      this.isRecording = false;
+      this.emit('recording-stopped');
+    }
+  }
+
+  /**
+   * Start voice input (Tap to Speak)
+   * Uses RealtimeASRService under the hood for consistency
    */
   async startVoiceInput(options?: {
     deviceId?: string;
@@ -84,20 +152,43 @@ export class VoiceInterviewManager extends EventEmitter {
       return;
     }
 
+    if (!this.wsPort) {
+      throw new Error('WebSocket port unavailable for voice input');
+    }
+
     try {
-      // Start audio recording
-      await this.audioService.startRecording(options?.deviceId);
+      // Get shared stream
+      const stream = await this.audioService.getStream(options?.deviceId);
+      this.currentAudioStream = stream;
+
+      // Initialize RealtimeASR for this session
+      const wsUrl = `ws://localhost:${this.wsPort}`;
+      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel);
+      this.accumulatedTranscript = '';
+
+      this.realtimeASR.on('delta', (delta: string) => {
+        // Optional: emit delta for UI feedback even in Tap-to-Speak
+        this.emit('transcription-delta', delta);
+      });
+
+      this.realtimeASR.on('complete', (text: string) => {
+        if (text.trim()) {
+          this.accumulatedTranscript += (this.accumulatedTranscript ? ' ' : '') + text.trim();
+        }
+      });
+
+      this.realtimeASR.on('error', (error: Error) => {
+        this.emit('error', error);
+      });
+
+      await this.realtimeASR.start(stream);
       this.isRecording = true;
+      this.emit('recording-started');
 
       // Enable VAD if requested
       if (options?.enableVAD) {
-        // Get audio stream for VAD
-        const devices = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.currentAudioStream = devices;
-        
         this.vadService = new VADService(options.vadSensitivity || 0.7);
         
-        // Forward VAD events
         this.vadService.on('speech-start', () => {
           this.emit('speech-detected');
         });
@@ -106,10 +197,10 @@ export class VoiceInterviewManager extends EventEmitter {
           this.emit('speech-ended');
         });
 
-        await this.vadService.start(devices);
+        await this.vadService.start(stream);
       }
 
-      console.log('Voice input started');
+      console.log('Voice input started (Tap to Speak)');
     } catch (error: any) {
       this.isRecording = false;
       this.emit('error', error);
@@ -132,34 +223,27 @@ export class VoiceInterviewManager extends EventEmitter {
         this.vadService = null;
       }
 
-      // Stop audio stream
-      if (this.currentAudioStream) {
-        this.currentAudioStream.getTracks().forEach(track => track.stop());
-        this.currentAudioStream = null;
+      // Stop RealtimeASR
+      if (this.realtimeASR) {
+        this.realtimeASR.stop();
+        this.realtimeASR = null;
       }
 
-      // Stop recording and get audio blob
-      const audioBlob = await this.audioService.stopRecording();
       this.isRecording = false;
+      this.emit('recording-stopped');
 
-      // Signal that transcription is starting (for UI feedback)
-      this.emit('transcription-started');
-
-      // Convert to WAV format (Whisper/Lemonade Server requires WAV)
-      // AudioService records in WebM; Whisper needs WAV
-      const wavBlob = await this.asrService.convertToWav(audioBlob);
-
-      // Transcribe audio
-      const transcription = await this.asrService.transcribe(wavBlob);
-      const text = transcription.text;
-
+      // Return the accumulated transcript
+      // Note: In a real implementation, we might want to wait a bit for the final
+      // 'complete' event from the socket before closing, but for now we return what we have.
+      const text = this.accumulatedTranscript;
+      
       this.emit('transcription-complete', text);
-      console.log('Transcription:', text);
+      console.log('Transcription (Tap to Speak):', text);
 
       return text;
     } catch (error: any) {
       this.isRecording = false;
-      this.emit('transcription-complete', ''); // Clear transcribing state on error
+      this.emit('transcription-complete', '');
       this.emit('error', error);
       throw error;
     }
@@ -291,6 +375,11 @@ export class VoiceInterviewManager extends EventEmitter {
 
     // Clean up services
     this.audioService.cleanup();
+    
+    if (this.realtimeASR) {
+      this.realtimeASR.stop();
+      this.realtimeASR = null;
+    }
     
     // Remove all event listeners
     this.removeAllListeners();

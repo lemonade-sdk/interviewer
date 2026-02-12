@@ -52,9 +52,12 @@ const Interview: React.FC = () => {
   const [showAudioSettings, setShowAudioSettings] = useState(false);
   const [voiceReady, setVoiceReady] = useState(false);
   const [showTextInput, setShowTextInput] = useState(!voiceHint);
+  const [isRealtimeMode, setIsRealtimeMode] = useState(false);
+  const [transcriptionDelta, setTranscriptionDelta] = useState('');
 
   // Voice manager instance
   const voiceManagerRef = useRef<VoiceInterviewManager | null>(null);
+  const hasInitiatedRef = useRef(false);
 
   // ─── Effects ──────────────────────────────────────────────
   useEffect(() => {
@@ -71,9 +74,17 @@ const Interview: React.FC = () => {
     };
   }, [id]);
 
+  // TTS Initiation
+  useEffect(() => {
+    if (stage === 'interview' && !hasInitiatedRef.current && messages.length === 0 && voiceReady) {
+      hasInitiatedRef.current = true;
+      handleTTSInitiation();
+    }
+  }, [stage, voiceReady, messages.length]);
+
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTranscribing, isThinking]);
+  }, [messages, isTranscribing, isThinking, transcriptionDelta]);
 
   // Auto-save transcript
   useEffect(() => {
@@ -95,6 +106,24 @@ const Interview: React.FC = () => {
   }, [currentInterview, isLoaded]);
 
   // ─── Core functions ───────────────────────────────────────
+  const handleTTSInitiation = async () => {
+    if (!id || !voiceManagerRef.current) return;
+    
+    try {
+      setIsThinking(true);
+      // Request the first message from the AI (interviewer starts)
+      const response = await window.electronAPI.sendMessage(id, "Hello, I am ready to start the interview. Please introduce yourself and let's begin.");
+      setIsThinking(false);
+      setMessages((prev) => [...prev, response]);
+
+      if (!isMuted) {
+        await voiceManagerRef.current.speak(response.content);
+      }
+    } catch (error) {
+      console.error('Failed to initiate interview with TTS:', error);
+      setIsThinking(false);
+    }
+  };
   const saveTranscript = async () => {
     if (!id || messages.length === 0) return;
     try {
@@ -140,6 +169,7 @@ const Interview: React.FC = () => {
       };
 
       let asrModel: 'Whisper-Tiny' | 'Whisper-Base' | 'Whisper-Small' = 'Whisper-Base';
+      let wsPort: number | null = null;
       try {
         const settings = await window.electronAPI.getInterviewerSettings();
         if (settings?.asrModel) {
@@ -148,25 +178,37 @@ const Interview: React.FC = () => {
             asrModel = settings.asrModel as typeof asrModel;
           }
         }
-      } catch {
-        // Use default
+        
+        // Fetch WebSocket port from Lemonade Server
+        wsPort = await window.electronAPI.getWebSocketPort();
+        console.log('WebSocket port for real-time ASR:', wsPort);
+      } catch (err) {
+        console.warn('Failed to fetch settings or wsPort:', err);
       }
 
       const manager = new VoiceInterviewManager(
         defaultAudioSettings,
         'http://localhost:8000/api/v1',
-        asrModel
+        asrModel,
+        wsPort || undefined
       );
 
       // Wire events
       manager.on('recording-started', () => setIsRecording(true));
-      manager.on('recording-stopped', () => setIsRecording(false));
+      manager.on('recording-stopped', () => {
+        setIsRecording(false);
+        setTranscriptionDelta('');
+      });
       manager.on('audio-level', (level: number) => setAudioLevel(level));
       manager.on('speech-detected', () => setIsVADActive(true));
       manager.on('speech-ended', () => setIsVADActive(false));
       manager.on('transcription-started', () => setIsTranscribing(true));
+      manager.on('transcription-delta', (delta: string) => {
+        setTranscriptionDelta(delta);
+      });
       manager.on('transcription-complete', async (text: string) => {
         setIsTranscribing(false);
+        setTranscriptionDelta('');
         if (text.trim() && id) {
           await sendVoiceMessage(text);
         }
@@ -175,7 +217,6 @@ const Interview: React.FC = () => {
       manager.on('speaking-stopped', () => setIsSpeaking(false));
       manager.on('error', (error: Error) => {
         console.error('Voice error:', error);
-        // Don't alert — show inline feedback instead
       });
 
       await manager.initialize();
@@ -185,7 +226,6 @@ const Interview: React.FC = () => {
     } catch (error) {
       console.error('Voice manager initialization failed:', error);
       setVoiceReady(false);
-      // Voice failed — text input is still available
       setShowTextInput(true);
     }
   };
@@ -243,26 +283,37 @@ const Interview: React.FC = () => {
   // ─── Actions ──────────────────────────────────────────────
   const handleOrbClick = async () => {
     if (!voiceManagerRef.current) {
-      // Voice not ready — show text input fallback
       setShowTextInput(true);
       return;
     }
 
     try {
       if (isRecording) {
-        await voiceManagerRef.current.stopVoiceInput();
+        if (isRealtimeMode) {
+          voiceManagerRef.current.stopRealtimeStreaming();
+          setIsRealtimeMode(false);
+        } else {
+          await voiceManagerRef.current.stopVoiceInput();
+        }
       } else {
-        // Stop any ongoing TTS before recording
         if (isSpeaking) {
           voiceManagerRef.current.stopSpeaking();
         }
-        await voiceManagerRef.current.startVoiceInput({
-          enableVAD: true,
-          vadSensitivity: 0.7,
-        });
+        
+        // Default to real-time mode if available
+        if (voiceManagerRef.current.getState().isInitialized) {
+          setIsRealtimeMode(true);
+          await voiceManagerRef.current.startRealtimeStreaming();
+        } else {
+          await voiceManagerRef.current.startVoiceInput({
+            enableVAD: true,
+            vadSensitivity: 0.7,
+          });
+        }
       }
     } catch (error: any) {
       console.error('Recording toggle failed:', error);
+      setIsRealtimeMode(false);
     }
   };
 
@@ -462,7 +513,10 @@ const Interview: React.FC = () => {
               Transcript
             </span>
             <div className="flex items-center gap-3">
-              {isRecording && (
+              {isRealtimeMode && (
+                <StatusDot color="yellow" label="Real-time" />
+              )}
+              {isRecording && !isRealtimeMode && (
                 <StatusDot color="red" label="Recording" />
               )}
               {isTranscribing && (
@@ -491,8 +545,19 @@ const Interview: React.FC = () => {
               <MessageBubble key={message.id} message={message} />
             ))}
 
+            {/* Real-time transcription delta */}
+            {transcriptionDelta && (
+              <div className="flex justify-end">
+                <div className="bg-lemonade-accent/5 border border-lemonade-accent/10 rounded-2xl rounded-br-md px-4 py-2.5">
+                  <p className="text-sm text-lemonade-accent/60 italic">
+                    {transcriptionDelta}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Transcribing indicator */}
-            {isTranscribing && (
+            {isTranscribing && !transcriptionDelta && (
               <div className="flex justify-end">
                 <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-md px-4 py-2.5 flex items-center gap-2">
                   <div className="flex items-center gap-[3px]">

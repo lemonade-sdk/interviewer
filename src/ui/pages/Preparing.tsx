@@ -186,13 +186,14 @@ const Preparing: React.FC = () => {
   /* ────────────────────────────────────────
      Step 1  —  Fetch model list on mount
      ──────────────────────────────────────── */
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- setState runs in queueMicrotask callback, not sync
   useEffect(() => {
     if (!state || didFetchRef.current) return;
     didFetchRef.current = true;
     buildPdfPreview();
     loadResumeText();
 
-    (async () => {
+    void queueMicrotask(async () => {
       if (!window.electronAPI) {
         setPhase('starting'); setStatusText('Ready!');
         await new Promise(r => setTimeout(r, 600));
@@ -220,7 +221,7 @@ const Preparing: React.FC = () => {
         setPhase('error');
         setErrorText(e.message || 'Failed to fetch model list.');
       }
-    })();
+    });
   }, [state, navigate, buildPdfPreview, loadResumeText]);
 
   /* ────────────────────────────────────────
@@ -381,7 +382,7 @@ const Preparing: React.FC = () => {
             asrReady = true;
           } else {
             if (loadedASR) {
-              try { await window.electronAPI.unloadModel(loadedASR.model_name); } catch {}
+              try { await window.electronAPI.unloadModel(loadedASR.model_name); } catch { /* non-fatal: unload may fail */ }
             }
             setStatusText(`Loading ${bestASR.id}...`);
             const asrLoad = await window.electronAPI.loadModel(bestASR.id);

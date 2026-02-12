@@ -56,9 +56,13 @@ export class AudioService extends EventEmitter {
   }
 
   /**
-   * Start audio recording from microphone
+   * Get the current audio stream (starts it if not active)
    */
-  async startRecording(deviceId?: string): Promise<void> {
+  async getStream(deviceId?: string): Promise<MediaStream> {
+    if (this.audioStream && this.audioStream.active) {
+      return this.audioStream;
+    }
+
     try {
       const constraints: MediaStreamConstraints = {
         audio: {
@@ -70,18 +74,36 @@ export class AudioService extends EventEmitter {
       };
 
       this.audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-      // Create audio context for volume monitoring
-      this.audioContext = new AudioContext();
-      const source = this.audioContext.createMediaStreamSource(this.audioStream);
       
-      // Create analyzer for audio level monitoring
+      // Initialize context and analyzer for monitoring whenever stream is started
+      if (!this.audioContext) {
+        this.audioContext = new AudioContext();
+      }
+      
+      // Create new source/analyzer chain
+      const source = this.audioContext.createMediaStreamSource(this.audioStream);
       const analyzer = this.audioContext.createAnalyser();
       analyzer.fftSize = 256;
       source.connect(analyzer);
-
-      // Monitor audio levels
+      
       this.monitorAudioLevel(analyzer);
+
+      return this.audioStream;
+    } catch (error) {
+      console.error('Failed to get audio stream:', error);
+      throw new Error('Failed to access microphone. Please check permissions.');
+    }
+  }
+
+  /**
+   * Start audio recording from microphone
+   */
+  async startRecording(deviceId?: string): Promise<void> {
+    try {
+      // Ensure we have a stream
+      await this.getStream(deviceId);
+      
+      if (!this.audioStream) throw new Error('No audio stream available');
 
       // Create MediaRecorder
       const mimeType = this.getSupportedMimeType();
@@ -129,22 +151,26 @@ export class AudioService extends EventEmitter {
       });
 
       this.mediaRecorder.stop();
+      // Note: We do NOT stop the stream here anymore, as it might be used by other services.
+      // The stream cleanup should be explicit via cleanup() or stopStream().
       
-      // Stop all tracks
-      if (this.audioStream) {
-        this.audioStream.getTracks().forEach(track => track.stop());
-        this.audioStream = null;
-      }
-
-      // Close audio context
-      if (this.audioContext) {
-        this.audioContext.close();
-        this.audioContext = null;
-      }
-
       this.emit('recording-stopped');
       console.log('Audio recording stopped');
     });
+  }
+
+  /**
+   * Stop the active stream explicitly
+   */
+  stopStream(): void {
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => track.stop());
+      this.audioStream = null;
+    }
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
   }
 
   /**

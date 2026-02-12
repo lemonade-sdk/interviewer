@@ -322,6 +322,7 @@ export interface IPC {
   // Server operations
   checkServerHealth: () => Promise<boolean>;
   getServerStatus: () => Promise<{ isRunning: boolean; url: string }>;
+  getWebSocketPort: () => Promise<number | null>;
   refreshModels: () => Promise<ModelConfig[]>;
   getSystemInfo: () => Promise<SystemInfo | null>;
   getServerHealth: () => Promise<ServerHealth | null>;

@@ -124,6 +124,52 @@ export interface AudioSettings {
   recordingQuality?: 'low' | 'medium' | 'high';
 }
 
+/**
+ * VAD (Voice Activity Detection) tunable configuration.
+ * Controls how aggressively speech start/end is detected.
+ */
+export interface VADConfig {
+  /** Energy level threshold to consider as speech (0-1). Lower = more sensitive. Default: 0.01 */
+  energyThreshold: number;
+  /** Minimum consecutive speech duration (ms) before triggering speech-start. Default: 250 */
+  minSpeechMs: number;
+  /** Minimum silence duration (ms) before triggering speech-end. Default: 800 */
+  minSilenceMs: number;
+  /** Number of consecutive frames above threshold before triggering onset. Default: 2 */
+  onsetFrames: number;
+  /** Number of extra frames to keep after energy drops below threshold. Default: 6 */
+  hangoverFrames: number;
+}
+
+/**
+ * ASR (Automatic Speech Recognition) audio processing configuration.
+ * Controls audio capture parameters and WebSocket behavior.
+ */
+export interface ASRConfig {
+  /** ScriptProcessor buffer size in samples. Default: 4096 */
+  bufferSize: number;
+  /** Target sample rate in Hz. Must match Whisper expectation. Default: 16000 */
+  targetSampleRate: number;
+  /** Delay (ms) before closing WebSocket after stop, to allow final transcript to arrive. Default: 3000 */
+  wsCloseDelayMs: number;
+}
+
+/** Default VAD configuration values */
+export const DEFAULT_VAD_CONFIG: VADConfig = {
+  energyThreshold: 0.01,
+  minSpeechMs: 250,
+  minSilenceMs: 800,
+  onsetFrames: 2,
+  hangoverFrames: 6,
+};
+
+/** Default ASR configuration values */
+export const DEFAULT_ASR_CONFIG: ASRConfig = {
+  bufferSize: 4096,
+  targetSampleRate: 16000,
+  wsCloseDelayMs: 3000,
+};
+
 export interface MCPConfig {
   servers: MCPServer[];
   enabled: boolean;

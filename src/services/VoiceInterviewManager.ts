@@ -3,7 +3,13 @@ import { AudioService } from './audio/AudioService';
 import { TTSService } from './audio/TTSService';
 import { VADService } from './audio/VADService';
 import { RealtimeASRService } from './audio/RealtimeASRService';
-import { AudioSettings } from '../types';
+import {
+  AudioSettings,
+  VADConfig,
+  ASRConfig,
+  DEFAULT_VAD_CONFIG,
+  DEFAULT_ASR_CONFIG,
+} from '../types';
 
 /**
  * VoiceInterviewManager - Orchestrates all voice-related services
@@ -34,6 +40,10 @@ export class VoiceInterviewManager extends EventEmitter {
   private wsPort: number | null = null;
   private asrModel: string;
 
+  // Configs
+  private vadConfig: VADConfig;
+  private asrConfig: ASRConfig;
+
   // Accumulator for Tap-to-Speak mode
   private accumulatedTranscript: string = '';
 
@@ -41,7 +51,9 @@ export class VoiceInterviewManager extends EventEmitter {
     audioSettings: AudioSettings,
     asrBaseURL?: string,
     asrModel: string = "Whisper-Base",
-    wsPort?: number
+    wsPort?: number,
+    vadConfig?: Partial<VADConfig>,
+    asrConfig?: Partial<ASRConfig>,
   ) {
     super();
     
@@ -49,6 +61,8 @@ export class VoiceInterviewManager extends EventEmitter {
     this.ttsService = new TTSService();
     this.wsPort = wsPort ?? null;
     this.asrModel = asrModel;
+    this.vadConfig = { ...DEFAULT_VAD_CONFIG, ...vadConfig };
+    this.asrConfig = { ...DEFAULT_ASR_CONFIG, ...asrConfig };
     
     this.setupEventListeners();
   }
@@ -99,7 +113,7 @@ export class VoiceInterviewManager extends EventEmitter {
       this.currentAudioStream = stream;
 
       const wsUrl = `ws://localhost:${this.wsPort}`;
-      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel);
+      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
 
       this.realtimeASR.on('delta', (delta: string) => {
         this.emit('transcription-delta', delta);
@@ -123,11 +137,11 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Stop real-time streaming
+   * Stop real-time streaming (graceful by default — waits wsCloseDelayMs for final transcript)
    */
-  stopRealtimeStreaming(): void {
+  stopRealtimeStreaming(graceful: boolean = true): void {
     if (this.realtimeASR) {
-      this.realtimeASR.stop();
+      this.realtimeASR.stop(graceful);
       this.realtimeASR = null;
       this.isRecording = false;
       this.emit('recording-stopped');
@@ -163,7 +177,7 @@ export class VoiceInterviewManager extends EventEmitter {
 
       // Initialize RealtimeASR for this session
       const wsUrl = `ws://localhost:${this.wsPort}`;
-      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel);
+      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
       this.accumulatedTranscript = '';
 
       this.realtimeASR.on('delta', (delta: string) => {
@@ -187,7 +201,14 @@ export class VoiceInterviewManager extends EventEmitter {
 
       // Enable VAD if requested
       if (options?.enableVAD) {
-        this.vadService = new VADService(options.vadSensitivity || 0.7);
+        // Merge user-provided vadSensitivity into the VAD config
+        const vadCfg = { ...this.vadConfig };
+        if (options.vadSensitivity !== undefined) {
+          // Convert 0-1 sensitivity → energyThreshold
+          vadCfg.energyThreshold =
+            0.005 + (1 - Math.max(0, Math.min(1, options.vadSensitivity))) * 0.095;
+        }
+        this.vadService = new VADService(vadCfg);
         
         this.vadService.on('speech-start', () => {
           this.emit('speech-detected');
@@ -223,18 +244,19 @@ export class VoiceInterviewManager extends EventEmitter {
         this.vadService = null;
       }
 
-      // Stop RealtimeASR
+      // Stop audio capture immediately but keep socket open for final transcript
       if (this.realtimeASR) {
-        this.realtimeASR.stop();
+        this.realtimeASR.stop(true); // graceful: waits wsCloseDelayMs
         this.realtimeASR = null;
       }
 
       this.isRecording = false;
       this.emit('recording-stopped');
 
-      // Return the accumulated transcript
-      // Note: In a real implementation, we might want to wait a bit for the final
-      // 'complete' event from the socket before closing, but for now we return what we have.
+      // Wait for the WS close delay so the final transcript can arrive
+      // before we read accumulatedTranscript
+      await new Promise((resolve) => setTimeout(resolve, this.asrConfig.wsCloseDelayMs));
+
       const text = this.accumulatedTranscript;
       
       this.emit('transcription-complete', text);
@@ -318,12 +340,39 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Update VAD sensitivity
+   * Update VAD sensitivity (convenience wrapper)
    */
   updateVADSensitivity(sensitivity: number): void {
     if (this.vadService) {
       this.vadService.setSensitivity(sensitivity);
     }
+  }
+
+  /**
+   * Update VAD config at runtime
+   */
+  updateVADConfig(partial: Partial<VADConfig>): void {
+    this.vadConfig = { ...this.vadConfig, ...partial };
+    if (this.vadService) {
+      this.vadService.updateConfig(partial);
+    }
+  }
+
+  /**
+   * Update ASR config at runtime (takes effect on next session)
+   */
+  updateASRConfig(partial: Partial<ASRConfig>): void {
+    this.asrConfig = { ...this.asrConfig, ...partial };
+  }
+
+  /**
+   * Get the current VAD + ASR configs
+   */
+  getConfigs(): { vad: VADConfig; asr: ASRConfig } {
+    return {
+      vad: { ...this.vadConfig },
+      asr: { ...this.asrConfig },
+    };
   }
 
   /**

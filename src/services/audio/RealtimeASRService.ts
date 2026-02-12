@@ -1,8 +1,14 @@
 import { EventEmitter } from '../../utils/EventEmitter';
+import { ASRConfig, DEFAULT_ASR_CONFIG } from '../../types';
 
 /**
  * RealtimeASRService - Real-time Speech Recognition using Lemonade Server WebSockets
  * Uses the OpenAI-compatible realtime protocol.
+ *
+ * Tunable parameters (via ASRConfig):
+ *   bufferSize        – ScriptProcessor buffer size (samples). Default: 4096
+ *   targetSampleRate  – Audio context sample rate (Hz). Default: 16000
+ *   wsCloseDelayMs    – Delay before closing the socket after stop(). Default: 3000
  */
 export class RealtimeASRService extends EventEmitter {
   private socket: WebSocket | null = null;
@@ -12,11 +18,13 @@ export class RealtimeASRService extends EventEmitter {
   private model: string;
   private wsUrl: string;
   private isConnected: boolean = false;
+  private config: ASRConfig;
 
-  constructor(wsUrl: string, model: string = 'Whisper-Tiny') {
+  constructor(wsUrl: string, model: string = 'Whisper-Tiny', config?: Partial<ASRConfig>) {
     super();
     this.wsUrl = wsUrl;
     this.model = model;
+    this.config = { ...DEFAULT_ASR_CONFIG, ...config };
   }
 
   /**
@@ -27,7 +35,10 @@ export class RealtimeASRService extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       try {
-        console.log(`Connecting to Realtime ASR at ${this.wsUrl} with model ${this.model}`);
+        console.log(
+          `Connecting to Realtime ASR at ${this.wsUrl} with model ${this.model}`,
+          this.config,
+        );
         this.socket = new WebSocket(`${this.wsUrl}/realtime?model=${this.model}`);
 
         this.socket.onopen = async () => {
@@ -66,27 +77,59 @@ export class RealtimeASRService extends EventEmitter {
   }
 
   /**
-   * Stop real-time streaming
+   * Stop real-time streaming.
+   *
+   * If `graceful` is true (default), audio capture stops immediately but the
+   * WebSocket stays open for `wsCloseDelayMs` to receive any final transcript.
+   * Set `graceful = false` for an immediate hard close.
    */
-  stop(): void {
-    if (this.socket) {
+  stop(graceful: boolean = true): void {
+    // Always stop capturing audio immediately
+    this.stopAudioCapture();
+
+    if (!this.socket) {
+      this.isConnected = false;
+      return;
+    }
+
+    if (graceful && this.config.wsCloseDelayMs > 0) {
+      // Keep the socket open briefly to receive the final transcript
+      const sock = this.socket;
+      this.socket = null; // prevent double-close
+      setTimeout(() => {
+        try {
+          sock.close();
+        } catch { /* already closed */ }
+      }, this.config.wsCloseDelayMs);
+    } else {
       this.socket.close();
       this.socket = null;
     }
-    this.stopAudioCapture();
+
     this.isConnected = false;
   }
+
+  /**
+   * Get the active config
+   */
+  getConfig(): ASRConfig {
+    return { ...this.config };
+  }
+
+  // ────────────────────────────────────────────────────────
+  // Audio capture
+  // ────────────────────────────────────────────────────────
 
   private async setupAudioCapture(stream: MediaStream): Promise<void> {
     try {
       this.stream = stream;
-      this.audioContext = new AudioContext({ sampleRate: 16000 });
+      this.audioContext = new AudioContext({ sampleRate: this.config.targetSampleRate });
       const source = this.audioContext.createMediaStreamSource(this.stream);
-      
-      // ScriptProcessor is deprecated but widely supported for simple PCM streaming
-      // AudioWorklet is preferred but more complex to set up in a single file
-      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-      
+
+      // ScriptProcessor is deprecated but widely supported for simple PCM streaming.
+      // AudioWorklet is preferred for production but requires a separate module file.
+      this.processor = this.audioContext.createScriptProcessor(this.config.bufferSize, 1, 1);
+
       source.connect(this.processor);
       this.processor.connect(this.audioContext.destination);
 
@@ -94,21 +137,21 @@ export class RealtimeASRService extends EventEmitter {
         if (!this.isConnected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
-        // Convert Float32 to Int16 PCM
+        // Convert Float32 → Int16 PCM
         const pcmData = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
           const s = Math.max(-1, Math.min(1, inputData[i]));
           pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
 
-        // Send as base64 encoded audio delta
+        // Send as base64-encoded audio delta
         const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
-        
+
         const event = {
           type: 'input_audio_buffer.append',
-          audio: base64Audio
+          audio: base64Audio,
         };
-        
+
         this.socket.send(JSON.stringify(event));
       };
     } catch (error) {
@@ -126,12 +169,15 @@ export class RealtimeASRService extends EventEmitter {
       this.audioContext.close();
       this.audioContext = null;
     }
-    // Do NOT stop the stream tracks here, as the stream is owned by AudioService
+    // Do NOT stop stream tracks — the stream is owned by AudioService
     this.stream = null;
   }
 
+  // ────────────────────────────────────────────────────────
+  // Server events
+  // ────────────────────────────────────────────────────────
+
   private handleServerEvent(event: any): void {
-    // OpenAI Realtime Protocol events
     switch (event.type) {
       case 'conversation.item.input_audio_transcription.delta':
         this.emit('delta', event.delta);
@@ -141,7 +187,7 @@ export class RealtimeASRService extends EventEmitter {
         break;
       case 'error':
         console.error('Server error:', event.error);
-        this.emit('error', new Error(event.error.message || 'Unknown server error'));
+        this.emit('error', new Error(event.error?.message || 'Unknown server error'));
         break;
     }
   }

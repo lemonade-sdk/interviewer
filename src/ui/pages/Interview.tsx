@@ -11,7 +11,13 @@ import {
   MicOff,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { Message, AgentPersona, AudioSettings as AudioSettingsType } from '../../types';
+import {
+  Message,
+  AgentPersona,
+  AudioSettings as AudioSettingsType,
+  DEFAULT_VAD_CONFIG,
+  DEFAULT_ASR_CONFIG,
+} from '../../types';
 import { format } from 'date-fns';
 import { PersonaSelector } from '../components/PersonaSelector';
 import { AudioSettings } from '../components/AudioSettings';
@@ -190,7 +196,9 @@ const Interview: React.FC = () => {
         defaultAudioSettings,
         'http://localhost:8000/api/v1',
         asrModel,
-        wsPort || undefined
+        wsPort || undefined,
+        DEFAULT_VAD_CONFIG,
+        DEFAULT_ASR_CONFIG,
       );
 
       // Wire events

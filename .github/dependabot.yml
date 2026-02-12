@@ -22,23 +22,6 @@ updates:
       development-dependencies:
         dependency-type: "development"
 
-  # Enable version updates for pip
-  - package-ecosystem: "pip"
-    directory: "/lemonade_api"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "your-github-username"  # Replace with actual GitHub username
-    labels:
-      - "dependencies"
-      - "python"
-    commit-message:
-      prefix: "pip"
-      include: "scope"
-
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"

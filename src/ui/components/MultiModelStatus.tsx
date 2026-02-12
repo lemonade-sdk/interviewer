@@ -124,6 +124,22 @@ export const MultiModelStatus: React.FC = () => {
         </div>
       )}
 
+      {/* Audio model limit warning */}
+      {health.max_models && (health.max_models.audio ?? 1) < 2 && (
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+          <div className="text-xs font-medium text-amber-800 dark:text-amber-400 mb-1">
+            Audio Model Limit Too Low
+          </div>
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Both Whisper (ASR) and Kokoro (TTS) need to be loaded simultaneously.
+            Restart Lemonade Server with:
+          </p>
+          <code className="block mt-1 text-xs font-mono bg-amber-100 dark:bg-amber-900/40 px-2 py-1 rounded text-amber-900 dark:text-amber-200">
+            lemonade-server serve --max-loaded-models 2
+          </code>
+        </div>
+      )}
+
       {/* Loaded Models List */}
       <div className="space-y-3">
         {health.all_models_loaded.map((model: LoadedModel, index: number) => (

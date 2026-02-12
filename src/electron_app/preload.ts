@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Server operations
   checkServerHealth: () => ipcRenderer.invoke('server:checkHealth'),
   getServerStatus: () => ipcRenderer.invoke('server:getStatus'),
+  getWebSocketPort: () => ipcRenderer.invoke('server:getWebSocketPort'),
   getSystemInfo: () => ipcRenderer.invoke('server:getSystemInfo'),
   getServerHealth: () => ipcRenderer.invoke('server:getHealth'),
   checkLemonadeInstallation: () => ipcRenderer.invoke('server:checkInstallation'),

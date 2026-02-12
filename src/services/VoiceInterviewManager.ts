@@ -1,19 +1,43 @@
 import { EventEmitter } from '../utils/EventEmitter';
 import { AudioService } from './audio/AudioService';
-import { ASRService } from './audio/ASRService';
 import { TTSService } from './audio/TTSService';
 import { VADService } from './audio/VADService';
-import { AudioSettings } from '../types';
+import { RealtimeASRService } from './audio/RealtimeASRService';
+import {
+  AudioSettings,
+  VADConfig,
+  ASRConfig,
+  DEFAULT_VAD_CONFIG,
+  DEFAULT_ASR_CONFIG,
+} from '../types';
 
 /**
  * VoiceInterviewManager - Orchestrates all voice-related services
  * Provides a unified interface for voice interview functionality
+ *
+ * Supports **two ASR transport modes** that are chosen automatically:
+ *
+ *   1. **WebSocket streaming** (preferred) — requires a lemonade-server build
+ *      with WebSocket support (`LEMON_HAS_WEBSOCKET`).  Provides live partial
+ *      transcripts while the user speaks.
+ *
+ *   2. **VAD + HTTP fallback** — works with any lemonade-server that has Whisper
+ *      loaded.  VAD detects speech boundaries; recorded audio is sent to
+ *      `POST /api/v1/audio/transcriptions` after each utterance.  No partial
+ *      results, but latency is minimal (~0.5-2 s after speech ends).
+ *
+ * The mode is selected automatically based on whether `wsPort` is provided.
+ * Both paths emit the same events so the UI code is transport-agnostic.
  * 
  * Events:
  * - recording-started: When recording begins
  * - recording-stopped: When recording ends
  * - transcription-started: When Whisper ASR begins processing (for UI feedback)
  * - transcription-complete: (text: string) When speech is transcribed
+ * - transcription-delta: (text: string) Live transcription delta (WebSocket only)
+ * - utterance-complete: (text: string) Hands-free mode: user finished speaking (auto-submit)
+ * - listening-started: Hands-free mode: now listening for user speech
+ * - listening-stopped: Hands-free mode: stopped listening
  * - speaking-started: When TTS starts
  * - speaking-stopped: When TTS ends
  * - audio-level: (level: number) Current audio input level (0-1)
@@ -23,24 +47,57 @@ import { AudioSettings } from '../types';
  */
 export class VoiceInterviewManager extends EventEmitter {
   private audioService: AudioService;
-  private asrService: ASRService;
   private ttsService: TTSService;
+  private realtimeASR: RealtimeASRService | null = null;
   private vadService: VADService | null = null;
   private isInitialized: boolean = false;
   private isRecording: boolean = false;
   private isSpeaking: boolean = false;
   private currentAudioStream: MediaStream | null = null;
+  private wsPort: number | null = null;
+  private asrModel: string;
+  private asrBaseURL: string;
+
+  // Configs
+  private vadConfig: VADConfig;
+  private asrConfig: ASRConfig;
+
+  // Hands-free mode state
+  private _isHandsFreeMode: boolean = false;
+  private isProcessingUtterance: boolean = false;
+
+  // Accumulator for transcript across modes
+  private accumulatedTranscript: string = '';
+  // Delta accumulator — captures incremental delta text as a fallback
+  // when the server never sends a 'complete' event.
+  private deltaAccumulator: string = '';
+
+  // HTTP-fallback recording state (used when wsPort is not available)
+  private httpMediaRecorder: MediaRecorder | null = null;
+  private httpRecordingChunks: Blob[] = [];
+  private httpSpeechDetected: boolean = false;
 
   constructor(
     audioSettings: AudioSettings,
-    asrBaseURL?: string,
-    asrModel?: "Whisper-Tiny" | "Whisper-Base" | "Whisper-Small"
+    asrBaseURL: string = 'http://localhost:8000/api/v1',
+    asrModel: string = "Whisper-Base",
+    wsPort?: number,
+    vadConfig?: Partial<VADConfig>,
+    asrConfig?: Partial<ASRConfig>,
   ) {
     super();
     
     this.audioService = new AudioService(audioSettings);
-    this.asrService = new ASRService(asrBaseURL, asrModel);
     this.ttsService = new TTSService();
+    this.wsPort = wsPort ?? null;
+    this.asrModel = asrModel;
+    this.asrBaseURL = asrBaseURL;
+    this.vadConfig = { ...DEFAULT_VAD_CONFIG, ...vadConfig };
+    this.asrConfig = { ...DEFAULT_ASR_CONFIG, ...asrConfig };
+
+    console.log(
+      `[VoiceInterviewManager] ASR mode: ${this.wsPort ? 'WebSocket (port ' + this.wsPort + ')' : 'VAD + HTTP fallback (' + this.asrBaseURL + ')'}`,
+    );
     
     this.setupEventListeners();
   }
@@ -68,7 +125,433 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Start voice input (recording with VAD)
+   * Start real-time streaming (WebSocket)
+   */
+  async startRealtimeStreaming(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('VoiceInterviewManager not initialized');
+    }
+
+    if (this.realtimeASR) {
+      console.warn('Realtime streaming already active');
+      return;
+    }
+
+    if (!this.wsPort) {
+      console.error('WebSocket port not provided to VoiceInterviewManager');
+      throw new Error('Realtime streaming unavailable: WebSocket port not found');
+    }
+
+    try {
+      // Get shared stream from AudioService
+      const stream = await this.audioService.getStream();
+      this.currentAudioStream = stream;
+
+      const wsUrl = `ws://localhost:${this.wsPort}`;
+      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
+
+      this.realtimeASR.on('delta', (delta: string) => {
+        this.emit('transcription-delta', delta);
+      });
+
+      this.realtimeASR.on('complete', (text: string) => {
+        this.emit('transcription-complete', text);
+      });
+
+      this.realtimeASR.on('error', (error: Error) => {
+        this.emit('error', error);
+      });
+
+      await this.realtimeASR.start(stream);
+      this.isRecording = true;
+      this.emit('recording-started');
+    } catch (error) {
+      console.error('Failed to start realtime streaming:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop real-time streaming (graceful by default — waits wsCloseDelayMs for final transcript)
+   */
+  stopRealtimeStreaming(graceful: boolean = true): void {
+    if (this.realtimeASR) {
+      this.realtimeASR.stop(graceful);
+      this.realtimeASR = null;
+      this.isRecording = false;
+      this.emit('recording-stopped');
+    }
+  }
+
+  // ─── Hands-free conversational mode ─────────────────────
+  // After AI speaks, automatically listen for user speech via VAD + ASR.
+  // When VAD detects end of speech, collects the transcript and emits
+  // 'utterance-complete' so the UI can auto-submit it.
+
+  /**
+   * Enter hands-free mode.
+   * Begins listening immediately; VAD will auto-detect speech boundaries.
+   *
+   * Automatically selects the best ASR transport:
+   *   - WebSocket streaming (if wsPort is available)
+   *   - VAD + HTTP fallback (if wsPort is null)
+   */
+  async startHandsFreeListening(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('VoiceInterviewManager not initialized');
+    }
+    if (this.isRecording) {
+      console.warn('startHandsFreeListening: already recording, skipping');
+      return;
+    }
+    if (this.isProcessingUtterance) {
+      console.warn('startHandsFreeListening: still processing previous utterance, skipping');
+      return;
+    }
+
+    this._isHandsFreeMode = true;
+
+    try {
+      const stream = await this.audioService.getStream();
+      this.currentAudioStream = stream;
+
+      if (this.wsPort) {
+        // ═══ WebSocket streaming mode ═══
+        await this.startHandsFreeWebSocket(stream);
+      } else {
+        // ═══ VAD + HTTP fallback mode ═══
+        await this.startHandsFreeHTTP(stream);
+      }
+
+      this.isRecording = true;
+      this.emit('recording-started');
+      this.emit('listening-started');
+      console.log(`Hands-free listening started (${this.wsPort ? 'WebSocket' : 'HTTP fallback'})`);
+    } catch (error: any) {
+      console.error('Failed to start hands-free listening:', error);
+      this.isRecording = false;
+      this._isHandsFreeMode = false;
+      this.emit('error', error);
+      throw error;
+    }
+  }
+
+  // ─── WebSocket hands-free (existing path, refactored into helper) ──
+
+  private async startHandsFreeWebSocket(stream: MediaStream): Promise<void> {
+    const wsUrl = `ws://localhost:${this.wsPort}`;
+    this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
+    this.accumulatedTranscript = '';
+    this.deltaAccumulator = '';
+
+    this.realtimeASR.on('delta', (delta: string) => {
+      // Whisper streaming sends REPLACEMENT deltas (full transcript so far),
+      // not incremental fragments. Use assignment, not concatenation.
+      this.deltaAccumulator = delta;
+      this.emit('transcription-delta', delta);
+    });
+
+    this.realtimeASR.on('complete', (text: string) => {
+      if (text.trim()) {
+        this.accumulatedTranscript += (this.accumulatedTranscript ? ' ' : '') + text.trim();
+      }
+    });
+
+    this.realtimeASR.on('error', (error: Error) => {
+      this.emit('error', error);
+    });
+
+    await this.realtimeASR.start(stream);
+
+    // VAD for speech boundary detection
+    this.vadService = new VADService(this.vadConfig);
+
+    this.vadService.on('speech-start', () => {
+      this.emit('speech-detected');
+    });
+
+    this.vadService.on('speech-end', async () => {
+      this.emit('speech-ended');
+      await this.handleHandsFreeUtteranceEnd();
+    });
+
+    await this.vadService.start(stream);
+  }
+
+  // ─── HTTP fallback hands-free (VAD + MediaRecorder + POST) ──────
+
+  private async startHandsFreeHTTP(stream: MediaStream): Promise<void> {
+    this.accumulatedTranscript = '';
+    this.httpSpeechDetected = false;
+
+    // Start recording immediately so we capture speech onset
+    this.httpRecordingChunks = [];
+    const mimeType = this.getSupportedMimeType();
+    this.httpMediaRecorder = new MediaRecorder(stream, { mimeType });
+
+    this.httpMediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        this.httpRecordingChunks.push(e.data);
+      }
+    };
+
+    this.httpMediaRecorder.start(100); // collect data every 100ms
+
+    // VAD for speech boundary detection
+    this.vadService = new VADService(this.vadConfig);
+
+    this.vadService.on('speech-start', () => {
+      this.httpSpeechDetected = true;
+      this.emit('speech-detected');
+    });
+
+    this.vadService.on('speech-end', async () => {
+      this.emit('speech-ended');
+      await this.handleHTTPUtteranceEnd();
+    });
+
+    await this.vadService.start(stream);
+  }
+
+  /**
+   * Stop hands-free listening (e.g. when AI starts speaking, or interview ends)
+   */
+  stopHandsFreeListening(graceful: boolean = false): void {
+    if (this.vadService) {
+      this.vadService.stop();
+      this.vadService = null;
+    }
+    // WebSocket mode cleanup
+    if (this.realtimeASR) {
+      this.realtimeASR.stop(graceful);
+      this.realtimeASR = null;
+    }
+    // HTTP fallback mode cleanup
+    if (this.httpMediaRecorder && this.httpMediaRecorder.state !== 'inactive') {
+      this.httpMediaRecorder.stop();
+    }
+    this.httpMediaRecorder = null;
+    this.httpRecordingChunks = [];
+    this.httpSpeechDetected = false;
+
+    if (this.isRecording) {
+      this.isRecording = false;
+      this.emit('recording-stopped');
+      this.emit('listening-stopped');
+    }
+  }
+
+  /**
+   * Exit hands-free mode entirely
+   */
+  exitHandsFreeMode(): void {
+    this._isHandsFreeMode = false;
+    this.stopHandsFreeListening(false);
+    console.log('Exited hands-free mode');
+  }
+
+  /**
+   * Whether we are currently in hands-free mode
+   */
+  get isHandsFreeMode(): boolean {
+    return this._isHandsFreeMode;
+  }
+
+  /**
+   * Internal: called when VAD detects speech-end in hands-free **WebSocket** mode.
+   * Stops ASR gracefully, waits for final transcript, emits 'utterance-complete'.
+   */
+  private async handleHandsFreeUtteranceEnd(): Promise<void> {
+    if (this.isProcessingUtterance) return;
+    this.isProcessingUtterance = true;
+
+    let shouldResumListening = false;
+
+    try {
+      // Stop VAD + ASR (graceful — gives time for final transcript)
+      if (this.vadService) {
+        this.vadService.stop();
+        this.vadService = null;
+      }
+      if (this.realtimeASR) {
+        this.realtimeASR.stop(true); // keeps socket open for wsCloseDelayMs
+        this.realtimeASR = null;
+      }
+
+      this.isRecording = false;
+      this.emit('recording-stopped');
+      this.emit('listening-stopped');
+
+      // Wait for final transcript to arrive via the still-open socket
+      await new Promise((resolve) => setTimeout(resolve, this.asrConfig.wsCloseDelayMs));
+
+      // Prefer 'complete' event text; fall back to latest delta (replacement)
+      let text = this.accumulatedTranscript.trim();
+      if (!text) {
+        text = this.deltaAccumulator.trim();
+        if (text) {
+          console.log('Hands-free: using delta text (no complete event received)');
+        }
+      }
+      this.accumulatedTranscript = '';
+      this.deltaAccumulator = '';
+
+      // Clean Whisper artifacts (e.g. [BLANK_AUDIO])
+      text = this.cleanTranscript(text);
+
+      if (text) {
+        console.log('Hands-free utterance complete (WebSocket):', text);
+        this.emit('utterance-complete', text);
+      } else {
+        console.log('Hands-free: no speech detected, resuming listening');
+        shouldResumListening = true;
+      }
+    } catch (error: any) {
+      console.error('Error handling hands-free utterance end:', error);
+      this.emit('error', error);
+      shouldResumListening = true;
+    } finally {
+      // MUST clear processing flag BEFORE attempting to restart listening
+      // to avoid the "still processing previous utterance" guard in startHandsFreeListening
+      this.isProcessingUtterance = false;
+    }
+
+    // Restart listening outside the try/finally so isProcessingUtterance is already false
+    if (shouldResumListening && this._isHandsFreeMode) {
+      try {
+        await this.startHandsFreeListening();
+      } catch (error) {
+        console.error('Failed to resume hands-free listening:', error);
+      }
+    }
+  }
+
+  /**
+   * Internal: called when VAD detects speech-end in hands-free **HTTP fallback** mode.
+   * Stops recording, sends audio to Whisper HTTP endpoint, emits 'utterance-complete'.
+   */
+  private async handleHTTPUtteranceEnd(): Promise<void> {
+    if (this.isProcessingUtterance) return;
+    this.isProcessingUtterance = true;
+
+    try {
+      // If VAD never fired speech-start (e.g. only noise), skip transcription
+      if (!this.httpSpeechDetected) {
+        console.log('HTTP fallback: speech-end but no speech was detected, resuming');
+        this.isProcessingUtterance = false;
+        return;
+      }
+
+      // Stop VAD
+      if (this.vadService) {
+        this.vadService.stop();
+        this.vadService = null;
+      }
+
+      // Stop MediaRecorder and collect the audio blob
+      const audioBlob = await this.stopHTTPRecording();
+
+      this.isRecording = false;
+      this.emit('recording-stopped');
+      this.emit('listening-stopped');
+
+      if (!audioBlob || audioBlob.size === 0) {
+        console.log('HTTP fallback: empty audio blob, resuming');
+        if (this._isHandsFreeMode) {
+          await this.startHandsFreeListening();
+        }
+        return;
+      }
+
+      // Send to Whisper HTTP endpoint
+      this.emit('transcription-started');
+      console.log(`HTTP fallback: transcribing ${audioBlob.size} bytes of audio...`);
+      const rawText = await this.transcribeAudioHTTP(audioBlob);
+      const text = this.cleanTranscript(rawText);
+      this.emit('transcription-complete', text);
+
+      if (text) {
+        console.log('Hands-free utterance complete (HTTP):', text);
+        this.emit('utterance-complete', text);
+      } else {
+        console.log('HTTP fallback: Whisper returned empty transcript, resuming');
+        if (this._isHandsFreeMode) {
+          await this.startHandsFreeListening();
+        }
+      }
+    } catch (error: any) {
+      console.error('Error handling HTTP utterance end:', error);
+      this.emit('error', error);
+      // Try to resume listening even after error
+      if (this._isHandsFreeMode) {
+        try { await this.startHandsFreeListening(); } catch { /* give up */ }
+      }
+    } finally {
+      this.isProcessingUtterance = false;
+    }
+  }
+
+  /**
+   * Stop the HTTP-fallback MediaRecorder and return the audio blob.
+   */
+  private stopHTTPRecording(): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      if (!this.httpMediaRecorder || this.httpMediaRecorder.state === 'inactive') {
+        resolve(this.httpRecordingChunks.length > 0
+          ? new Blob(this.httpRecordingChunks, { type: this.httpRecordingChunks[0]?.type || 'audio/webm' })
+          : null);
+        this.httpRecordingChunks = [];
+        return;
+      }
+
+      this.httpMediaRecorder.onstop = () => {
+        const blob = new Blob(this.httpRecordingChunks, {
+          type: this.httpMediaRecorder?.mimeType || 'audio/webm',
+        });
+        this.httpRecordingChunks = [];
+        this.httpMediaRecorder = null;
+        resolve(blob);
+      };
+
+      this.httpMediaRecorder.stop();
+    });
+  }
+
+  /**
+   * Send an audio blob to the Whisper HTTP transcription endpoint.
+   * POST /api/v1/audio/transcriptions  (OpenAI-compatible)
+   */
+  private async transcribeAudioHTTP(audioBlob: Blob): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('model', this.asrModel);
+
+    const response = await fetch(`${this.asrBaseURL}/audio/transcriptions`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => 'unknown');
+      throw new Error(`Whisper HTTP transcription failed (${response.status}): ${errText}`);
+    }
+
+    const result = await response.json();
+    return result.text ?? '';
+  }
+
+  /**
+   * Resume hands-free listening (called after AI finishes speaking)
+   */
+  async resumeHandsFreeListening(): Promise<void> {
+    if (!this._isHandsFreeMode) return;
+    if (this.isRecording || this.isSpeaking) return;
+    await this.startHandsFreeListening();
+  }
+
+  /**
+   * Start voice input (Tap to Speak)
+   * Uses WebSocket streaming when available, HTTP fallback otherwise.
    */
   async startVoiceInput(options?: {
     deviceId?: string;
@@ -85,19 +568,61 @@ export class VoiceInterviewManager extends EventEmitter {
     }
 
     try {
-      // Start audio recording
-      await this.audioService.startRecording(options?.deviceId);
+      // Get shared stream
+      const stream = await this.audioService.getStream(options?.deviceId);
+      this.currentAudioStream = stream;
+
+      if (this.wsPort) {
+        // ═══ WebSocket mode ═══
+        const wsUrl = `ws://localhost:${this.wsPort}`;
+        this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
+        this.accumulatedTranscript = '';
+        this.deltaAccumulator = '';
+
+        this.realtimeASR.on('delta', (delta: string) => {
+          // Whisper streaming sends REPLACEMENT deltas — use assignment, not concatenation
+          this.deltaAccumulator = delta;
+          this.emit('transcription-delta', delta);
+        });
+
+        this.realtimeASR.on('complete', (text: string) => {
+          if (text.trim()) {
+            this.accumulatedTranscript += (this.accumulatedTranscript ? ' ' : '') + text.trim();
+          }
+        });
+
+        this.realtimeASR.on('error', (error: Error) => {
+          this.emit('error', error);
+        });
+
+        await this.realtimeASR.start(stream);
+      } else {
+        // ═══ HTTP fallback mode ═══
+        this.httpRecordingChunks = [];
+        const mimeType = this.getSupportedMimeType();
+        this.httpMediaRecorder = new MediaRecorder(stream, { mimeType });
+
+        this.httpMediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            this.httpRecordingChunks.push(e.data);
+          }
+        };
+
+        this.httpMediaRecorder.start(100);
+      }
+
       this.isRecording = true;
+      this.emit('recording-started');
 
       // Enable VAD if requested
       if (options?.enableVAD) {
-        // Get audio stream for VAD
-        const devices = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.currentAudioStream = devices;
+        const vadCfg = { ...this.vadConfig };
+        if (options.vadSensitivity !== undefined) {
+          vadCfg.energyThreshold =
+            0.005 + (1 - Math.max(0, Math.min(1, options.vadSensitivity))) * 0.095;
+        }
+        this.vadService = new VADService(vadCfg);
         
-        this.vadService = new VADService(options.vadSensitivity || 0.7);
-        
-        // Forward VAD events
         this.vadService.on('speech-start', () => {
           this.emit('speech-detected');
         });
@@ -106,10 +631,10 @@ export class VoiceInterviewManager extends EventEmitter {
           this.emit('speech-ended');
         });
 
-        await this.vadService.start(devices);
+        await this.vadService.start(stream);
       }
 
-      console.log('Voice input started');
+      console.log(`Voice input started (Tap to Speak — ${this.wsPort ? 'WebSocket' : 'HTTP fallback'})`);
     } catch (error: any) {
       this.isRecording = false;
       this.emit('error', error);
@@ -132,34 +657,44 @@ export class VoiceInterviewManager extends EventEmitter {
         this.vadService = null;
       }
 
-      // Stop audio stream
-      if (this.currentAudioStream) {
-        this.currentAudioStream.getTracks().forEach(track => track.stop());
-        this.currentAudioStream = null;
+      let text = '';
+
+      if (this.realtimeASR) {
+        // ═══ WebSocket mode ═══
+        this.realtimeASR.stop(true); // graceful: waits wsCloseDelayMs
+        this.realtimeASR = null;
+
+        this.isRecording = false;
+        this.emit('recording-stopped');
+
+        // Wait for the WS close delay so the final transcript can arrive
+        await new Promise((resolve) => setTimeout(resolve, this.asrConfig.wsCloseDelayMs));
+        // Prefer 'complete' event text; fall back to latest delta (replacement)
+        text = this.cleanTranscript(this.accumulatedTranscript.trim() || this.deltaAccumulator.trim());
+        this.deltaAccumulator = '';
+      } else if (this.httpMediaRecorder) {
+        // ═══ HTTP fallback mode ═══
+        const audioBlob = await this.stopHTTPRecording();
+
+        this.isRecording = false;
+        this.emit('recording-stopped');
+
+        if (audioBlob && audioBlob.size > 0) {
+          this.emit('transcription-started');
+          text = await this.transcribeAudioHTTP(audioBlob);
+        }
+      } else {
+        this.isRecording = false;
+        this.emit('recording-stopped');
       }
 
-      // Stop recording and get audio blob
-      const audioBlob = await this.audioService.stopRecording();
-      this.isRecording = false;
-
-      // Signal that transcription is starting (for UI feedback)
-      this.emit('transcription-started');
-
-      // Convert to WAV format (Whisper/Lemonade Server requires WAV)
-      // AudioService records in WebM; Whisper needs WAV
-      const wavBlob = await this.asrService.convertToWav(audioBlob);
-
-      // Transcribe audio
-      const transcription = await this.asrService.transcribe(wavBlob);
-      const text = transcription.text;
-
       this.emit('transcription-complete', text);
-      console.log('Transcription:', text);
+      console.log('Transcription (Tap to Speak):', text);
 
       return text;
     } catch (error: any) {
       this.isRecording = false;
-      this.emit('transcription-complete', ''); // Clear transcribing state on error
+      this.emit('transcription-complete', '');
       this.emit('error', error);
       throw error;
     }
@@ -234,12 +769,39 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Update VAD sensitivity
+   * Update VAD sensitivity (convenience wrapper)
    */
   updateVADSensitivity(sensitivity: number): void {
     if (this.vadService) {
       this.vadService.setSensitivity(sensitivity);
     }
+  }
+
+  /**
+   * Update VAD config at runtime
+   */
+  updateVADConfig(partial: Partial<VADConfig>): void {
+    this.vadConfig = { ...this.vadConfig, ...partial };
+    if (this.vadService) {
+      this.vadService.updateConfig(partial);
+    }
+  }
+
+  /**
+   * Update ASR config at runtime (takes effect on next session)
+   */
+  updateASRConfig(partial: Partial<ASRConfig>): void {
+    this.asrConfig = { ...this.asrConfig, ...partial };
+  }
+
+  /**
+   * Get the current VAD + ASR configs
+   */
+  getConfigs(): { vad: VADConfig; asr: ASRConfig } {
+    return {
+      vad: { ...this.vadConfig },
+      asr: { ...this.asrConfig },
+    };
   }
 
   /**
@@ -264,6 +826,7 @@ export class VoiceInterviewManager extends EventEmitter {
       isInitialized: this.isInitialized,
       isRecording: this.isRecording,
       isSpeaking: this.isSpeaking,
+      isHandsFreeMode: this._isHandsFreeMode,
     };
   }
 
@@ -271,17 +834,33 @@ export class VoiceInterviewManager extends EventEmitter {
    * Clean up all resources
    */
   cleanup(): void {
+    // Exit hands-free mode
+    this._isHandsFreeMode = false;
+    this.isProcessingUtterance = false;
+
     // Stop any ongoing operations
-    if (this.isRecording) {
-      this.audioService.stopRecording().catch(console.error);
+    if (this.vadService) {
+      this.vadService.stop();
+      this.vadService = null;
     }
+
+    if (this.realtimeASR) {
+      this.realtimeASR.stop(false);
+      this.realtimeASR = null;
+    }
+
+    // HTTP fallback cleanup
+    if (this.httpMediaRecorder && this.httpMediaRecorder.state !== 'inactive') {
+      this.httpMediaRecorder.stop();
+    }
+    this.httpMediaRecorder = null;
+    this.httpRecordingChunks = [];
+    this.httpSpeechDetected = false;
+    this.deltaAccumulator = '';
+    this.accumulatedTranscript = '';
 
     if (this.isSpeaking) {
       this.ttsService.stop();
-    }
-
-    if (this.vadService) {
-      this.vadService.stop();
     }
 
     if (this.currentAudioStream) {
@@ -300,6 +879,39 @@ export class VoiceInterviewManager extends EventEmitter {
     this.isSpeaking = false;
 
     console.log('VoiceInterviewManager cleaned up');
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────
+
+  /**
+   * Clean Whisper transcription artifacts from text.
+   * Removes tokens like [BLANK_AUDIO], (silence), etc. that Whisper
+   * sometimes emits, and collapses leftover whitespace.
+   */
+  private cleanTranscript(text: string): string {
+    return text
+      .replace(/\[BLANK_AUDIO\]/gi, '')
+      .replace(/\(silence\)/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Get a supported MediaRecorder MIME type.
+   */
+  private getSupportedMimeType(): string {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ];
+    for (const type of types) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    return 'audio/webm';
   }
 
   /**

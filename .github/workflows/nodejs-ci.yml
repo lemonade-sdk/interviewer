@@ -1,4 +1,9 @@
-name: Node.js CI
+name: Node.js CI (Windows) 🪟
+
+# Modeled after the Lemonade SDK CI pattern:
+# - Self-hosted Windows runners
+# - Process cleanup before/after (critical for persistent self-hosted state)
+# - Single consolidated job for efficiency on self-hosted
 
 on:
   push:
@@ -8,6 +13,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig.json'
+      - 'tsconfig.electron.json'
       - '.github/workflows/nodejs-ci.yml'
   pull_request:
     branches: [main, develop]
@@ -16,86 +22,101 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig.json'
+      - 'tsconfig.electron.json'
       - '.github/workflows/nodejs-ci.yml'
-  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  lint-and-type-check:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-    
+  # ========================================================================
+  # BUILD & TEST - Self-hosted Windows runner
+  # ========================================================================
+
+  build-and-test:
+    name: Build & Test (Windows)
+    runs-on: [self-hosted, Windows]
+
+    env:
+      NODE_ENV: production
+      PYTHONIOENCODING: utf-8
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Cleanup processes (pre-build)
+        uses: ./.github/actions/cleanup-processes-windows
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Installing npm dependencies..." -ForegroundColor Cyan
+          npm ci
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: npm ci failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "Dependencies installed successfully!" -ForegroundColor Green
 
       - name: Run ESLint
-        run: npm run lint
-        continue-on-error: true  # Don't fail on lint errors initially
-
-      - name: TypeScript compilation check
-        run: npx tsc --noEmit
-
-  test:
-    name: Run Tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: ['18', '20']
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
-        continue-on-error: true  # Don't fail if no tests exist yet
-
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20'
-        uses: codecov/codecov-action@v4
-        with:
-          flags: nodejs
-          name: nodejs-coverage
+        shell: PowerShell
+        run: |
+          Write-Host "Running ESLint..." -ForegroundColor Cyan
+          npm run lint
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "WARNING: ESLint found issues" -ForegroundColor Yellow
+          } else {
+              Write-Host "ESLint passed!" -ForegroundColor Green
+          }
         continue-on-error: true
 
-  build:
-    name: Build Application
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: TypeScript compilation check
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-          cache: 'npm'
+          Write-Host "Running TypeScript type check..." -ForegroundColor Cyan
+          npx tsc --noEmit
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: TypeScript compilation failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "TypeScript compilation passed!" -ForegroundColor Green
 
-      - name: Install dependencies
-        run: npm install
+      - name: Run tests
+        shell: PowerShell
+        run: |
+          Write-Host "Running tests..." -ForegroundColor Cyan
+          npm test
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "WARNING: Tests had failures" -ForegroundColor Yellow
+          } else {
+              Write-Host "All tests passed!" -ForegroundColor Green
+          }
+        continue-on-error: true
 
-      - name: Build React app
-        run: npm run build
+      - name: Build application
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Building application..." -ForegroundColor Cyan
+          npm run build
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: Build failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "Build successful!" -ForegroundColor Green
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -103,3 +124,7 @@ jobs:
           name: build-artifacts
           path: dist/
           retention-days: 7
+
+      - name: Cleanup processes (post-build)
+        if: always()
+        uses: ./.github/actions/cleanup-processes-windows

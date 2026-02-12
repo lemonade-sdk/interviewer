@@ -1,4 +1,9 @@
-name: Electron Release
+name: Electron Release (Windows) 🪟🚀
+
+# Modeled after the Lemonade SDK release pattern:
+# - Self-hosted Windows runner for builds
+# - Process cleanup before/after
+# - Artifact upload + GitHub Release creation
 
 on:
   push:
@@ -11,96 +16,113 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 jobs:
-  release:
-    name: Build & Release Electron App
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    
+  # ========================================================================
+  # BUILD - Windows Electron app on self-hosted runner
+  # ========================================================================
+
+  build-windows:
+    name: Build Electron App (Windows)
+    runs-on: [self-hosted, Windows]
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 0
+
+      - name: Cleanup processes (pre-build)
+        uses: ./.github/actions/cleanup-processes-windows
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Installing npm dependencies..." -ForegroundColor Cyan
+          npm ci
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: npm ci failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "Dependencies installed successfully!" -ForegroundColor Green
 
       - name: Build React app
-        run: npm run build
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
 
-      - name: Build Electron app (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: npm run build:electron -- --linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          Write-Host "Building React app..." -ForegroundColor Cyan
+          npm run build
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: React build failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "React app built successfully!" -ForegroundColor Green
 
       - name: Build Electron app (Windows)
-        if: matrix.os == 'windows-latest'
-        run: npm run build:electron -- --win
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Building Electron app for Windows..." -ForegroundColor Cyan
+          npm run build:electron -- --win
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: Electron build failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "Electron app built successfully!" -ForegroundColor Green
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Electron app (macOS)
-        if: matrix.os == 'macos-latest'
-        run: npm run build:electron -- --mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Add code signing certificates if available
-          # CSC_LINK: ${{ secrets.MAC_CERT }}
-          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-
-      - name: Upload artifacts (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: |
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.rpm
-
-      - name: Upload artifacts (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
             dist/*.exe
             dist/*.msi
+          retention-days: 7
 
-      - name: Upload artifacts (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: |
-            dist/*.dmg
-            dist/*.zip
+      - name: Cleanup processes (post-build)
+        if: always()
+        uses: ./.github/actions/cleanup-processes-windows
+
+  # ========================================================================
+  # RELEASE - Create GitHub Release with Windows artifacts
+  # ========================================================================
 
   create-release:
     name: Create GitHub Release
-    needs: release
-    runs-on: ubuntu-latest
+    needs: build-windows
+    runs-on: [self-hosted, Windows]
     if: startsWith(github.ref, 'refs/tags/')
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v7
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
         with:
+          name: windows-build
           path: release-artifacts
 
+      - name: Verify release artifacts
+        shell: PowerShell
+        run: |
+          Write-Host "Release artifacts:" -ForegroundColor Cyan
+          Get-ChildItem -Path "release-artifacts" -Recurse | Format-Table Name, Length
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release-artifacts/**/*
           draft: false

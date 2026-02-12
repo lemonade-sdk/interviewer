@@ -1,0 +1,96 @@
+name: 'Cleanup Processes (Windows)'
+description: 'Kill all Node, Electron, and AI Interviewer processes on Windows self-hosted runners'
+
+# Adapted from the Lemonade SDK cleanup-processes-windows action pattern.
+# Self-hosted runners persist state between workflow runs, so we must
+# aggressively clean up zombie processes and temp files before and after tests.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Kill zombie processes
+      shell: PowerShell
+      run: |
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "Cleaning up processes on Windows..." -ForegroundColor Cyan
+        Write-Host "========================================" -ForegroundColor Cyan
+
+        # Function to safely kill processes by name pattern
+        function Stop-ProcessByPattern {
+            param(
+                [string]$Pattern,
+                [string]$Description
+            )
+
+            Write-Host "`nSearching for $Description processes..." -ForegroundColor Yellow
+            $processes = Get-Process | Where-Object { $_.ProcessName -like "*$Pattern*" }
+
+            if ($processes) {
+                Write-Host "Found $($processes.Count) $Description process(es):" -ForegroundColor Yellow
+                $processes | ForEach-Object {
+                    Write-Host "  - $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Gray
+                }
+
+                $processes | ForEach-Object {
+                    try {
+                        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+                        Write-Host "  Killed: $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Green
+                    } catch {
+                        Write-Host "  Failed to kill: $($_.ProcessName) (PID: $($_.Id)) - $_" -ForegroundColor Red
+                    }
+                }
+            } else {
+                Write-Host "No $Description processes found." -ForegroundColor Gray
+            }
+        }
+
+        # Kill Electron / AI Interviewer processes
+        Stop-ProcessByPattern -Pattern "electron" -Description "Electron"
+        Stop-ProcessByPattern -Pattern "ai-interviewer" -Description "AI Interviewer"
+        Stop-ProcessByPattern -Pattern "Interviewer" -Description "Interviewer (Electron app)"
+
+        # Kill Node.js processes (vite dev server, build processes, etc.)
+        Stop-ProcessByPattern -Pattern "node" -Description "Node.js"
+
+        # Wait a moment for processes to fully terminate
+        Start-Sleep -Seconds 2
+
+        Write-Host "`n========================================" -ForegroundColor Cyan
+        Write-Host "Process cleanup complete!" -ForegroundColor Cyan
+        Write-Host "========================================" -ForegroundColor Cyan
+
+    - name: Clean up temp and log files
+      shell: PowerShell
+      run: |
+        Write-Host "Cleaning up temp and log files..." -ForegroundColor Yellow
+
+        # Clean up Electron crash dumps and logs
+        $patterns = @("electron*.log", "ai-interviewer*.log")
+        foreach ($pattern in $patterns) {
+            $logFiles = Get-ChildItem "$env:TEMP\$pattern" -ErrorAction SilentlyContinue
+            if ($logFiles) {
+                Write-Host "  Found $($logFiles.Count) file(s) matching '$pattern'" -ForegroundColor Gray
+                $logFiles | ForEach-Object {
+                    try {
+                        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+                        Write-Host "    Removed: $($_.Name)" -ForegroundColor Green
+                    } catch {
+                        Write-Host "    Failed to remove: $($_.Name)" -ForegroundColor Red
+                    }
+                }
+            }
+        }
+
+        # Clean up npm cache issues that can occur on self-hosted runners
+        Write-Host "`nChecking for stale npm lock files..." -ForegroundColor Yellow
+        $npmCachePath = "$env:APPDATA\npm-cache\_locks"
+        if (Test-Path $npmCachePath) {
+            $lockFiles = Get-ChildItem $npmCachePath -ErrorAction SilentlyContinue
+            if ($lockFiles) {
+                Write-Host "  Removing $($lockFiles.Count) stale npm lock file(s)..." -ForegroundColor Gray
+                Remove-Item "$npmCachePath\*" -Force -ErrorAction SilentlyContinue
+                Write-Host "  Done." -ForegroundColor Green
+            }
+        }
+
+        Write-Host "Temp/log cleanup complete!" -ForegroundColor Green

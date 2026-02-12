@@ -205,6 +205,10 @@ Format your response as JSON with the following structure:
     return await this.lemonadeClient.fetchServerHealth();
   }
 
+  async getWebSocketPort(): Promise<number | null> {
+    return await this.lemonadeClient.getWebSocketPort();
+  }
+
   async resumeInterview(interviewId: string): Promise<void> {
     // Load interview from database
     const interview = await this.interviewRepo.findById(interviewId);

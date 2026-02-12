@@ -1,4 +1,6 @@
 import OpenAI from 'openai';
+import http from 'http';
+import https from 'https';
 import { InterviewerSettings, Message, ModelConfig } from '../types';
 import axios from 'axios';
 
@@ -74,7 +76,7 @@ export class LemonadeClient {
         id: model.id,
         name: model.id, // Use model ID as name
         provider: 'lemonade-server',
-        maxTokens: 4096, // Default, can be adjusted
+        maxTokens: 8192, // Reasoning models (DeepSeek R1) need headroom for chain-of-thought
         temperature: 0.7,
       }));
 
@@ -92,7 +94,7 @@ export class LemonadeClient {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(conversationHistory: Message[]): Promise<string> {
+  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number }): Promise<string> {
     try {
       // Check server connection first
       if (!this.isConnected) {
@@ -113,17 +115,45 @@ export class LemonadeClient {
         }));
 
       // Create chat completion using Lemonade Server
+      // Use a generous token limit for reasoning models (DeepSeek R1, etc.) that
+      // consume tokens for chain-of-thought before producing visible content.
+      const maxTokens = options?.maxTokens ?? this.settings.maxTokens;
       const completion = await this.client.chat.completions.create({
         model: this.settings.modelName,
         messages: messages,
         temperature: this.settings.temperature,
-        max_tokens: this.settings.maxTokens,
+        max_tokens: maxTokens,
         stream: false,
       });
 
       // Defensive: `choices` can be undefined if the server returns an unexpected
       // response shape (e.g. model not fully ready, or server error masked as 200).
-      const responseContent = completion?.choices?.[0]?.message?.content;
+      const choice = completion?.choices?.[0];
+      let responseContent = choice?.message?.content ?? '';
+
+      // DeepSeek / reasoning models may return empty `content` with a
+      // populated `reasoning_content` field.  Use it as a fallback so
+      // the user at least sees the model's reasoning output.
+      if (!responseContent && choice?.message) {
+        const msg = choice.message as any;
+        if (msg.reasoning_content) {
+          console.warn(
+            'Model returned empty content but has reasoning_content — using reasoning as response.',
+            `finish_reason=${choice.finish_reason}, reasoning length=${msg.reasoning_content.length}`,
+          );
+          // Strip the internal thinking wrapper if present and extract useful text
+          responseContent = msg.reasoning_content;
+        }
+      }
+
+      // If finish_reason is 'length', the model ran out of tokens.
+      // Log a warning so we can diagnose token-limit issues.
+      if (choice?.finish_reason === 'length') {
+        console.warn(
+          `Model hit max_tokens limit (${maxTokens}). Response may be truncated.`,
+          `content length=${responseContent?.length ?? 0}`,
+        );
+      }
 
       if (!responseContent) {
         // The Lemonade Server router can return HTTP 200 even when the backend
@@ -145,6 +175,15 @@ export class LemonadeClient {
         console.warn('Unexpected completion response (no choices):', JSON.stringify(completion)?.slice(0, 500));
         throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }
+
+      // Strip model-generated tool-call artifacts that some models (DeepSeek, Qwen3)
+      // embed directly in the content field.  These are NOT real function calls — they
+      // are part of the model's trained output format and the llamacpp backend does not
+      // always strip them.  If left in, they appear in the chat UI and get spoken by TTS.
+      //
+      // Also strip Markdown formatting (bold, headers, horizontal rules) to ensure
+      // clean text for TTS and transcript display.
+      responseContent = this.cleanResponseContent(responseContent);
 
       return responseContent;
     } catch (error: any) {
@@ -420,7 +459,7 @@ export class LemonadeClient {
       // Use Node http to parse SSE stream (axios doesn't handle SSE well)
       const url = new URL(`${this.baseURL}/pull`);
       const isHttps = url.protocol === 'https:';
-      const httpModule = isHttps ? require('https') : require('http');
+      const httpModule = isHttps ? https : http;
 
       const req = httpModule.request(
         {
@@ -540,11 +579,196 @@ export class LemonadeClient {
   }
 
   /**
+   * Get the WebSocket port for real-time ASR.
+   *
+   * The Lemonade Server (when compiled with LEMON_HAS_WEBSOCKET) runs a
+   * dedicated WebSocket server on a dynamically assigned port (9000+).
+   * This port is exposed as `websocket_port` in the `/health` response.
+   *
+   * If the field is missing it means the server build does not include
+   * WebSocket support, or the WebSocket server failed to start.
+   */
+  async getWebSocketPort(): Promise<number | null> {
+    try {
+      const health = await this.fetchServerHealth();
+      if (!health) return null;
+
+      // The canonical source: websocket_port from /health
+      if (health.websocket_port) {
+        console.log(`[getWebSocketPort] Found websocket_port: ${health.websocket_port}`);
+        return health.websocket_port;
+      }
+
+      // websocket_port is missing — the server likely was NOT compiled
+      // with LEMON_HAS_WEBSOCKET, or the WS server did not start.
+      // Check if any Whisper model is loaded and extract its backend port
+      // as a last-resort heuristic (some builds expose WS on the backend port).
+      const whisperModel = (health.all_models_loaded ?? []).find(
+        (m) => m.recipe === 'whispercpp' || m.model_name.toLowerCase().startsWith('whisper'),
+      );
+      if (whisperModel?.backend_url) {
+        try {
+          const url = new URL(whisperModel.backend_url);
+          const port = parseInt(url.port, 10);
+          if (!isNaN(port)) {
+            console.warn(
+              `[getWebSocketPort] websocket_port not in /health. ` +
+              `Falling back to Whisper backend port ${port} from ${whisperModel.backend_url}. ` +
+              `This may not work — consider updating lemonade-server to a build with WebSocket support.`,
+            );
+            return port;
+          }
+        } catch {
+          // ignore parse failure
+        }
+      }
+
+      console.warn(
+        '[getWebSocketPort] No websocket_port found in /health response. ' +
+        'Real-time transcription requires a lemonade-server build with WebSocket support. ' +
+        'Check that LEMON_HAS_WEBSOCKET is enabled in your build.',
+      );
+      return null;
+    } catch (error) {
+      console.error('Failed to get WebSocket port:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Pre-load required audio models (Whisper for ASR + Kokoro for TTS) on the
+   * Lemonade Server.  Both models are of type "audio" and need to coexist
+   * simultaneously, which requires:
+   *
+   *   lemonade-server serve --max-loaded-models 2
+   *
+   * (2 models per type slot — allows both Whisper and Kokoro audio models)
+   *
+   * This method:
+   *  1. Fetches /health to inspect `max_models.audio`.
+   *  2. If `audio < 2` logs a prominent warning (the limit is a server-side CLI
+   *     argument and cannot be changed via the API).
+   *  3. Pre-loads Whisper-Base and kokoro-v1 so both are ready before the user
+   *     starts an interview.
+   */
+  async preloadAudioModels(): Promise<void> {
+    try {
+      const health = await this.fetchServerHealth();
+      if (!health) {
+        console.warn('[AudioPreload] Server not reachable — skipping audio model preload.');
+        return;
+      }
+
+      // --- Check max_models audio limit ---------------------------------
+      const maxAudio = health.max_models?.audio ?? 1;
+      if (maxAudio < 2) {
+        console.warn(
+          '====================================================================\n' +
+          '  WARNING: Lemonade Server audio model limit is ' + maxAudio + ' (need 2).\n' +
+          '  Both Whisper (ASR) and Kokoro (TTS) must be loaded simultaneously.\n' +
+          '  Restart lemonade-server with:\n' +
+          '\n' +
+          '    lemonade-server serve --max-loaded-models 2\n' +
+          '\n' +
+          '  Without this, models will evict each other on every switch.\n' +
+          '====================================================================',
+        );
+      }
+
+      // --- Discover which audio models are already loaded ----------------
+      const loadedAudioModels = (health.all_models_loaded ?? [])
+        .filter(m => m.type === 'audio')
+        .map(m => m.model_name);
+
+      console.log('[AudioPreload] Currently loaded audio models:', loadedAudioModels);
+
+      // --- Pre-load Whisper (ASR) if not already loaded ------------------
+      const whisperModel = 'Whisper-Base';
+      if (!loadedAudioModels.includes(whisperModel)) {
+        console.log(`[AudioPreload] Loading ${whisperModel}...`);
+        const whisperResult = await this.loadModel(whisperModel);
+        console.log(`[AudioPreload] ${whisperModel}:`, whisperResult.message ?? (whisperResult.success ? 'OK' : 'FAILED'));
+      } else {
+        console.log(`[AudioPreload] ${whisperModel} already loaded.`);
+      }
+
+      // --- Pre-load Kokoro (TTS) if not already loaded -------------------
+      const kokoroModel = 'kokoro-v1';
+      if (!loadedAudioModels.includes(kokoroModel)) {
+        console.log(`[AudioPreload] Loading ${kokoroModel}...`);
+        const kokoroResult = await this.loadModel(kokoroModel);
+        console.log(`[AudioPreload] ${kokoroModel}:`, kokoroResult.message ?? (kokoroResult.success ? 'OK' : 'FAILED'));
+      } else {
+        console.log(`[AudioPreload] ${kokoroModel} already loaded.`);
+      }
+
+      console.log('[AudioPreload] Audio model preload complete.');
+    } catch (error: any) {
+      console.error('[AudioPreload] Failed to preload audio models:', error.message ?? error);
+    }
+  }
+
+  /**
    * Update settings and reinitialize client
    */
   updateSettings(newSettings: InterviewerSettings): void {
     this.settings = newSettings;
     // No need to reinitialize client, settings are passed per request
+  }
+
+  /**
+   * Clean model response content.
+   * 1. Strips tool-call artifacts (DeepSeek/Qwen3 tokens)
+   * 2. Strips markdown formatting (bold, headers, horizontal rules) to ensure
+   *    clean text for TTS and transcript display.
+   */
+  private cleanResponseContent(content: string): string {
+    if (!content) return content;
+
+    // 1. Remove tool-call blocks (outermost wrapper):
+    //   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
+    let cleaned = content.replace(
+      /<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g,
+      '',
+    );
+
+    // Fallback: if only partial markers exist (e.g. model was cut off before
+    // emitting the closing tag), strip from the opening tag to end of string
+    // or to the first blank line after a JSON block.
+    cleaned = cleaned.replace(
+      /<｜tool▁call[s]?▁(?:begin|end)｜>/g,
+      '',
+    );
+    cleaned = cleaned.replace(/<｜tool▁sep｜>/g, '');
+
+    // Remove any remaining orphan ``` json fences left by tool call blocks
+    cleaned = cleaned.replace(/```json\s*\{[\s\S]*?\}\s*```/g, '');
+
+    // 2. Remove Markdown artifacts for cleaner TTS/Transcript
+    
+    // Remove bold/italic markers (**text**, *text*, __text__, _text_)
+    // We replace with the captured text content
+    cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold** -> bold
+    cleaned = cleaned.replace(/__([^_]+)__/g, '$1');     // __bold__ -> bold
+    cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');     // *italic* -> italic
+    cleaned = cleaned.replace(/_([^_]+)_/g, '$1');       // _italic_ -> italic
+
+    // Remove headers (### Header -> Header)
+    cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
+
+    // Remove horizontal rules (---, ***, ___)
+    cleaned = cleaned.replace(/^[-*_]{3,}\s*$/gm, '');
+
+    // Remove blockquotes (> text -> text)
+    cleaned = cleaned.replace(/^>\s+/gm, '');
+    
+    // Remove links ([text](url) -> text)
+    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+    // Collapse excessive whitespace left by the removal
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+
+    return cleaned;
   }
 
   /**
@@ -556,28 +780,28 @@ export class LemonadeClient {
         id: 'Llama-3.2-1B-Instruct-Hybrid',
         name: 'Llama 3.2 1B Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       {
         id: 'Llama-3.2-3B-Instruct-Hybrid',
         name: 'Llama 3.2 3B Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       {
         id: 'Phi-3.5-mini-instruct-Hybrid',
         name: 'Phi 3.5 Mini Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       {
         id: 'Qwen2.5-0.5B-Instruct-Hybrid',
         name: 'Qwen 2.5 0.5B Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
     ];
@@ -652,6 +876,8 @@ export class LemonadeClient {
       reranking: number;
       audio: number;
     };
+    /** Dynamic WebSocket port reported by the server */
+    websocket_port?: number;
   } | null> {
     try {
       const response = await axios.get(

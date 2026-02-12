@@ -137,6 +137,13 @@ async function initializeApp(): Promise<void> {
     
     console.log('Application initialized successfully');
     console.log('Audio recordings will be saved to:', audioRecordingsPath);
+
+    // Pre-load audio models (Whisper + Kokoro) so both are ready for
+    // real-time ASR and TTS without evicting each other mid-interview.
+    // This runs in the background — does not block window creation.
+    interviewService.getLemonadeClient().preloadAudioModels().catch((err) => {
+      console.error('Background audio model preload failed:', err);
+    });
   } catch (error) {
     console.error('Failed to initialize application:', error);
   }
@@ -497,6 +504,15 @@ ipcMain.handle('server:getStatus', async () => {
   }
 });
 
+ipcMain.handle('server:getWebSocketPort', async () => {
+  try {
+    return await interviewService.getWebSocketPort();
+  } catch (error) {
+    console.error('Failed to get WebSocket port:', error);
+    return null;
+  }
+});
+
 ipcMain.handle('server:getSystemInfo', async () => {
   try {
     return await interviewService.getSystemInfo();
@@ -744,16 +760,17 @@ ipcMain.handle('document:upload', async (_event: IpcMainInvokeEvent, data: { typ
     let extractedText = '';
     try {
       if (ext === '.pdf') {
-        const { PDFParse } = require('pdf-parse');
-        const parser = new PDFParse(new Uint8Array(buffer));
+        // pdf-parse v2.x API: class-based with PDFParse
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: buffer });
         await parser.load();
-        const result = await parser.getText();
-        extractedText = result.pages
-          ? result.pages.map((p: { text: string }) => p.text).join('\n')
-          : '';
+        const textResult = await parser.getText();
+        extractedText = textResult.pages
+          .map((page: any) => page.text)
+          .join('\n');
       } else if (ext === '.docx') {
-        const mammoth = require('mammoth');
-        const result = await mammoth.extractRawText({ buffer: buffer });
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer });
         extractedText = result.value || '';
       } else if (ext === '.doc') {
         // .doc is a legacy format — store raw text extraction attempt

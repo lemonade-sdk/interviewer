@@ -11,7 +11,8 @@ const BUTTON_CLASS =
   'w-52 h-14 rounded-full font-semibold text-base tracking-wide transition-all duration-500 flex items-center justify-center';
 
 const INPUT_CLASS =
-  'w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-lemonade-accent focus:border-transparent transition-all bg-white';
+  'w-full px-5 py-4 bg-gray-50/50 border border-gray-200/60 rounded-2xl text-base text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-lemonade-accent focus:ring-4 focus:ring-lemonade-accent/10 transition-all duration-300 outline-none';
+const LABEL_CLASS = 'block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 ml-1';
 
 type Step = 'initial' | 'setup' | 'selection';
 
@@ -211,6 +212,40 @@ const Landing: React.FC = () => {
     });
   };
 
+  // ── Demo / Dev Helpers ──
+  const handleDemoMode = () => {
+    setResumeDoc({
+      id: 'demo-resume',
+      type: 'resume',
+      fileName: 'Demo_Resume.pdf',
+      filePath: '',
+      mimeType: 'application/pdf',
+      fileSize: 1024,
+      extractedText: 'Senior Software Engineer with 5 years of experience in React, Node.js, and TypeScript.',
+      uploadedAt: new Date().toISOString(),
+    });
+    setJobPostDoc({
+      id: 'demo-jobpost',
+      type: 'job_post',
+      fileName: 'Demo_Job_Description.pdf',
+      filePath: '',
+      mimeType: 'application/pdf',
+      fileSize: 1024,
+      extractedText: 'We are looking for a Senior Software Engineer to join our team. Must have experience with React and Node.js.',
+      uploadedAt: new Date().toISOString(),
+    });
+    setFormData({
+      title: 'Senior Software Engineer Interview',
+      company: 'Demo Corp',
+      position: 'Senior Software Engineer',
+      interviewType: 'technical',
+    });
+    // Skip directly to setup if server is ready, else wait for checks
+    if (lemonadeInstalled && serverRunning) {
+      setStep('setup');
+    }
+  };
+
   return (
     <div className="h-screen w-full bg-lemonade-bg text-lemonade-fg overflow-hidden flex flex-col items-center justify-center relative">
       {/* Hidden file inputs */}
@@ -313,7 +348,7 @@ const Landing: React.FC = () => {
               disabled={!canBegin}
               className={`${BUTTON_CLASS} shadow-md active:scale-95 disabled:cursor-not-allowed transition-all duration-500 ${
                 canBegin
-                  ? 'bg-lemonade-accent text-black hover:bg-lemonade-accent-hover hover:shadow-lg'
+                  ? 'bg-lemonade-accent text-black hover:bg-lemonade-accent-hover hover:shadow-lg animate-pulse'
                   : 'bg-white text-gray-400 border-2 border-gray-200'
               }`}
             >
@@ -327,6 +362,14 @@ const Landing: React.FC = () => {
               dashboard
             </button>
           </div>
+
+          {/* Demo Mode Button (for testing/dev) */}
+          <button
+            onClick={handleDemoMode}
+            className="mt-4 text-xs font-semibold text-gray-400 hover:text-lemonade-accent-hover transition-colors"
+          >
+            try demo mode (skip upload)
+          </button>
 
           {/* Upload hint */}
           {!bothDocsUploaded && !startError && !isChecking && (
@@ -378,86 +421,95 @@ const Landing: React.FC = () => {
 
       {/* ===== STEP: SETUP ===== */}
       {step === 'setup' && (
-        <div className="w-full max-w-md px-6 animate-in fade-in slide-in-from-bottom-4">
-          <div className="bg-white rounded-2xl border border-gray-100 p-7 shadow-sm">
-            <div className="space-y-4">
+        <div className="w-full max-w-lg px-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/20 p-10 shadow-2xl shadow-black/5 ring-1 ring-black/5">
+            <div className="space-y-7">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">title</label>
+                <label className={LABEL_CLASS}>Title</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className={INPUT_CLASS}
-                  placeholder="e.g., senior software engineer interview"
+                  placeholder="e.g., Senior Software Engineer Interview"
                   autoFocus
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">company</label>
-                <input
-                  type="text"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className={INPUT_CLASS}
-                  placeholder="e.g., tech corp"
-                />
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className={LABEL_CLASS}>Company</label>
+                  <input
+                    type="text"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className={INPUT_CLASS}
+                    placeholder="e.g., Tech Corp"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Position</label>
+                  <input
+                    type="text"
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    className={INPUT_CLASS}
+                    placeholder="e.g., Senior Engineer"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">position</label>
-                <input
-                  type="text"
-                  value={formData.position}
-                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  className={INPUT_CLASS}
-                  placeholder="e.g., senior software engineer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">type</label>
-                <select
-                  value={formData.interviewType}
-                  onChange={(e) =>
-                    setFormData({ ...formData, interviewType: e.target.value as InterviewType })
-                  }
-                  className={INPUT_CLASS}
-                >
-                  <option value="general">general</option>
-                  <option value="technical">technical</option>
-                  <option value="behavioral">behavioral</option>
-                  <option value="system-design">system design</option>
-                  <option value="coding">coding</option>
-                  <option value="mixed">mixed</option>
-                </select>
+                <label className={LABEL_CLASS}>Interview Type</label>
+                <div className="relative">
+                  <select
+                    value={formData.interviewType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, interviewType: e.target.value as InterviewType })
+                    }
+                    className={`${INPUT_CLASS} appearance-none cursor-pointer`}
+                  >
+                    <option value="general">General Interview</option>
+                    <option value="technical">Technical Assessment</option>
+                    <option value="behavioral">Behavioral Fit</option>
+                    <option value="system-design">System Design</option>
+                    <option value="coding">Live Coding</option>
+                    <option value="mixed">Mixed Format</option>
+                  </select>
+                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <ChevronLeft className="rotate-[-90deg] w-4 h-4" />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-5 pt-4 border-t border-gray-100 flex gap-3 text-xs text-gray-500">
+            <div className="mt-8 pt-6 border-t border-gray-100/50 flex gap-4 text-xs font-medium text-gray-500">
               {resumeDoc && (
-                <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-lg">
-                  <FileText size={12} /> {resumeDoc.fileName}
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm">
+                  <FileText size={12} className="text-lemonade-accent-hover" />
+                  <span className="truncate max-w-[120px]">{resumeDoc.fileName}</span>
                 </span>
               )}
               {jobPostDoc && (
-                <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-lg">
-                  <Briefcase size={12} /> {jobPostDoc.fileName}
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm">
+                  <Briefcase size={12} className="text-lemonade-accent-hover" />
+                  <span className="truncate max-w-[120px]">{jobPostDoc.fileName}</span>
                 </span>
               )}
             </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-4 mt-8">
               <button
                 onClick={() => setStep('initial')}
-                className="flex items-center justify-center gap-1 flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 font-semibold text-sm rounded-xl hover:bg-gray-50 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-4 border border-gray-200 text-gray-600 font-bold text-sm rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
               >
-                <ChevronLeft size={16} />
-                back
+                <ChevronLeft size={18} />
+                Back
               </button>
               <button
                 onClick={handleSetupNext}
                 disabled={!isFormValid}
-                className="flex-1 px-4 py-2.5 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-4 bg-lemonade-accent text-black font-bold text-sm rounded-2xl hover:bg-lemonade-accent-hover hover:shadow-lg hover:shadow-lemonade-accent/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.98]"
               >
-                next
+                Continue
               </button>
             </div>
           </div>

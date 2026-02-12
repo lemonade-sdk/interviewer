@@ -10,7 +10,7 @@ on:
 jobs:
   check-changes:
     name: Check Changed Files
-    runs-on: [rai-170-sdk, Windows]
+    runs-on: ubuntu-latest
     outputs:
       python: ${{ steps.filter.outputs.python }}
       nodejs: ${{ steps.filter.outputs.nodejs }}

@@ -263,6 +263,56 @@ ipcMain.handle('interview:sendMessage', async (_event: IpcMainInvokeEvent, inter
   }
 });
 
+// ─── Streaming variant: tokens are forwarded to the renderer in real-time ───
+ipcMain.handle(
+  'interview:sendMessageStreaming',
+  async (event: IpcMainInvokeEvent, interviewId: string, message: string) => {
+    try {
+      // Forward each token to the renderer via IPC event
+      const response = await interviewService.sendMessageStreaming(
+        interviewId,
+        message,
+        (token: string) => {
+          event.sender.send('llm:token', token);
+        },
+      );
+
+      // Persist to DB (same logic as non-streaming path)
+      const interview = await interviewRepo.findById(interviewId);
+      if (interview) {
+        const userMessage = {
+          id: Date.now().toString(),
+          role: 'user' as const,
+          content: message,
+          timestamp: new Date().toISOString(),
+        };
+
+        const assistantMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: response,
+          timestamp: new Date().toISOString(),
+        };
+
+        interview.transcript.push(userMessage, assistantMessage);
+        await interviewRepo.update(interviewId, { transcript: interview.transcript });
+
+        // Signal stream end
+        event.sender.send('llm:done', response);
+
+        return assistantMessage;
+      }
+
+      event.sender.send('llm:done', response);
+      return null;
+    } catch (error) {
+      console.error('Failed to send streaming message:', error);
+      event.sender.send('llm:error', (error as Error).message);
+      throw error;
+    }
+  },
+);
+
 ipcMain.handle('interview:get', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     return await interviewRepo.findById(interviewId);

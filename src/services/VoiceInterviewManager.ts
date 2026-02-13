@@ -77,6 +77,17 @@ export class VoiceInterviewManager extends EventEmitter {
   private httpRecordingChunks: Blob[] = [];
   private httpSpeechDetected: boolean = false;
 
+  // ─── Streaming TTS pipeline state ──────────────────────────
+  private ttsQueue: string[] = [];
+  private isTTSQueueRunning: boolean = false;
+  private streamingCancelled: boolean = false;
+  /** Abbreviations that should NOT be treated as sentence endings */
+  private static readonly ABBREVIATIONS = new Set([
+    'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'sr.', 'jr.',
+    'inc.', 'ltd.', 'corp.', 'vs.', 'etc.', 'approx.',
+    'dept.', 'est.', 'vol.', 'i.e.', 'e.g.', 'a.m.', 'p.m.',
+  ]);
+
   constructor(
     audioSettings: AudioSettings,
     asrBaseURL: string = 'http://localhost:8000/api/v1',
@@ -520,10 +531,16 @@ export class VoiceInterviewManager extends EventEmitter {
   /**
    * Send an audio blob to the Whisper HTTP transcription endpoint.
    * POST /api/v1/audio/transcriptions  (OpenAI-compatible)
+   *
+   * Lemonade Server only accepts WAV format, so we convert the browser's
+   * webm/opus recording to 16-bit PCM WAV (16 kHz mono) before sending.
    */
   private async transcribeAudioHTTP(audioBlob: Blob): Promise<string> {
+    // Convert webm → WAV (Lemonade Server only accepts wav)
+    const wavBlob = await this.convertBlobToWav(audioBlob);
+
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', wavBlob, 'audio.wav');
     formData.append('model', this.asrModel);
 
     const response = await fetch(`${this.asrBaseURL}/audio/transcriptions`, {
@@ -538,6 +555,84 @@ export class VoiceInterviewManager extends EventEmitter {
 
     const result = await response.json();
     return result.text ?? '';
+  }
+
+  /**
+   * Convert an audio Blob (webm/opus, mp4, ogg, etc.) to a 16-bit PCM WAV
+   * at 16 kHz mono — the format expected by Whisper / Lemonade Server.
+   *
+   * Uses the Web Audio API's OfflineAudioContext for decoding and resampling.
+   */
+  private async convertBlobToWav(blob: Blob): Promise<Blob> {
+    const TARGET_SAMPLE_RATE = 16000;
+
+    // 1. Decode the compressed audio into raw PCM samples
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioCtx = new AudioContext();
+    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    await audioCtx.close();
+
+    // 2. Resample to 16 kHz mono using OfflineAudioContext
+    // Guard: OfflineAudioContext requires length > 0
+    const numFrames = Math.max(1, Math.ceil(decoded.duration * TARGET_SAMPLE_RATE));
+    const offline = new OfflineAudioContext(1, numFrames, TARGET_SAMPLE_RATE);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start(0);
+    const rendered = await offline.startRendering();
+
+    // 3. Encode as 16-bit PCM WAV
+    const samples = rendered.getChannelData(0);
+    const wavBuffer = this.encodeWav(samples, TARGET_SAMPLE_RATE);
+
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  }
+
+  /**
+   * Encode Float32 PCM samples into a 16-bit WAV file (mono).
+   */
+  private encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+    const numSamples = samples.length;
+    const bytesPerSample = 2; // 16-bit
+    const dataSize = numSamples * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    this.writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    this.writeString(view, 8, 'WAVE');
+
+    // fmt sub-chunk
+    this.writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);           // sub-chunk size
+    view.setUint16(20, 1, true);            // PCM format
+    view.setUint16(22, 1, true);            // mono
+    view.setUint32(24, sampleRate, true);   // sample rate
+    view.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+    view.setUint16(32, bytesPerSample, true); // block align
+    view.setUint16(34, 16, true);           // bits per sample
+
+    // data sub-chunk
+    this.writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Write PCM samples (clamp Float32 → Int16)
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return buffer;
+  }
+
+  private writeString(view: DataView, offset: number, str: string): void {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
   }
 
   /**
@@ -701,7 +796,12 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Speak text using TTS
+   * Speak text using TTS.
+   *
+   * Attempts **streaming playback** first (starts audio as soon as the first
+   * PCM chunk arrives from Kokoro).  If the streaming request fails, falls
+   * back to the non-streaming endpoint which downloads the full audio file
+   * before playing.
    */
   async speak(text: string): Promise<void> {
     if (!this.isInitialized) {
@@ -717,7 +817,15 @@ export class VoiceInterviewManager extends EventEmitter {
       this.isSpeaking = true;
       this.emit('speaking-started');
 
-      await this.ttsService.speak(text);
+      // Try streaming first for faster time-to-first-audio
+      try {
+        await this.ttsService.speakStreaming(text, () => {
+          console.log('TTS streaming: first chunk playing');
+        });
+      } catch (streamErr: any) {
+        console.warn('TTS streaming failed, falling back to non-streaming:', streamErr.message);
+        await this.ttsService.speak(text);
+      }
 
       this.isSpeaking = false;
       this.emit('speaking-stopped');
@@ -734,8 +842,215 @@ export class VoiceInterviewManager extends EventEmitter {
    */
   stopSpeaking(): void {
     this.ttsService.stop();
+    this.streamingCancelled = true;
+    this.ttsQueue = [];
+    this.isTTSQueueRunning = false;
     this.isSpeaking = false;
     this.emit('speaking-stopped');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  LLM Streaming → Sentence Chunker → TTS Pipeline
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Feed a single LLM token into the sentence chunker.
+   *
+   * Call this from the renderer's `onLLMToken` listener.  When a
+   * sentence boundary is detected, the sentence is flushed to the
+   * TTS queue and playback starts immediately (if not already running).
+   */
+  feedToken(token: string): void {
+    this.sentenceBuffer += token;
+
+    // Check if the buffer contains a sentence boundary
+    const flushed = this.tryFlushSentence();
+    if (flushed) {
+      this.enqueueTTS(flushed);
+    }
+  }
+
+  /**
+   * Signal that the LLM stream has ended.  Flush any remaining text
+   * in the sentence buffer to TTS.
+   */
+  flushRemainingText(): void {
+    const remaining = this.sentenceBuffer.trim();
+    this.sentenceBuffer = '';
+    if (remaining.length > 0) {
+      this.enqueueTTS(remaining);
+    }
+  }
+
+  /**
+   * Prepare the streaming pipeline for a new response.
+   * Call BEFORE starting to feed tokens.
+   */
+  startStreamingPipeline(): void {
+    this.sentenceBuffer = '';
+    this.ttsQueue = [];
+    this.isTTSQueueRunning = false;
+    this.streamingCancelled = false;
+    this.isSpeaking = true;
+    // Open a shared AudioContext so sentences chain with zero gap
+    this.ttsService.openPipeline();
+    this.emit('speaking-started');
+  }
+
+  /**
+   * Wait until the TTS queue has finished playing all queued sentences.
+   * Resolves when the queue is empty and the last sentence has finished.
+   */
+  async waitForTTSQueueDrain(): Promise<void> {
+    // Wait for the queue processor to finish all sentences
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        if (!this.isTTSQueueRunning && this.ttsQueue.length === 0) {
+          resolve();
+        } else if (this.streamingCancelled) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+
+    // Close the TTS pipeline (waits for remaining scheduled audio to play)
+    await this.ttsService.closePipeline();
+
+    this.isSpeaking = false;
+    this.emit('speaking-stopped');
+  }
+
+  // ─── Internal sentence chunker ─────────────────────────────
+
+  private sentenceBuffer: string = '';
+
+  /**
+   * Try to extract a complete sentence from the buffer.
+   *
+   * Returns the sentence text if a boundary was found, or `null`.
+   * The buffer is updated to contain only the unconsumed remainder.
+   */
+  private tryFlushSentence(): string | null {
+    const buf = this.sentenceBuffer;
+
+    // Look for sentence-ending punctuation followed by whitespace
+    // (or end-of-buffer if buffer is long enough)
+    const boundaryRe = /([.!?])\s/g;
+    let match: RegExpExecArray | null;
+    let lastValidEnd = -1;
+
+    while ((match = boundaryRe.exec(buf)) !== null) {
+      const endPos = match.index + 1; // position right after the punctuation
+      const candidate = buf.slice(0, endPos).trim();
+
+      // Skip abbreviations (e.g. "Dr. " should not split)
+      if (this.isAbbreviation(candidate)) continue;
+
+      // Minimum sentence length to avoid flushing tiny fragments
+      if (candidate.length >= 15) {
+        lastValidEnd = endPos;
+        break; // flush eagerly on the first valid boundary
+      }
+    }
+
+    // Also flush on newlines (paragraph breaks) if buffer has content
+    if (lastValidEnd === -1) {
+      const nlPos = buf.indexOf('\n');
+      if (nlPos > 0 && buf.slice(0, nlPos).trim().length >= 10) {
+        lastValidEnd = nlPos;
+      }
+    }
+
+    // For very long buffers without punctuation, flush at a comma
+    if (lastValidEnd === -1 && buf.length > 120) {
+      const commaPos = buf.lastIndexOf(', ');
+      if (commaPos > 30) {
+        lastValidEnd = commaPos + 1; // include the comma
+      }
+    }
+
+    if (lastValidEnd === -1) return null;
+
+    const sentence = buf.slice(0, lastValidEnd).trim();
+    this.sentenceBuffer = buf.slice(lastValidEnd).trimStart();
+    return sentence;
+  }
+
+  private isAbbreviation(text: string): boolean {
+    const lower = text.toLowerCase();
+    for (const abbr of VoiceInterviewManager.ABBREVIATIONS) {
+      if (lower.endsWith(abbr)) return true;
+    }
+    return false;
+  }
+
+  // ─── Internal TTS queue processor ──────────────────────────
+
+  private enqueueTTS(sentence: string): void {
+    const cleaned = this.cleanForTTS(sentence);
+    if (!cleaned) return; // skip empty after cleaning
+    this.ttsQueue.push(cleaned);
+    if (!this.isTTSQueueRunning) {
+      this.processTTSQueue();
+    }
+  }
+
+  /**
+   * Strip markdown formatting and other artifacts so TTS speaks clean text.
+   * Mirrors LemonadeClient.cleanResponseContent but runs per-sentence on the
+   * renderer side during streaming.
+   */
+  private cleanForTTS(text: string): string {
+    let c = text;
+    // Bold / italic
+    c = c.replace(/\*\*([^*]+)\*\*/g, '$1');
+    c = c.replace(/__([^_]+)__/g, '$1');
+    c = c.replace(/\*([^*]+)\*/g, '$1');
+    c = c.replace(/_([^_]+)_/g, '$1');
+    // Headers
+    c = c.replace(/^#{1,6}\s+/gm, '');
+    // Horizontal rules
+    c = c.replace(/^[-*_]{3,}\s*$/gm, '');
+    // Blockquotes
+    c = c.replace(/^>\s+/gm, '');
+    // Links [text](url) → text
+    c = c.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    // Inline code backticks
+    c = c.replace(/`([^`]+)`/g, '$1');
+    // Tool call artifacts (DeepSeek/Qwen)
+    c = c.replace(/<｜[^｜]*｜>/g, '');
+    // Numbered list prefixes "1. " → just the text
+    c = c.replace(/^\d+\.\s+/gm, '');
+    // Bullet list prefixes "- " or "* "
+    c = c.replace(/^[-*]\s+/gm, '');
+    // Collapse whitespace
+    c = c.replace(/\s{2,}/g, ' ').trim();
+    return c;
+  }
+
+  private async processTTSQueue(): Promise<void> {
+    if (this.isTTSQueueRunning) return;
+    this.isTTSQueueRunning = true;
+
+    while (this.ttsQueue.length > 0 && !this.streamingCancelled) {
+      const sentence = this.ttsQueue.shift()!;
+      try {
+        // Use streaming TTS with fallback — same as speak()
+        try {
+          await this.ttsService.speakStreaming(sentence);
+        } catch {
+          await this.ttsService.speak(sentence);
+        }
+      } catch (error) {
+        console.error('TTS queue: failed to speak sentence:', error);
+        // Continue with next sentence rather than stopping entirely
+      }
+    }
+
+    this.isTTSQueueRunning = false;
   }
 
   /**

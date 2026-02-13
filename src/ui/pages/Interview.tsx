@@ -123,28 +123,73 @@ const Interview: React.FC = () => {
   // ─── Core functions ───────────────────────────────────────
   const handleTTSInitiation = async () => {
     if (!id || !voiceManagerRef.current) return;
-    
+    const manager = voiceManagerRef.current;
+    const greetingText = "Hello, I am ready to start the interview. Please introduce yourself and let's begin.";
+
     try {
       setIsThinking(true);
-      // Request the first message from the AI (interviewer starts)
-      const response = await window.electronAPI.sendMessage(id, "Hello, I am ready to start the interview. Please introduce yourself and let's begin.");
-      setIsThinking(false);
-      setMessages((prev) => [...prev, response]);
 
       if (!isMuted) {
-        // Mark that we should resume listening after TTS finishes
+        // ─── Streaming path: AI speaks as tokens arrive ────
+        const assistantMsgId = (Date.now() + 1).toString();
+        let accumulatedText = '';
+
+        manager.startStreamingPipeline();
+
+        window.electronAPI.onLLMToken((token: string) => {
+          accumulatedText += token;
+          manager.feedToken(token);
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === assistantMsgId);
+            if (existing) {
+              return prev.map((m) =>
+                m.id === assistantMsgId ? { ...m, content: accumulatedText } : m,
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: assistantMsgId,
+                role: 'assistant' as const,
+                content: accumulatedText,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+          });
+        });
+
+        setIsThinking(false);
+        const response = await window.electronAPI.sendMessageStreaming(id, greetingText);
+
+        manager.flushRemainingText();
+
+        if (response) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId ? { ...m, content: response.content } : m,
+            ),
+          );
+        }
+
+        await manager.waitForTTSQueueDrain();
+
+        window.electronAPI.offLLMToken();
+        window.electronAPI.offLLMDone();
+
         shouldResumeListeningRef.current = true;
-        await voiceManagerRef.current.speak(response.content);
-        // TTS finished → start hands-free listening
         await startHandsFreeMode();
       } else {
-        // Muted — still start listening so user can speak
+        // ─── Non-streaming: muted ──────────────────────────
+        const response = await window.electronAPI.sendMessage(id, greetingText);
+        setIsThinking(false);
+        setMessages((prev) => [...prev, response]);
         await startHandsFreeMode();
       }
     } catch (error) {
       console.error('Failed to initiate interview with TTS:', error);
       setIsThinking(false);
-      // Try to start listening even if TTS failed
+      window.electronAPI.offLLMToken?.();
+      window.electronAPI.offLLMDone?.();
       await startHandsFreeMode();
     }
   };
@@ -313,24 +358,110 @@ const Interview: React.FC = () => {
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
+    // ─── Streaming path: voice mode with TTS pipelining ──────
+    // Tokens are streamed from the LLM and fed into the sentence
+    // chunker → TTS queue so the AI starts speaking within seconds.
+    const useStreaming = voiceMode && manager && !isMuted;
+
+    if (useStreaming) {
+      // Prepare a placeholder assistant message that updates as tokens arrive
+      const assistantMsgId = (Date.now() + 1).toString();
+      let accumulatedText = '';
+
+      try {
+        setIsThinking(true);
+
+        // Start the TTS pipeline BEFORE tokens arrive
+        manager.startStreamingPipeline();
+
+        // Register the token listener — feeds each token to the chunker
+        window.electronAPI.onLLMToken((token: string) => {
+          accumulatedText += token;
+          manager.feedToken(token);
+          // Update the assistant message in the UI as tokens arrive (typewriter)
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === assistantMsgId);
+            if (existing) {
+              return prev.map((m) =>
+                m.id === assistantMsgId ? { ...m, content: accumulatedText } : m,
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: assistantMsgId,
+                role: 'assistant' as const,
+                content: accumulatedText,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+          });
+        });
+
+        // Start the streaming IPC — resolves when the LLM finishes
+        setIsThinking(false); // LLM is now streaming, no longer "thinking"
+        const response = await window.electronAPI.sendMessageStreaming(id, text);
+
+        // Flush remaining buffered text to TTS
+        manager.flushRemainingText();
+
+        // Ensure the final message content uses the cleaned response from main process
+        if (response) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId ? { ...m, content: response.content } : m,
+            ),
+          );
+        }
+
+        // Wait for TTS queue to finish playing all sentences
+        await manager.waitForTTSQueueDrain();
+
+        // Clean up listeners
+        window.electronAPI.offLLMToken();
+        window.electronAPI.offLLMDone();
+
+        await loadInterview();
+
+        // Resume hands-free listening
+        if (manager.isHandsFreeMode) {
+          try {
+            await manager.resumeHandsFreeListening();
+          } catch (error) {
+            console.error('Failed to resume hands-free listening:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Streaming message failed:', error);
+        setIsThinking(false);
+        window.electronAPI.offLLMToken();
+        window.electronAPI.offLLMDone();
+        window.electronAPI.offLLMError();
+        manager.stopSpeaking();
+
+        if (manager.isHandsFreeMode) {
+          try {
+            await manager.resumeHandsFreeListening();
+          } catch (e) {
+            console.error('Failed to resume listening after error:', e);
+          }
+        }
+      } finally {
+        setIsSending(false);
+      }
+      return;
+    }
+
+    // ─── Non-streaming path: text mode or muted ─────────────
     try {
       setIsThinking(true);
       const response = await window.electronAPI.sendMessage(id, text);
       setIsThinking(false);
       setMessages((prev) => [...prev, response]);
 
-      // TTS playback if voice mode and not muted
-      if (voiceMode && manager && !isMuted) {
-        try {
-          await manager.speak(response.content);
-        } catch (error) {
-          console.error('TTS playback failed:', error);
-        }
-      }
-
       await loadInterview();
 
-      // Resume hands-free listening after AI finishes speaking
+      // Resume hands-free listening after response
       if (manager?.isHandsFreeMode) {
         try {
           await manager.resumeHandsFreeListening();
@@ -341,7 +472,6 @@ const Interview: React.FC = () => {
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsThinking(false);
-      // Still try to resume listening on error
       if (manager?.isHandsFreeMode) {
         try {
           await manager.resumeHandsFreeListening();

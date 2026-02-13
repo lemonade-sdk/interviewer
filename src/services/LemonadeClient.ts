@@ -216,6 +216,89 @@ export class LemonadeClient {
   }
 
   /**
+   * Send a message with **streaming** enabled.
+   *
+   * Works like `sendMessage()` but yields content tokens as they arrive
+   * via a callback, enabling pipelined TTS playback.
+   *
+   * @param conversationHistory  Full message history (including system prompt)
+   * @param onToken              Called for every content token the model produces
+   * @param options              Optional overrides (maxTokens)
+   * @returns The full accumulated (and cleaned) response text
+   */
+  async sendMessageStreaming(
+    conversationHistory: Message[],
+    onToken: (token: string) => void,
+    options?: { maxTokens?: number },
+  ): Promise<string> {
+    try {
+      if (!this.isConnected) {
+        const isHealthy = await this.checkServerHealth();
+        if (!isHealthy) {
+          throw new Error(
+            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:8000',
+          );
+        }
+      }
+
+      const messages = conversationHistory
+        .filter(
+          (msg) => msg.role !== 'system' || conversationHistory.indexOf(msg) === 0,
+        )
+        .map((msg) => ({
+          role: msg.role as 'system' | 'user' | 'assistant',
+          content: msg.content,
+        }));
+
+      const maxTokens = options?.maxTokens ?? this.settings.maxTokens;
+
+      // OpenAI SDK v4+: stream returns an async iterable of ChatCompletionChunk
+      const stream = await this.client.chat.completions.create({
+        model: this.settings.modelName,
+        messages,
+        temperature: this.settings.temperature,
+        max_tokens: maxTokens,
+        stream: true,
+      });
+
+      let accumulated = '';
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (delta) {
+          accumulated += delta;
+          onToken(delta);
+        }
+      }
+
+      // Apply the same cleaning used by the non-streaming path
+      accumulated = this.cleanResponseContent(accumulated);
+
+      return accumulated;
+    } catch (error: any) {
+      console.error('Error in streaming message:', error.message ?? error);
+
+      if (error.message?.includes('ECONNREFUSED') || error.code === 'ECONNREFUSED') {
+        throw new Error(
+          'Cannot connect to Lemonade Server. Please ensure Lemonade Server is running at ' +
+            this.baseURL.replace('/api/v1', '').replace(/\/$/, ''),
+        );
+      }
+      if (error.status === 404) {
+        const serverMessage = error.error?.message || error.message || '';
+        if (serverMessage.includes('not available on this system')) {
+          throw new Error(serverMessage);
+        }
+        throw new Error(
+          `Model "${this.settings.modelName}" not found. Please load the model first.`,
+        );
+      }
+
+      throw new Error(error.message || 'Failed to get streaming response from Lemonade Server');
+    }
+  }
+
+  /**
    * Get available models (cached or fetch if needed)
    */
   async getAvailableModels(): Promise<ModelConfig[]> {

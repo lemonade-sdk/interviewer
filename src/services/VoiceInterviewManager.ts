@@ -68,6 +68,9 @@ export class VoiceInterviewManager extends EventEmitter {
 
   // Accumulator for transcript across modes
   private accumulatedTranscript: string = '';
+  // Delta accumulator — captures incremental delta text as a fallback
+  // when the server never sends a 'complete' event.
+  private deltaAccumulator: string = '';
 
   // HTTP-fallback recording state (used when wsPort is not available)
   private httpMediaRecorder: MediaRecorder | null = null;
@@ -239,8 +242,12 @@ export class VoiceInterviewManager extends EventEmitter {
     const wsUrl = `ws://localhost:${this.wsPort}`;
     this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
     this.accumulatedTranscript = '';
+    this.deltaAccumulator = '';
 
     this.realtimeASR.on('delta', (delta: string) => {
+      // Whisper streaming sends REPLACEMENT deltas (full transcript so far),
+      // not incremental fragments. Use assignment, not concatenation.
+      this.deltaAccumulator = delta;
       this.emit('transcription-delta', delta);
     });
 
@@ -358,6 +365,8 @@ export class VoiceInterviewManager extends EventEmitter {
     if (this.isProcessingUtterance) return;
     this.isProcessingUtterance = true;
 
+    let shouldResumListening = false;
+
     try {
       // Stop VAD + ASR (graceful — gives time for final transcript)
       if (this.vadService) {
@@ -376,24 +385,44 @@ export class VoiceInterviewManager extends EventEmitter {
       // Wait for final transcript to arrive via the still-open socket
       await new Promise((resolve) => setTimeout(resolve, this.asrConfig.wsCloseDelayMs));
 
-      const text = this.accumulatedTranscript.trim();
+      // Prefer 'complete' event text; fall back to latest delta (replacement)
+      let text = this.accumulatedTranscript.trim();
+      if (!text) {
+        text = this.deltaAccumulator.trim();
+        if (text) {
+          console.log('Hands-free: using delta text (no complete event received)');
+        }
+      }
       this.accumulatedTranscript = '';
+      this.deltaAccumulator = '';
+
+      // Clean Whisper artifacts (e.g. [BLANK_AUDIO])
+      text = this.cleanTranscript(text);
 
       if (text) {
         console.log('Hands-free utterance complete (WebSocket):', text);
         this.emit('utterance-complete', text);
       } else {
         console.log('Hands-free: no speech detected, resuming listening');
-        // No meaningful speech — restart listening
-        if (this._isHandsFreeMode) {
-          await this.startHandsFreeListening();
-        }
+        shouldResumListening = true;
       }
     } catch (error: any) {
       console.error('Error handling hands-free utterance end:', error);
       this.emit('error', error);
+      shouldResumListening = true;
     } finally {
+      // MUST clear processing flag BEFORE attempting to restart listening
+      // to avoid the "still processing previous utterance" guard in startHandsFreeListening
       this.isProcessingUtterance = false;
+    }
+
+    // Restart listening outside the try/finally so isProcessingUtterance is already false
+    if (shouldResumListening && this._isHandsFreeMode) {
+      try {
+        await this.startHandsFreeListening();
+      } catch (error) {
+        console.error('Failed to resume hands-free listening:', error);
+      }
     }
   }
 
@@ -437,10 +466,11 @@ export class VoiceInterviewManager extends EventEmitter {
       // Send to Whisper HTTP endpoint
       this.emit('transcription-started');
       console.log(`HTTP fallback: transcribing ${audioBlob.size} bytes of audio...`);
-      const text = await this.transcribeAudioHTTP(audioBlob);
+      const rawText = await this.transcribeAudioHTTP(audioBlob);
+      const text = this.cleanTranscript(rawText);
       this.emit('transcription-complete', text);
 
-      if (text.trim()) {
+      if (text) {
         console.log('Hands-free utterance complete (HTTP):', text);
         this.emit('utterance-complete', text);
       } else {
@@ -547,8 +577,11 @@ export class VoiceInterviewManager extends EventEmitter {
         const wsUrl = `ws://localhost:${this.wsPort}`;
         this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
         this.accumulatedTranscript = '';
+        this.deltaAccumulator = '';
 
         this.realtimeASR.on('delta', (delta: string) => {
+          // Whisper streaming sends REPLACEMENT deltas — use assignment, not concatenation
+          this.deltaAccumulator = delta;
           this.emit('transcription-delta', delta);
         });
 
@@ -636,7 +669,9 @@ export class VoiceInterviewManager extends EventEmitter {
 
         // Wait for the WS close delay so the final transcript can arrive
         await new Promise((resolve) => setTimeout(resolve, this.asrConfig.wsCloseDelayMs));
-        text = this.accumulatedTranscript;
+        // Prefer 'complete' event text; fall back to latest delta (replacement)
+        text = this.cleanTranscript(this.accumulatedTranscript.trim() || this.deltaAccumulator.trim());
+        this.deltaAccumulator = '';
       } else if (this.httpMediaRecorder) {
         // ═══ HTTP fallback mode ═══
         const audioBlob = await this.stopHTTPRecording();
@@ -821,6 +856,8 @@ export class VoiceInterviewManager extends EventEmitter {
     this.httpMediaRecorder = null;
     this.httpRecordingChunks = [];
     this.httpSpeechDetected = false;
+    this.deltaAccumulator = '';
+    this.accumulatedTranscript = '';
 
     if (this.isSpeaking) {
       this.ttsService.stop();
@@ -845,6 +882,19 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   // ─── Helpers ─────────────────────────────────────────────
+
+  /**
+   * Clean Whisper transcription artifacts from text.
+   * Removes tokens like [BLANK_AUDIO], (silence), etc. that Whisper
+   * sometimes emits, and collapses leftover whitespace.
+   */
+  private cleanTranscript(text: string): string {
+    return text
+      .replace(/\[BLANK_AUDIO\]/gi, '')
+      .replace(/\(silence\)/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
 
   /**
    * Get a supported MediaRecorder MIME type.

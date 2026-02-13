@@ -176,6 +176,12 @@ export class LemonadeClient {
         throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }
 
+      // Strip model-generated tool-call artifacts that some models (DeepSeek, Qwen3)
+      // embed directly in the content field.  These are NOT real function calls — they
+      // are part of the model's trained output format and the llamacpp backend does not
+      // always strip them.  If left in, they appear in the chat UI and get spoken by TTS.
+      responseContent = this.stripToolCallArtifacts(responseContent);
+
       return responseContent;
     } catch (error: any) {
       // Log concisely — avoid dumping entire error objects
@@ -705,6 +711,48 @@ export class LemonadeClient {
   updateSettings(newSettings: InterviewerSettings): void {
     this.settings = newSettings;
     // No need to reinitialize client, settings are passed per request
+  }
+
+  /**
+   * Strip model-generated tool-call artifacts from response content.
+   *
+   * Models like DeepSeek-R1 and Qwen3 emit special tokens for tool calls
+   * directly in the content field:
+   *   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
+   *   <｜tool▁call▁begin｜>function<｜tool▁sep｜>FUNC_NAME ... <｜tool▁call▁end｜>
+   *
+   * These are training artifacts — the llamacpp backend does not always
+   * strip them.  This method removes them, preserving the human-readable
+   * text that typically follows or precedes the tool block.
+   */
+  private stripToolCallArtifacts(content: string): string {
+    if (!content) return content;
+
+    // Remove entire tool-call blocks (outermost wrapper):
+    //   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
+    // The fullwidth ｜ (U+FF5C) and ▁ (U+2581) are part of the token vocabulary.
+    let cleaned = content.replace(
+      /<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g,
+      '',
+    );
+
+    // Fallback: if only partial markers exist (e.g. model was cut off before
+    // emitting the closing tag), strip from the opening tag to end of string
+    // or to the first blank line after a JSON block.
+    cleaned = cleaned.replace(
+      /<｜tool▁call[s]?▁(?:begin|end)｜>/g,
+      '',
+    );
+    cleaned = cleaned.replace(/<｜tool▁sep｜>/g, '');
+
+    // Remove any remaining orphan ``` json fences left by tool call blocks
+    // (the model sometimes wraps the JSON payload in a markdown code fence)
+    cleaned = cleaned.replace(/```json\s*\{[\s\S]*?\}\s*```/g, '');
+
+    // Collapse excessive whitespace left by the removal
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+
+    return cleaned;
   }
 
   /**

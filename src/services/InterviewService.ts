@@ -86,6 +86,52 @@ export class InterviewService {
     return response;
   }
 
+  /**
+   * Streaming variant of sendMessage.
+   *
+   * Tokens are forwarded to `onToken` as they arrive from the LLM so the
+   * caller can pipeline them to TTS.  The full (cleaned) response is
+   * returned once the stream ends.
+   */
+  async sendMessageStreaming(
+    interviewId: string,
+    userMessage: string,
+    onToken: (token: string) => void,
+  ): Promise<string> {
+    const session = this.activeInterviews.get(interviewId);
+    if (!session) {
+      throw new Error('Interview session not found');
+    }
+
+    // Add user message to conversation
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toISOString(),
+    };
+    session.messages.push(userMsg);
+
+    // Stream AI response — tokens forwarded via callback
+    const response = await this.lemonadeClient.sendMessageStreaming(
+      session.messages,
+      onToken,
+    );
+
+    // Add assistant message to in-memory session
+    const assistantMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: response,
+      timestamp: new Date().toISOString(),
+    };
+    session.messages.push(assistantMsg);
+
+    session.questionCount++;
+
+    return response;
+  }
+
   async endInterview(interviewId: string): Promise<InterviewFeedback> {
     const session = this.activeInterviews.get(interviewId);
     if (!session) {

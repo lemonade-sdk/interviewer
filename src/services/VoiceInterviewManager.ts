@@ -77,6 +77,17 @@ export class VoiceInterviewManager extends EventEmitter {
   private httpRecordingChunks: Blob[] = [];
   private httpSpeechDetected: boolean = false;
 
+  // ─── Streaming TTS pipeline state ──────────────────────────
+  private ttsQueue: string[] = [];
+  private isTTSQueueRunning: boolean = false;
+  private streamingCancelled: boolean = false;
+  /** Abbreviations that should NOT be treated as sentence endings */
+  private static readonly ABBREVIATIONS = new Set([
+    'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'sr.', 'jr.',
+    'inc.', 'ltd.', 'corp.', 'vs.', 'etc.', 'approx.',
+    'dept.', 'est.', 'vol.', 'i.e.', 'e.g.', 'a.m.', 'p.m.',
+  ]);
+
   constructor(
     audioSettings: AudioSettings,
     asrBaseURL: string = 'http://localhost:8000/api/v1',
@@ -831,8 +842,173 @@ export class VoiceInterviewManager extends EventEmitter {
    */
   stopSpeaking(): void {
     this.ttsService.stop();
+    this.streamingCancelled = true;
+    this.ttsQueue = [];
+    this.isTTSQueueRunning = false;
     this.isSpeaking = false;
     this.emit('speaking-stopped');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  LLM Streaming → Sentence Chunker → TTS Pipeline
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Feed a single LLM token into the sentence chunker.
+   *
+   * Call this from the renderer's `onLLMToken` listener.  When a
+   * sentence boundary is detected, the sentence is flushed to the
+   * TTS queue and playback starts immediately (if not already running).
+   */
+  feedToken(token: string): void {
+    this.sentenceBuffer += token;
+
+    // Check if the buffer contains a sentence boundary
+    const flushed = this.tryFlushSentence();
+    if (flushed) {
+      this.enqueueTTS(flushed);
+    }
+  }
+
+  /**
+   * Signal that the LLM stream has ended.  Flush any remaining text
+   * in the sentence buffer to TTS.
+   */
+  flushRemainingText(): void {
+    const remaining = this.sentenceBuffer.trim();
+    this.sentenceBuffer = '';
+    if (remaining.length > 0) {
+      this.enqueueTTS(remaining);
+    }
+  }
+
+  /**
+   * Prepare the streaming pipeline for a new response.
+   * Call BEFORE starting to feed tokens.
+   */
+  startStreamingPipeline(): void {
+    this.sentenceBuffer = '';
+    this.ttsQueue = [];
+    this.isTTSQueueRunning = false;
+    this.streamingCancelled = false;
+    this.isSpeaking = true;
+    this.emit('speaking-started');
+  }
+
+  /**
+   * Wait until the TTS queue has finished playing all queued sentences.
+   * Resolves when the queue is empty and the last sentence has finished.
+   */
+  waitForTTSQueueDrain(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const check = () => {
+        if (!this.isTTSQueueRunning && this.ttsQueue.length === 0) {
+          this.isSpeaking = false;
+          this.emit('speaking-stopped');
+          resolve();
+        } else if (this.streamingCancelled) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+
+  // ─── Internal sentence chunker ─────────────────────────────
+
+  private sentenceBuffer: string = '';
+
+  /**
+   * Try to extract a complete sentence from the buffer.
+   *
+   * Returns the sentence text if a boundary was found, or `null`.
+   * The buffer is updated to contain only the unconsumed remainder.
+   */
+  private tryFlushSentence(): string | null {
+    const buf = this.sentenceBuffer;
+
+    // Look for sentence-ending punctuation followed by whitespace
+    // (or end-of-buffer if buffer is long enough)
+    const boundaryRe = /([.!?])\s/g;
+    let match: RegExpExecArray | null;
+    let lastValidEnd = -1;
+
+    while ((match = boundaryRe.exec(buf)) !== null) {
+      const endPos = match.index + 1; // position right after the punctuation
+      const candidate = buf.slice(0, endPos).trim();
+
+      // Skip abbreviations (e.g. "Dr. " should not split)
+      if (this.isAbbreviation(candidate)) continue;
+
+      // Minimum sentence length to avoid flushing tiny fragments
+      if (candidate.length >= 15) {
+        lastValidEnd = endPos;
+        break; // flush eagerly on the first valid boundary
+      }
+    }
+
+    // Also flush on newlines (paragraph breaks) if buffer has content
+    if (lastValidEnd === -1) {
+      const nlPos = buf.indexOf('\n');
+      if (nlPos > 0 && buf.slice(0, nlPos).trim().length >= 10) {
+        lastValidEnd = nlPos;
+      }
+    }
+
+    // For very long buffers without punctuation, flush at a comma
+    if (lastValidEnd === -1 && buf.length > 120) {
+      const commaPos = buf.lastIndexOf(', ');
+      if (commaPos > 30) {
+        lastValidEnd = commaPos + 1; // include the comma
+      }
+    }
+
+    if (lastValidEnd === -1) return null;
+
+    const sentence = buf.slice(0, lastValidEnd).trim();
+    this.sentenceBuffer = buf.slice(lastValidEnd).trimStart();
+    return sentence;
+  }
+
+  private isAbbreviation(text: string): boolean {
+    const lower = text.toLowerCase();
+    for (const abbr of VoiceInterviewManager.ABBREVIATIONS) {
+      if (lower.endsWith(abbr)) return true;
+    }
+    return false;
+  }
+
+  // ─── Internal TTS queue processor ──────────────────────────
+
+  private enqueueTTS(sentence: string): void {
+    this.ttsQueue.push(sentence);
+    if (!this.isTTSQueueRunning) {
+      this.processTTSQueue();
+    }
+  }
+
+  private async processTTSQueue(): Promise<void> {
+    if (this.isTTSQueueRunning) return;
+    this.isTTSQueueRunning = true;
+
+    while (this.ttsQueue.length > 0 && !this.streamingCancelled) {
+      const sentence = this.ttsQueue.shift()!;
+      try {
+        // Use streaming TTS with fallback — same as speak()
+        try {
+          await this.ttsService.speakStreaming(sentence);
+        } catch {
+          await this.ttsService.speak(sentence);
+        }
+      } catch (error) {
+        console.error('TTS queue: failed to speak sentence:', error);
+        // Continue with next sentence rather than stopping entirely
+      }
+    }
+
+    this.isTTSQueueRunning = false;
   }
 
   /**

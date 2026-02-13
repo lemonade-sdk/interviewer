@@ -323,6 +323,13 @@ export interface IPC {
   startInterview: (config: Partial<Interview>, personaId?: string) => Promise<Interview>;
   endInterview: (interviewId: string) => Promise<Interview>;
   sendMessage: (interviewId: string, message: string) => Promise<Message>;
+  sendMessageStreaming: (interviewId: string, message: string) => Promise<Message>;
+  onLLMToken: (callback: (token: string) => void) => void;
+  offLLMToken: () => void;
+  onLLMDone: (callback: (response: string) => void) => void;
+  offLLMDone: () => void;
+  onLLMError: (callback: (error: string) => void) => void;
+  offLLMError: () => void;
   getInterview: (interviewId: string) => Promise<Interview>;
   getAllInterviews: () => Promise<Interview[]>;
   deleteInterview: (interviewId: string) => Promise<void>;

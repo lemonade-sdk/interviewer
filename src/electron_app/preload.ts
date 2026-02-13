@@ -7,6 +7,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startInterview: (config: any, personaId?: string) => ipcRenderer.invoke('interview:start', config, personaId),
   endInterview: (interviewId: string) => ipcRenderer.invoke('interview:end', interviewId),
   sendMessage: (interviewId: string, message: string) => ipcRenderer.invoke('interview:sendMessage', interviewId, message),
+  sendMessageStreaming: (interviewId: string, message: string) => ipcRenderer.invoke('interview:sendMessageStreaming', interviewId, message),
+  onLLMToken: (callback: (token: string) => void) => {
+    ipcRenderer.on('llm:token', (_event: any, token: string) => callback(token));
+  },
+  offLLMToken: () => {
+    ipcRenderer.removeAllListeners('llm:token');
+  },
+  onLLMDone: (callback: (response: string) => void) => {
+    ipcRenderer.on('llm:done', (_event: any, response: string) => callback(response));
+  },
+  offLLMDone: () => {
+    ipcRenderer.removeAllListeners('llm:done');
+  },
+  onLLMError: (callback: (error: string) => void) => {
+    ipcRenderer.on('llm:error', (_event: any, error: string) => callback(error));
+  },
+  offLLMError: () => {
+    ipcRenderer.removeAllListeners('llm:error');
+  },
   getInterview: (interviewId: string) => ipcRenderer.invoke('interview:get', interviewId),
   getAllInterviews: () => ipcRenderer.invoke('interview:getAll'),
   deleteInterview: (interviewId: string) => ipcRenderer.invoke('interview:delete', interviewId),

@@ -20,6 +20,14 @@ export class TTSService {
   private responseFormat: 'mp3' | 'wav' | 'opus' | 'pcm' = 'mp3';
   private currentAudio: HTMLAudioElement | null = null;
 
+  // Streaming playback state
+  private streamingCtx: AudioContext | null = null;
+  private streamingAbort: AbortController | null = null;
+  private isStreamingActive: boolean = false;
+
+  /** Kokoro TTS outputs 24 kHz PCM by default */
+  private static readonly STREAMING_SAMPLE_RATE = 24000;
+
   constructor(baseURL: string = 'http://localhost:8000/api/v1') {
     this.baseURL = baseURL;
   }
@@ -139,54 +147,176 @@ export class TTSService {
   }
 
   /**
-   * Speak text with streaming (PCM format)
-   * Per spec: stream_format='audio' outputs PCM audio stream
-   * Note: This requires more complex audio handling and is optional
+   * Speak text with real-time streaming playback.
+   *
+   * Uses `stream_format='audio'` so Kokoro returns raw **16-bit PCM** at
+   * 24 kHz.  Chunks are read from a `fetch()` `ReadableStream` and queued
+   * as `AudioBufferSourceNode`s on a `Web Audio API` context so playback
+   * begins as soon as the first chunk arrives — no waiting for the whole
+   * file.
+   *
+   * @param text          Text to speak
+   * @param onFirstChunk  Optional callback fired when the first audio chunk
+   *                      starts playing (useful for UI "speaking" state).
    */
-  async speakStreaming(text: string, onChunk?: (chunk: ArrayBuffer) => void): Promise<void> {
+  async speakStreaming(
+    text: string,
+    onFirstChunk?: () => void,
+  ): Promise<void> {
+    if (!text.trim()) return;
+
+    // Abort any in-progress stream
+    this.stopStreaming();
+
+    const abortCtrl = new AbortController();
+    this.streamingAbort = abortCtrl;
+    this.isStreamingActive = true;
+
+    const audioCtx = new AudioContext({ sampleRate: TTSService.STREAMING_SAMPLE_RATE });
+    this.streamingCtx = audioCtx;
+
     try {
-      const response = await axios.post(
-        `${this.baseURL}/audio/speech`,
-        {
+      const response = await fetch(`${this.baseURL}/audio/speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           model: this.model,
           input: text,
           voice: this.voice,
           speed: this.speed,
-          stream_format: 'audio', // Enable streaming (outputs PCM)
-        },
-        {
-          responseType: 'stream',
-          timeout: 30000,
-        }
-      );
-
-      // Handle streaming response
-      // This is a placeholder - full implementation would require PCM audio handling
-      response.data.on('data', (chunk: Buffer) => {
-          if (onChunk) {
-          onChunk(chunk.buffer as ArrayBuffer);
-        }
+          stream_format: 'audio',   // PCM streaming
+        }),
+        signal: abortCtrl.signal,
       });
 
-      return new Promise((resolve, reject) => {
-        response.data.on('end', resolve);
-        response.data.on('error', reject);
-      });
-    } catch (error) {
+      if (!response.ok) {
+        const errText = await response.text().catch(() => 'unknown');
+        throw new Error(`TTS streaming request failed (${response.status}): ${errText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('TTS response has no readable body');
+
+      // We schedule AudioBufferSourceNodes end-to-end so there are no gaps.
+      let nextStartTime = audioCtx.currentTime;
+      let firstChunkFired = false;
+
+      // Remainder buffer: if a chunk has an odd byte count, the trailing
+      // byte is the first half of a 16-bit sample.  We save it and prepend
+      // it to the next chunk so that Int16 alignment is never broken.
+      let remainder: Uint8Array | null = null;
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done || !this.isStreamingActive) break;
+
+        // Merge any leftover byte from the previous chunk
+        let bytes: Uint8Array;
+        if (remainder) {
+          bytes = new Uint8Array(remainder.length + value.length);
+          bytes.set(remainder, 0);
+          bytes.set(value, remainder.length);
+          remainder = null;
+        } else {
+          bytes = value;
+        }
+
+        // If odd number of bytes, stash the last one for next iteration
+        if (bytes.byteLength % 2 !== 0) {
+          remainder = bytes.slice(bytes.byteLength - 1);
+          bytes = bytes.slice(0, bytes.byteLength - 1);
+        }
+
+        if (bytes.byteLength < 2) continue; // not enough data yet
+
+        // Read as 16-bit LE PCM — copy into a fresh ArrayBuffer so that
+        // the Int16Array view is guaranteed to be 2-byte aligned.
+        const aligned = new Uint8Array(bytes).buffer;
+        const int16 = new Int16Array(aligned);
+
+        // Convert Int16 → Float32 for the Web Audio API
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) {
+          float32[i] = int16[i] / 32768;
+        }
+
+        // Create an AudioBuffer for this chunk
+        const audioBuffer = audioCtx.createBuffer(
+          1,
+          float32.length,
+          TTSService.STREAMING_SAMPLE_RATE,
+        );
+        audioBuffer.getChannelData(0).set(float32);
+
+        const srcNode = audioCtx.createBufferSource();
+        srcNode.buffer = audioBuffer;
+        srcNode.connect(audioCtx.destination);
+
+        // Schedule right after the previous chunk ends
+        if (nextStartTime < audioCtx.currentTime) {
+          nextStartTime = audioCtx.currentTime;
+        }
+        srcNode.start(nextStartTime);
+        nextStartTime += audioBuffer.duration;
+
+        if (!firstChunkFired) {
+          firstChunkFired = true;
+          onFirstChunk?.();
+        }
+      }
+
+      // Wait until all scheduled audio finishes playing
+      const remaining = nextStartTime - audioCtx.currentTime;
+      if (remaining > 0) {
+        await new Promise(res => setTimeout(res, remaining * 1000));
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('TTS streaming aborted');
+        return;
+      }
       console.error('TTS streaming error:', error);
-      throw new Error('Text-to-speech streaming failed');
+      throw new Error(
+        error.message || 'Text-to-speech streaming failed',
+      );
+    } finally {
+      this.isStreamingActive = false;
+      if (audioCtx.state !== 'closed') {
+        await audioCtx.close().catch(() => {});
+      }
+      this.streamingCtx = null;
+      this.streamingAbort = null;
     }
   }
 
   /**
-   * Stop speaking
+   * Stop any in-progress streaming playback.
+   */
+  stopStreaming(): void {
+    this.isStreamingActive = false;
+    if (this.streamingAbort) {
+      this.streamingAbort.abort();
+      this.streamingAbort = null;
+    }
+    if (this.streamingCtx && this.streamingCtx.state !== 'closed') {
+      this.streamingCtx.close().catch(() => {});
+      this.streamingCtx = null;
+    }
+  }
+
+  /**
+   * Stop speaking (both non-streaming and streaming)
    */
   stop(): void {
+    // Stop non-streaming playback
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
       this.currentAudio = null;
     }
+    // Stop streaming playback
+    this.stopStreaming();
   }
 
   /**
@@ -208,10 +338,10 @@ export class TTSService {
   }
 
   /**
-   * Check if currently speaking
+   * Check if currently speaking (non-streaming or streaming)
    */
   isSpeaking(): boolean {
-    return this.currentAudio !== null && !this.currentAudio.paused;
+    return (this.currentAudio !== null && !this.currentAudio.paused) || this.isStreamingActive;
   }
 
   /**

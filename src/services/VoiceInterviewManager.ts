@@ -520,10 +520,16 @@ export class VoiceInterviewManager extends EventEmitter {
   /**
    * Send an audio blob to the Whisper HTTP transcription endpoint.
    * POST /api/v1/audio/transcriptions  (OpenAI-compatible)
+   *
+   * Lemonade Server only accepts WAV format, so we convert the browser's
+   * webm/opus recording to 16-bit PCM WAV (16 kHz mono) before sending.
    */
   private async transcribeAudioHTTP(audioBlob: Blob): Promise<string> {
+    // Convert webm → WAV (Lemonade Server only accepts wav)
+    const wavBlob = await this.convertBlobToWav(audioBlob);
+
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', wavBlob, 'audio.wav');
     formData.append('model', this.asrModel);
 
     const response = await fetch(`${this.asrBaseURL}/audio/transcriptions`, {
@@ -538,6 +544,84 @@ export class VoiceInterviewManager extends EventEmitter {
 
     const result = await response.json();
     return result.text ?? '';
+  }
+
+  /**
+   * Convert an audio Blob (webm/opus, mp4, ogg, etc.) to a 16-bit PCM WAV
+   * at 16 kHz mono — the format expected by Whisper / Lemonade Server.
+   *
+   * Uses the Web Audio API's OfflineAudioContext for decoding and resampling.
+   */
+  private async convertBlobToWav(blob: Blob): Promise<Blob> {
+    const TARGET_SAMPLE_RATE = 16000;
+
+    // 1. Decode the compressed audio into raw PCM samples
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioCtx = new AudioContext();
+    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    await audioCtx.close();
+
+    // 2. Resample to 16 kHz mono using OfflineAudioContext
+    // Guard: OfflineAudioContext requires length > 0
+    const numFrames = Math.max(1, Math.ceil(decoded.duration * TARGET_SAMPLE_RATE));
+    const offline = new OfflineAudioContext(1, numFrames, TARGET_SAMPLE_RATE);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start(0);
+    const rendered = await offline.startRendering();
+
+    // 3. Encode as 16-bit PCM WAV
+    const samples = rendered.getChannelData(0);
+    const wavBuffer = this.encodeWav(samples, TARGET_SAMPLE_RATE);
+
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  }
+
+  /**
+   * Encode Float32 PCM samples into a 16-bit WAV file (mono).
+   */
+  private encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+    const numSamples = samples.length;
+    const bytesPerSample = 2; // 16-bit
+    const dataSize = numSamples * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    this.writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    this.writeString(view, 8, 'WAVE');
+
+    // fmt sub-chunk
+    this.writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);           // sub-chunk size
+    view.setUint16(20, 1, true);            // PCM format
+    view.setUint16(22, 1, true);            // mono
+    view.setUint32(24, sampleRate, true);   // sample rate
+    view.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+    view.setUint16(32, bytesPerSample, true); // block align
+    view.setUint16(34, 16, true);           // bits per sample
+
+    // data sub-chunk
+    this.writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Write PCM samples (clamp Float32 → Int16)
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return buffer;
+  }
+
+  private writeString(view: DataView, offset: number, str: string): void {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
   }
 
   /**
@@ -701,7 +785,12 @@ export class VoiceInterviewManager extends EventEmitter {
   }
 
   /**
-   * Speak text using TTS
+   * Speak text using TTS.
+   *
+   * Attempts **streaming playback** first (starts audio as soon as the first
+   * PCM chunk arrives from Kokoro).  If the streaming request fails, falls
+   * back to the non-streaming endpoint which downloads the full audio file
+   * before playing.
    */
   async speak(text: string): Promise<void> {
     if (!this.isInitialized) {
@@ -717,7 +806,15 @@ export class VoiceInterviewManager extends EventEmitter {
       this.isSpeaking = true;
       this.emit('speaking-started');
 
-      await this.ttsService.speak(text);
+      // Try streaming first for faster time-to-first-audio
+      try {
+        await this.ttsService.speakStreaming(text, () => {
+          console.log('TTS streaming: first chunk playing');
+        });
+      } catch (streamErr: any) {
+        console.warn('TTS streaming failed, falling back to non-streaming:', streamErr.message);
+        await this.ttsService.speak(text);
+      }
 
       this.isSpeaking = false;
       this.emit('speaking-stopped');

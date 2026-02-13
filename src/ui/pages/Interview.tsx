@@ -83,11 +83,17 @@ const Interview: React.FC = () => {
     };
   }, [id]);
 
-  // TTS Initiation
+  // TTS Initiation + auto hands-free
   useEffect(() => {
-    if (stage === 'interview' && !hasInitiatedRef.current && messages.length === 0 && voiceReady) {
+    if (stage === 'interview' && voiceReady && !hasInitiatedRef.current) {
       hasInitiatedRef.current = true;
-      handleTTSInitiation();
+      if (messages.length === 0) {
+        // Fresh interview: AI speaks first, then hands-free starts inside handleTTSInitiation
+        handleTTSInitiation();
+      } else {
+        // Resumed interview with existing messages: go straight to hands-free
+        startHandsFreeMode();
+      }
     }
   }, [stage, voiceReady, messages.length]);
 
@@ -584,9 +590,9 @@ const Interview: React.FC = () => {
             </div>
           )}
 
-          {voiceReady && !isHandsFreeMode && !isRecording && (
+          {voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
             <div className="mt-3 text-[11px] text-white/20">
-              Tap the orb to start hands-free conversation
+              Starting hands-free mode...
             </div>
           )}
 

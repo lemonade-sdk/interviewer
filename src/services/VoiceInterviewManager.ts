@@ -892,6 +892,8 @@ export class VoiceInterviewManager extends EventEmitter {
     this.isTTSQueueRunning = false;
     this.streamingCancelled = false;
     this.isSpeaking = true;
+    // Open a shared AudioContext so sentences chain with zero gap
+    this.ttsService.openPipeline();
     this.emit('speaking-started');
   }
 
@@ -899,12 +901,11 @@ export class VoiceInterviewManager extends EventEmitter {
    * Wait until the TTS queue has finished playing all queued sentences.
    * Resolves when the queue is empty and the last sentence has finished.
    */
-  waitForTTSQueueDrain(): Promise<void> {
-    return new Promise<void>((resolve) => {
+  async waitForTTSQueueDrain(): Promise<void> {
+    // Wait for the queue processor to finish all sentences
+    await new Promise<void>((resolve) => {
       const check = () => {
         if (!this.isTTSQueueRunning && this.ttsQueue.length === 0) {
-          this.isSpeaking = false;
-          this.emit('speaking-stopped');
           resolve();
         } else if (this.streamingCancelled) {
           resolve();
@@ -914,6 +915,12 @@ export class VoiceInterviewManager extends EventEmitter {
       };
       check();
     });
+
+    // Close the TTS pipeline (waits for remaining scheduled audio to play)
+    await this.ttsService.closePipeline();
+
+    this.isSpeaking = false;
+    this.emit('speaking-stopped');
   }
 
   // ─── Internal sentence chunker ─────────────────────────────
@@ -983,10 +990,45 @@ export class VoiceInterviewManager extends EventEmitter {
   // ─── Internal TTS queue processor ──────────────────────────
 
   private enqueueTTS(sentence: string): void {
-    this.ttsQueue.push(sentence);
+    const cleaned = this.cleanForTTS(sentence);
+    if (!cleaned) return; // skip empty after cleaning
+    this.ttsQueue.push(cleaned);
     if (!this.isTTSQueueRunning) {
       this.processTTSQueue();
     }
+  }
+
+  /**
+   * Strip markdown formatting and other artifacts so TTS speaks clean text.
+   * Mirrors LemonadeClient.cleanResponseContent but runs per-sentence on the
+   * renderer side during streaming.
+   */
+  private cleanForTTS(text: string): string {
+    let c = text;
+    // Bold / italic
+    c = c.replace(/\*\*([^*]+)\*\*/g, '$1');
+    c = c.replace(/__([^_]+)__/g, '$1');
+    c = c.replace(/\*([^*]+)\*/g, '$1');
+    c = c.replace(/_([^_]+)_/g, '$1');
+    // Headers
+    c = c.replace(/^#{1,6}\s+/gm, '');
+    // Horizontal rules
+    c = c.replace(/^[-*_]{3,}\s*$/gm, '');
+    // Blockquotes
+    c = c.replace(/^>\s+/gm, '');
+    // Links [text](url) → text
+    c = c.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    // Inline code backticks
+    c = c.replace(/`([^`]+)`/g, '$1');
+    // Tool call artifacts (DeepSeek/Qwen)
+    c = c.replace(/<｜[^｜]*｜>/g, '');
+    // Numbered list prefixes "1. " → just the text
+    c = c.replace(/^\d+\.\s+/gm, '');
+    // Bullet list prefixes "- " or "* "
+    c = c.replace(/^[-*]\s+/gm, '');
+    // Collapse whitespace
+    c = c.replace(/\s{2,}/g, ' ').trim();
+    return c;
   }
 
   private async processTTSQueue(): Promise<void> {

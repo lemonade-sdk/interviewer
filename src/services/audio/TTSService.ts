@@ -16,7 +16,7 @@ export class TTSService {
   private baseURL: string;
   private model: string = 'kokoro-v1';
   private voice: string = 'shimmer'; // Default voice
-  private speed: number = 1.0;
+  private speed: number = 1.15; // Slightly faster for natural conversational pacing
   private responseFormat: 'mp3' | 'wav' | 'opus' | 'pcm' = 'mp3';
   private currentAudio: HTMLAudioElement | null = null;
 
@@ -28,8 +28,51 @@ export class TTSService {
   /** Kokoro TTS outputs 24 kHz PCM by default */
   private static readonly STREAMING_SAMPLE_RATE = 24000;
 
+  // ─── Pipeline mode: shared AudioContext across sentences ───
+  // When active, speakStreaming() reuses the same AudioContext and
+  // nextStartTime so sentences chain with ZERO gap between them.
+  private pipelineCtx: AudioContext | null = null;
+  private pipelineNextStartTime: number = 0;
+  private pipelineActive: boolean = false;
+
   constructor(baseURL: string = 'http://localhost:8000/api/v1') {
     this.baseURL = baseURL;
+  }
+
+  // ═══ Pipeline mode API ══════════════════════════════════════
+
+  /**
+   * Open a TTS pipeline.
+   *
+   * While the pipeline is open, consecutive `speakStreaming()` calls
+   * share **one AudioContext** and a continuous `nextStartTime` timeline,
+   * eliminating the silence gap between sentences.
+   */
+  openPipeline(): void {
+    this.closePipeline();
+    this.pipelineCtx = new AudioContext({ sampleRate: TTSService.STREAMING_SAMPLE_RATE });
+    this.pipelineNextStartTime = this.pipelineCtx.currentTime;
+    this.pipelineActive = true;
+  }
+
+  /**
+   * Close the pipeline.  Waits for any remaining scheduled audio to
+   * finish, then tears down the shared AudioContext.
+   */
+  async closePipeline(): Promise<void> {
+    this.pipelineActive = false;
+    if (this.pipelineCtx) {
+      // Wait for remaining scheduled audio
+      const remaining = this.pipelineNextStartTime - this.pipelineCtx.currentTime;
+      if (remaining > 0) {
+        await new Promise((r) => setTimeout(r, remaining * 1000));
+      }
+      if (this.pipelineCtx.state !== 'closed') {
+        await this.pipelineCtx.close().catch(() => {});
+      }
+      this.pipelineCtx = null;
+      this.pipelineNextStartTime = 0;
+    }
   }
 
   /**
@@ -165,15 +208,26 @@ export class TTSService {
   ): Promise<void> {
     if (!text.trim()) return;
 
-    // Abort any in-progress stream
-    this.stopStreaming();
+    // ─── Pipeline mode: reuse the shared AudioContext ─────────
+    // When a pipeline is open, we do NOT create/destroy a context per
+    // sentence.  Instead we schedule into the shared context and carry
+    // nextStartTime forward so sentences chain with zero gap.
+    const isPipeline = this.pipelineActive && this.pipelineCtx;
+    const audioCtx = isPipeline ? this.pipelineCtx! : new AudioContext({ sampleRate: TTSService.STREAMING_SAMPLE_RATE });
+
+    if (!isPipeline) {
+      // Standalone mode — abort any prior stream, own the context
+      this.stopStreaming();
+      this.streamingCtx = audioCtx;
+    }
 
     const abortCtrl = new AbortController();
     this.streamingAbort = abortCtrl;
     this.isStreamingActive = true;
 
-    const audioCtx = new AudioContext({ sampleRate: TTSService.STREAMING_SAMPLE_RATE });
-    this.streamingCtx = audioCtx;
+    // In pipeline mode, pick up where the last sentence left off
+    let nextStartTime = isPipeline ? this.pipelineNextStartTime : audioCtx.currentTime;
+    let firstChunkFired = false;
 
     try {
       const response = await fetch(`${this.baseURL}/audio/speech`, {
@@ -197,13 +251,7 @@ export class TTSService {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('TTS response has no readable body');
 
-      // We schedule AudioBufferSourceNodes end-to-end so there are no gaps.
-      let nextStartTime = audioCtx.currentTime;
-      let firstChunkFired = false;
-
-      // Remainder buffer: if a chunk has an odd byte count, the trailing
-      // byte is the first half of a 16-bit sample.  We save it and prepend
-      // it to the next chunk so that Int16 alignment is never broken.
+      // Remainder buffer for byte-alignment across chunks
       let remainder: Uint8Array | null = null;
 
       // eslint-disable-next-line no-constant-condition
@@ -228,20 +276,19 @@ export class TTSService {
           bytes = bytes.slice(0, bytes.byteLength - 1);
         }
 
-        if (bytes.byteLength < 2) continue; // not enough data yet
+        if (bytes.byteLength < 2) continue;
 
-        // Read as 16-bit LE PCM — copy into a fresh ArrayBuffer so that
-        // the Int16Array view is guaranteed to be 2-byte aligned.
+        // Read as 16-bit LE PCM — copy to guarantee 2-byte alignment
         const aligned = new Uint8Array(bytes).buffer;
         const int16 = new Int16Array(aligned);
 
-        // Convert Int16 → Float32 for the Web Audio API
+        // Convert Int16 → Float32
         const float32 = new Float32Array(int16.length);
         for (let i = 0; i < int16.length; i++) {
           float32[i] = int16[i] / 32768;
         }
 
-        // Create an AudioBuffer for this chunk
+        // Create AudioBuffer and schedule
         const audioBuffer = audioCtx.createBuffer(
           1,
           float32.length,
@@ -253,7 +300,6 @@ export class TTSService {
         srcNode.buffer = audioBuffer;
         srcNode.connect(audioCtx.destination);
 
-        // Schedule right after the previous chunk ends
         if (nextStartTime < audioCtx.currentTime) {
           nextStartTime = audioCtx.currentTime;
         }
@@ -266,7 +312,15 @@ export class TTSService {
         }
       }
 
-      // Wait until all scheduled audio finishes playing
+      // Persist the timeline cursor for the next sentence in pipeline mode
+      if (isPipeline) {
+        this.pipelineNextStartTime = nextStartTime;
+        // Do NOT wait — return immediately so the queue can start the
+        // next sentence's fetch while this one is still playing.
+        return;
+      }
+
+      // Standalone mode: wait for remaining audio then close
       const remaining = nextStartTime - audioCtx.currentTime;
       if (remaining > 0) {
         await new Promise(res => setTimeout(res, remaining * 1000));
@@ -282,19 +336,23 @@ export class TTSService {
       );
     } finally {
       this.isStreamingActive = false;
-      if (audioCtx.state !== 'closed') {
-        await audioCtx.close().catch(() => {});
-      }
-      this.streamingCtx = null;
       this.streamingAbort = null;
+      // Only close context in standalone mode
+      if (!isPipeline) {
+        if (audioCtx.state !== 'closed') {
+          await audioCtx.close().catch(() => {});
+        }
+        this.streamingCtx = null;
+      }
     }
   }
 
   /**
-   * Stop any in-progress streaming playback.
+   * Stop any in-progress streaming playback and tear down the pipeline.
    */
   stopStreaming(): void {
     this.isStreamingActive = false;
+    this.pipelineActive = false;
     if (this.streamingAbort) {
       this.streamingAbort.abort();
       this.streamingAbort = null;
@@ -303,6 +361,11 @@ export class TTSService {
       this.streamingCtx.close().catch(() => {});
       this.streamingCtx = null;
     }
+    if (this.pipelineCtx && this.pipelineCtx.state !== 'closed') {
+      this.pipelineCtx.close().catch(() => {});
+      this.pipelineCtx = null;
+    }
+    this.pipelineNextStartTime = 0;
   }
 
   /**

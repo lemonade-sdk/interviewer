@@ -56,7 +56,7 @@ export class VoiceInterviewManager extends EventEmitter {
 
   constructor(
     audioSettings: AudioSettings,
-    asrBaseURL?: string,
+    _asrBaseURL?: string,
     asrModel: string = "Whisper-Base",
     wsPort?: number,
     vadConfig?: Partial<VADConfig>,

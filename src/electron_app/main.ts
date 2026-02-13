@@ -137,6 +137,13 @@ async function initializeApp(): Promise<void> {
     
     console.log('Application initialized successfully');
     console.log('Audio recordings will be saved to:', audioRecordingsPath);
+
+    // Pre-load audio models (Whisper + Kokoro) so both are ready for
+    // real-time ASR and TTS without evicting each other mid-interview.
+    // This runs in the background — does not block window creation.
+    interviewService.getLemonadeClient().preloadAudioModels().catch((err) => {
+      console.error('Background audio model preload failed:', err);
+    });
   } catch (error) {
     console.error('Failed to initialize application:', error);
   }

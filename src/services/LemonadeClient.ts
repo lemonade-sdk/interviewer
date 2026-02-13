@@ -76,7 +76,7 @@ export class LemonadeClient {
         id: model.id,
         name: model.id, // Use model ID as name
         provider: 'lemonade-server',
-        maxTokens: 4096, // Default, can be adjusted
+        maxTokens: 8192, // Reasoning models (DeepSeek R1) need headroom for chain-of-thought
         temperature: 0.7,
       }));
 
@@ -115,17 +115,45 @@ export class LemonadeClient {
         }));
 
       // Create chat completion using Lemonade Server
+      // Use a generous token limit for reasoning models (DeepSeek R1, etc.) that
+      // consume tokens for chain-of-thought before producing visible content.
+      const maxTokens = options?.maxTokens ?? this.settings.maxTokens;
       const completion = await this.client.chat.completions.create({
         model: this.settings.modelName,
         messages: messages,
         temperature: this.settings.temperature,
-        max_tokens: options?.maxTokens ?? this.settings.maxTokens,
+        max_tokens: maxTokens,
         stream: false,
       });
 
       // Defensive: `choices` can be undefined if the server returns an unexpected
       // response shape (e.g. model not fully ready, or server error masked as 200).
-      const responseContent = completion?.choices?.[0]?.message?.content;
+      const choice = completion?.choices?.[0];
+      let responseContent = choice?.message?.content ?? '';
+
+      // DeepSeek / reasoning models may return empty `content` with a
+      // populated `reasoning_content` field.  Use it as a fallback so
+      // the user at least sees the model's reasoning output.
+      if (!responseContent && choice?.message) {
+        const msg = choice.message as any;
+        if (msg.reasoning_content) {
+          console.warn(
+            'Model returned empty content but has reasoning_content — using reasoning as response.',
+            `finish_reason=${choice.finish_reason}, reasoning length=${msg.reasoning_content.length}`,
+          );
+          // Strip the internal thinking wrapper if present and extract useful text
+          responseContent = msg.reasoning_content;
+        }
+      }
+
+      // If finish_reason is 'length', the model ran out of tokens.
+      // Log a warning so we can diagnose token-limit issues.
+      if (choice?.finish_reason === 'length') {
+        console.warn(
+          `Model hit max_tokens limit (${maxTokens}). Response may be truncated.`,
+          `content length=${responseContent?.length ?? 0}`,
+        );
+      }
 
       if (!responseContent) {
         // The Lemonade Server router can return HTTP 200 even when the backend
@@ -555,6 +583,79 @@ export class LemonadeClient {
   }
 
   /**
+   * Pre-load required audio models (Whisper for ASR + Kokoro for TTS) on the
+   * Lemonade Server.  Both models are of type "audio" and need to coexist
+   * simultaneously, which requires:
+   *
+   *   lemonade-server serve --max-loaded-models 1 1 1 2
+   *
+   * (1 LLM, 1 embedding, 1 reranking, **2 audio**)
+   *
+   * This method:
+   *  1. Fetches /health to inspect `max_models.audio`.
+   *  2. If `audio < 2` logs a prominent warning (the limit is a server-side CLI
+   *     argument and cannot be changed via the API).
+   *  3. Pre-loads Whisper-Base and kokoro-v1 so both are ready before the user
+   *     starts an interview.
+   */
+  async preloadAudioModels(): Promise<void> {
+    try {
+      const health = await this.fetchServerHealth();
+      if (!health) {
+        console.warn('[AudioPreload] Server not reachable — skipping audio model preload.');
+        return;
+      }
+
+      // --- Check max_models audio limit ---------------------------------
+      const maxAudio = health.max_models?.audio ?? 1;
+      if (maxAudio < 2) {
+        console.warn(
+          '====================================================================\n' +
+          '  WARNING: Lemonade Server audio model limit is ' + maxAudio + ' (need 2).\n' +
+          '  Both Whisper (ASR) and Kokoro (TTS) must be loaded simultaneously.\n' +
+          '  Restart lemonade-server with:\n' +
+          '\n' +
+          '    lemonade-server serve --max-loaded-models 1 1 1 2\n' +
+          '\n' +
+          '  Without this, models will evict each other on every switch.\n' +
+          '====================================================================',
+        );
+      }
+
+      // --- Discover which audio models are already loaded ----------------
+      const loadedAudioModels = (health.all_models_loaded ?? [])
+        .filter(m => m.type === 'audio')
+        .map(m => m.model_name);
+
+      console.log('[AudioPreload] Currently loaded audio models:', loadedAudioModels);
+
+      // --- Pre-load Whisper (ASR) if not already loaded ------------------
+      const whisperModel = 'Whisper-Base';
+      if (!loadedAudioModels.includes(whisperModel)) {
+        console.log(`[AudioPreload] Loading ${whisperModel}...`);
+        const whisperResult = await this.loadModel(whisperModel);
+        console.log(`[AudioPreload] ${whisperModel}:`, whisperResult.message ?? (whisperResult.success ? 'OK' : 'FAILED'));
+      } else {
+        console.log(`[AudioPreload] ${whisperModel} already loaded.`);
+      }
+
+      // --- Pre-load Kokoro (TTS) if not already loaded -------------------
+      const kokoroModel = 'kokoro-v1';
+      if (!loadedAudioModels.includes(kokoroModel)) {
+        console.log(`[AudioPreload] Loading ${kokoroModel}...`);
+        const kokoroResult = await this.loadModel(kokoroModel);
+        console.log(`[AudioPreload] ${kokoroModel}:`, kokoroResult.message ?? (kokoroResult.success ? 'OK' : 'FAILED'));
+      } else {
+        console.log(`[AudioPreload] ${kokoroModel} already loaded.`);
+      }
+
+      console.log('[AudioPreload] Audio model preload complete.');
+    } catch (error: any) {
+      console.error('[AudioPreload] Failed to preload audio models:', error.message ?? error);
+    }
+  }
+
+  /**
    * Update settings and reinitialize client
    */
   updateSettings(newSettings: InterviewerSettings): void {
@@ -571,28 +672,28 @@ export class LemonadeClient {
         id: 'Llama-3.2-1B-Instruct-Hybrid',
         name: 'Llama 3.2 1B Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       {
         id: 'Llama-3.2-3B-Instruct-Hybrid',
         name: 'Llama 3.2 3B Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       {
         id: 'Phi-3.5-mini-instruct-Hybrid',
         name: 'Phi 3.5 Mini Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       {
         id: 'Qwen2.5-0.5B-Instruct-Hybrid',
         name: 'Qwen 2.5 0.5B Instruct (Hybrid)',
         provider: 'lemonade-server',
-        maxTokens: 4096,
+        maxTokens: 8192,
         temperature: 0.7,
       },
     ];

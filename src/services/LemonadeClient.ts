@@ -180,7 +180,10 @@ export class LemonadeClient {
       // embed directly in the content field.  These are NOT real function calls — they
       // are part of the model's trained output format and the llamacpp backend does not
       // always strip them.  If left in, they appear in the chat UI and get spoken by TTS.
-      responseContent = this.stripToolCallArtifacts(responseContent);
+      //
+      // Also strip Markdown formatting (bold, headers, horizontal rules) to ensure
+      // clean text for TTS and transcript display.
+      responseContent = this.cleanResponseContent(responseContent);
 
       return responseContent;
     } catch (error: any) {
@@ -714,23 +717,16 @@ export class LemonadeClient {
   }
 
   /**
-   * Strip model-generated tool-call artifacts from response content.
-   *
-   * Models like DeepSeek-R1 and Qwen3 emit special tokens for tool calls
-   * directly in the content field:
-   *   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
-   *   <｜tool▁call▁begin｜>function<｜tool▁sep｜>FUNC_NAME ... <｜tool▁call▁end｜>
-   *
-   * These are training artifacts — the llamacpp backend does not always
-   * strip them.  This method removes them, preserving the human-readable
-   * text that typically follows or precedes the tool block.
+   * Clean model response content.
+   * 1. Strips tool-call artifacts (DeepSeek/Qwen3 tokens)
+   * 2. Strips markdown formatting (bold, headers, horizontal rules) to ensure
+   *    clean text for TTS and transcript display.
    */
-  private stripToolCallArtifacts(content: string): string {
+  private cleanResponseContent(content: string): string {
     if (!content) return content;
 
-    // Remove entire tool-call blocks (outermost wrapper):
+    // 1. Remove tool-call blocks (outermost wrapper):
     //   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
-    // The fullwidth ｜ (U+FF5C) and ▁ (U+2581) are part of the token vocabulary.
     let cleaned = content.replace(
       /<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g,
       '',
@@ -746,8 +742,28 @@ export class LemonadeClient {
     cleaned = cleaned.replace(/<｜tool▁sep｜>/g, '');
 
     // Remove any remaining orphan ``` json fences left by tool call blocks
-    // (the model sometimes wraps the JSON payload in a markdown code fence)
     cleaned = cleaned.replace(/```json\s*\{[\s\S]*?\}\s*```/g, '');
+
+    // 2. Remove Markdown artifacts for cleaner TTS/Transcript
+    
+    // Remove bold/italic markers (**text**, *text*, __text__, _text_)
+    // We replace with the captured text content
+    cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold** -> bold
+    cleaned = cleaned.replace(/__([^_]+)__/g, '$1');     // __bold__ -> bold
+    cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');     // *italic* -> italic
+    cleaned = cleaned.replace(/_([^_]+)_/g, '$1');       // _italic_ -> italic
+
+    // Remove headers (### Header -> Header)
+    cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
+
+    // Remove horizontal rules (---, ***, ___)
+    cleaned = cleaned.replace(/^[-*_]{3,}\s*$/gm, '');
+
+    // Remove blockquotes (> text -> text)
+    cleaned = cleaned.replace(/^>\s+/gm, '');
+    
+    // Remove links ([text](url) -> text)
+    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
     // Collapse excessive whitespace left by the removal
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();

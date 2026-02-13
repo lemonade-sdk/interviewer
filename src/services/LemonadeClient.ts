@@ -570,12 +570,56 @@ export class LemonadeClient {
   }
 
   /**
-   * Get dynamic WebSocket port from /health endpoint
+   * Get the WebSocket port for real-time ASR.
+   *
+   * The Lemonade Server (when compiled with LEMON_HAS_WEBSOCKET) runs a
+   * dedicated WebSocket server on a dynamically assigned port (9000+).
+   * This port is exposed as `websocket_port` in the `/health` response.
+   *
+   * If the field is missing it means the server build does not include
+   * WebSocket support, or the WebSocket server failed to start.
    */
   async getWebSocketPort(): Promise<number | null> {
     try {
       const health = await this.fetchServerHealth();
-      return health?.websocket_port ?? null;
+      if (!health) return null;
+
+      // The canonical source: websocket_port from /health
+      if (health.websocket_port) {
+        console.log(`[getWebSocketPort] Found websocket_port: ${health.websocket_port}`);
+        return health.websocket_port;
+      }
+
+      // websocket_port is missing — the server likely was NOT compiled
+      // with LEMON_HAS_WEBSOCKET, or the WS server did not start.
+      // Check if any Whisper model is loaded and extract its backend port
+      // as a last-resort heuristic (some builds expose WS on the backend port).
+      const whisperModel = (health.all_models_loaded ?? []).find(
+        (m) => m.recipe === 'whispercpp' || m.model_name.toLowerCase().startsWith('whisper'),
+      );
+      if (whisperModel?.backend_url) {
+        try {
+          const url = new URL(whisperModel.backend_url);
+          const port = parseInt(url.port, 10);
+          if (!isNaN(port)) {
+            console.warn(
+              `[getWebSocketPort] websocket_port not in /health. ` +
+              `Falling back to Whisper backend port ${port} from ${whisperModel.backend_url}. ` +
+              `This may not work — consider updating lemonade-server to a build with WebSocket support.`,
+            );
+            return port;
+          }
+        } catch {
+          // ignore parse failure
+        }
+      }
+
+      console.warn(
+        '[getWebSocketPort] No websocket_port found in /health response. ' +
+        'Real-time transcription requires a lemonade-server build with WebSocket support. ' +
+        'Check that LEMON_HAS_WEBSOCKET is enabled in your build.',
+      );
+      return null;
     } catch (error) {
       console.error('Failed to get WebSocket port:', error);
       return null;

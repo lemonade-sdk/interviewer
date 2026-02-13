@@ -248,9 +248,14 @@ const Preparing: React.FC = () => {
       try {
         const health = await window.electronAPI.getServerHealth();
         loadedModels = health?.all_models_loaded ?? [];
-        // Check if the server has an audio slot (some configs don't support audio at all)
-        const maxModels = (health as any)?.max_models;
-        serverSupportsAudio = maxModels?.audio != null && maxModels.audio > 0;
+        // Check if the server supports audio models:
+        // 1. max_models.audio explicitly set to > 0, OR
+        // 2. Audio models are already loaded (server allows audio even if
+        //    max_models doesn't include the "audio" key — default is 1).
+        const maxModels = health?.max_models;
+        const hasAudioSlot = maxModels?.audio != null ? maxModels.audio > 0 : true; // default audio=1
+        const hasLoadedAudio = loadedModels.some(m => m.type === 'audio');
+        serverSupportsAudio = hasAudioSlot || hasLoadedAudio;
         console.log('Currently loaded models:', loadedModels.map(m => `${m.model_name} (${m.type})`));
         console.log('Server supports audio models:', serverSupportsAudio, '| max_models:', maxModels);
       } catch {

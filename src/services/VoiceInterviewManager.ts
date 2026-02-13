@@ -169,7 +169,11 @@ export class VoiceInterviewManager extends EventEmitter {
       throw new Error('VoiceInterviewManager not initialized');
     }
     if (!this.wsPort) {
-      throw new Error('Hands-free mode unavailable: WebSocket port not found');
+      throw new Error(
+        'Hands-free mode unavailable: WebSocket port not found. ' +
+        'Ensure lemonade-server is built with WebSocket support (LEMON_HAS_WEBSOCKET) ' +
+        'and that websocket_port appears in the /health response.'
+      );
     }
     if (this.isRecording) {
       console.warn('startHandsFreeListening: already recording, skipping');

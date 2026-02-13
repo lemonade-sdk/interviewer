@@ -135,7 +135,7 @@ export const MultiModelStatus: React.FC = () => {
             Restart Lemonade Server with:
           </p>
           <code className="block mt-1 text-xs font-mono bg-amber-100 dark:bg-amber-900/40 px-2 py-1 rounded text-amber-900 dark:text-amber-200">
-            lemonade-server serve --max-loaded-models 1 1 1 2
+            lemonade-server serve --max-loaded-models 2
           </code>
         </div>
       )}

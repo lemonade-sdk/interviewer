@@ -631,9 +631,9 @@ export class LemonadeClient {
    * Lemonade Server.  Both models are of type "audio" and need to coexist
    * simultaneously, which requires:
    *
-   *   lemonade-server serve --max-loaded-models 1 1 1 2
+   *   lemonade-server serve --max-loaded-models 2
    *
-   * (1 LLM, 1 embedding, 1 reranking, **2 audio**)
+   * (2 models per type slot — allows both Whisper and Kokoro audio models)
    *
    * This method:
    *  1. Fetches /health to inspect `max_models.audio`.
@@ -659,7 +659,7 @@ export class LemonadeClient {
           '  Both Whisper (ASR) and Kokoro (TTS) must be loaded simultaneously.\n' +
           '  Restart lemonade-server with:\n' +
           '\n' +
-          '    lemonade-server serve --max-loaded-models 1 1 1 2\n' +
+          '    lemonade-server serve --max-loaded-models 2\n' +
           '\n' +
           '  Without this, models will evict each other on every switch.\n' +
           '====================================================================',

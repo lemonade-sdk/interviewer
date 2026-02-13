@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Mic, Speaker, Volume2, Settings } from 'lucide-react';
+import { Mic, Speaker, Volume2, Settings, RefreshCw } from 'lucide-react';
 import { AudioDevice } from '../../types';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Slider } from './ui/slider';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
 
 interface Props {
   onDeviceChange?: (inputDeviceId: string, outputDeviceId: string) => void;
   onVolumeChange?: (input: number, output: number) => void;
 }
 
-export const AudioSettings: React.FC<Props> = ({ 
-  onDeviceChange, 
-  onVolumeChange 
+export const AudioSettings: React.FC<Props> = ({
+  onDeviceChange,
+  onVolumeChange,
 }) => {
   const [inputDevices, setInputDevices] = useState<AudioDevice[]>([]);
   const [outputDevices, setOutputDevices] = useState<AudioDevice[]>([]);
@@ -28,13 +34,9 @@ export const AudioSettings: React.FC<Props> = ({
     try {
       setLoading(true);
       setError(null);
-
-      // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Get all audio devices
       const devices = await navigator.mediaDevices.enumerateDevices();
-      
+
       const inputs = devices
         .filter(device => device.kind === 'audioinput')
         .map(device => ({
@@ -54,7 +56,6 @@ export const AudioSettings: React.FC<Props> = ({
       setInputDevices(inputs);
       setOutputDevices(outputs);
 
-      // Set defaults if available
       if (inputs.length > 0 && selectedInputId === 'default') {
         setSelectedInputId(inputs[0].deviceId);
       }
@@ -71,48 +72,37 @@ export const AudioSettings: React.FC<Props> = ({
 
   const handleInputChange = (deviceId: string) => {
     setSelectedInputId(deviceId);
-    if (onDeviceChange) {
-      onDeviceChange(deviceId, selectedOutputId);
-    }
+    onDeviceChange?.(deviceId, selectedOutputId);
   };
 
   const handleOutputChange = (deviceId: string) => {
     setSelectedOutputId(deviceId);
-    if (onDeviceChange) {
-      onDeviceChange(selectedInputId, deviceId);
-    }
+    onDeviceChange?.(selectedInputId, deviceId);
   };
 
   const handleInputVolumeChange = (volume: number) => {
     setInputVolume(volume);
-    if (onVolumeChange) {
-      onVolumeChange(volume, outputVolume);
-    }
+    onVolumeChange?.(volume, outputVolume);
   };
 
   const handleOutputVolumeChange = (volume: number) => {
     setOutputVolume(volume);
-    if (onVolumeChange) {
-      onVolumeChange(inputVolume, volume);
-    }
+    onVolumeChange?.(inputVolume, volume);
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="flex items-center justify-center p-6">
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-600 text-sm">{error}</p>
-        <button
-          onClick={loadDevices}
-          className="mt-2 text-sm text-red-700 underline hover:text-red-800"
-        >
+      <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+        <p className="text-destructive text-sm">{error}</p>
+        <button onClick={loadDevices} className="mt-2 text-sm text-destructive underline hover:no-underline">
           Try again
         </button>
       </div>
@@ -120,103 +110,97 @@ export const AudioSettings: React.FC<Props> = ({
   }
 
   return (
-    <div className="space-y-6 p-6 bg-white border border-gray-200 rounded-xl">
-      {/* Header */}
+    <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Settings size={20} className="text-gray-600" />
-        <h3 className="text-lg font-semibold text-gray-800">Audio Settings</h3>
+        <Settings size={16} className="text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Audio Settings</h3>
       </div>
 
-      {/* Input Device */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <Mic size={18} />
-          <label>Microphone</label>
-        </div>
-        <select
-          value={selectedInputId}
-          onChange={(e) => handleInputChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-        >
-          {inputDevices.map((device) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Input Volume */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <span>Input Volume</span>
-            <span className="font-mono">{inputVolume}%</span>
+      {/* Microphone */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-xs">
+            <Mic size={12} /> Microphone
+          </Label>
+          <Select value={selectedInputId} onValueChange={handleInputChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select microphone" />
+            </SelectTrigger>
+            <SelectContent>
+              {inputDevices.map((device) => (
+                <SelectItem key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Slider
+              value={[inputVolume]}
+              onValueChange={([v]) => handleInputVolumeChange(v)}
+              min={0}
+              max={100}
+              step={1}
+              className="flex-1"
+            />
+            <Badge variant="secondary" className="text-[10px] font-mono w-10 justify-center">
+              {inputVolume}%
+            </Badge>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={inputVolume}
-            onChange={(e) => handleInputVolumeChange(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
-          />
         </div>
-      </div>
 
-      {/* Output Device */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <Speaker size={18} />
-          <label>Speaker</label>
-        </div>
-        <select
-          value={selectedOutputId}
-          onChange={(e) => handleOutputChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-        >
-          {outputDevices.map((device) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Output Volume */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <span>Output Volume</span>
-            <span className="font-mono">{outputVolume}%</span>
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-xs">
+            <Speaker size={12} /> Speaker
+          </Label>
+          <Select value={selectedOutputId} onValueChange={handleOutputChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select speaker" />
+            </SelectTrigger>
+            <SelectContent>
+              {outputDevices.map((device) => (
+                <SelectItem key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Slider
+              value={[outputVolume]}
+              onValueChange={([v]) => handleOutputVolumeChange(v)}
+              min={0}
+              max={100}
+              step={1}
+              className="flex-1"
+            />
+            <Badge variant="secondary" className="text-[10px] font-mono w-10 justify-center">
+              {outputVolume}%
+            </Badge>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={outputVolume}
-            onChange={(e) => handleOutputVolumeChange(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
-          />
         </div>
       </div>
 
-      {/* Test Buttons */}
-      <div className="flex gap-2 pt-2 border-t border-gray-200">
-        <button
-          onClick={loadDevices}
-          className="flex-1 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-        >
-          Refresh Devices
-        </button>
-        <button
+      <Separator />
+
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={loadDevices} className="gap-1.5 text-xs">
+          <RefreshCw size={12} />
+          Refresh
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => {
-            // Play test sound
-            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjWL0fPTgjMGHnO/7+CVUR0NUqPZ8bhlGQg8mtXy0X4uBSl+z+/glEoLEmCz5e6oWRULR5vc8b9gHgU2kNDzzXkrBSJ3xvDdj0AKE12y5vCrXRYMSaHd8b1dHgU3jtHzzXkqBSN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAK');
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjWL0fPTgjMGHnO/7+CVUR0NUqPZ8bhlGQg8mtXy0X4uBSl+z+/glEoLEmCz5e6oWRULR5vc8b9gHgU2kNDzzXkrBSJ3xvDdj0AKE12y5vCrXRYMSaHd8b1dHgU3jtHzzXkqBSN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAKElux5/CsXhYMR6Le8bxcHwU3jdHz0HkqBCN2x/DckEAK');
             audio.volume = outputVolume / 100;
             audio.play();
           }}
-          className="flex-1 px-4 py-2 text-sm bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          className="gap-1.5 text-xs"
         >
-          <Volume2 size={16} />
+          <Volume2 size={12} />
           Test Sound
-        </button>
+        </Button>
       </div>
     </div>
   );

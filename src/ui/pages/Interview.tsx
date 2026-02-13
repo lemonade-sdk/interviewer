@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   StopCircle,
@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Keyboard,
   MicOff,
+  Clock,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
@@ -23,6 +24,9 @@ import { PersonaSelector } from '../components/PersonaSelector';
 import { AudioSettings } from '../components/AudioSettings';
 import { VoiceOrb } from '../components/VoiceOrb';
 import { VoiceInterviewManager } from '../../services/VoiceInterviewManager';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { cn } from '../lib/utils';
 
 type InterviewStage = 'loading' | 'interview';
 
@@ -62,11 +66,27 @@ const Interview: React.FC = () => {
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
 
+  // Interview timer (seconds)
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerDuration, setTimerDuration] = useState(1800); // 30min default, loaded from settings
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTimerWarning = timerSeconds >= timerDuration * 0.8; // 80% threshold
+  const isTimerExpired = timerSeconds >= timerDuration;
+
   // Voice manager instance
   const voiceManagerRef = useRef<VoiceInterviewManager | null>(null);
   const hasInitiatedRef = useRef(false);
   // Ref to track whether we should resume listening after AI finishes speaking
   const shouldResumeListeningRef = useRef(false);
+
+  // ─── Timer formatting ───────────────────────────────────
+  const formatTime = useCallback((seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }, []);
+
+  const remainingTime = Math.max(0, timerDuration - timerSeconds);
 
   // ─── Effects ──────────────────────────────────────────────
   useEffect(() => {
@@ -74,14 +94,45 @@ const Interview: React.FC = () => {
       loadInterview();
       loadDefaultPersona();
       initializeVoiceManager();
+      // Load timer duration from settings
+      window.electronAPI?.getSettings().then((s) => {
+        if (s?.defaultInterviewDuration) {
+          setTimerDuration(s.defaultInterviewDuration * 60); // convert minutes to seconds
+        }
+      }).catch(() => {});
     }
     return () => {
       if (voiceManagerRef.current) {
         voiceManagerRef.current.cleanup();
         voiceManagerRef.current = null;
       }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
     };
   }, [id]);
+
+  // Start timer when interview stage begins
+  useEffect(() => {
+    if (stage === 'interview' && !timerIntervalRef.current) {
+      timerIntervalRef.current = setInterval(() => {
+        setTimerSeconds(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (timerIntervalRef.current && stage !== 'interview') {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [stage]);
+
+  // Auto-end when timer expires
+  useEffect(() => {
+    if (isTimerExpired && id) {
+      handleEndInterview(true); // auto-end
+    }
+  }, [isTimerExpired]);
 
   // TTS Initiation + auto hands-free
   useEffect(() => {
@@ -532,18 +583,34 @@ const Interview: React.FC = () => {
     }
   };
 
-  const handleEndInterview = async () => {
+  const handleEndInterview = async (autoEnd = false) => {
     if (!id) return;
-    const confirmed = window.confirm(
-      'End this interview? You will receive feedback on your performance.'
-    );
-    if (confirmed) {
-      try {
-        await window.electronAPI.endInterview(id);
-        navigate('/dashboard');
-      } catch (error) {
-        console.error('Failed to end interview:', error);
-      }
+
+    if (!autoEnd) {
+      const confirmed = window.confirm(
+        'End this interview? You will receive feedback on your performance.'
+      );
+      if (!confirmed) return;
+    }
+
+    // Stop voice manager
+    if (voiceManagerRef.current) {
+      voiceManagerRef.current.cleanup();
+      voiceManagerRef.current = null;
+    }
+    // Stop timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    try {
+      await window.electronAPI.endInterview(id);
+      // Navigate to feedback page for detailed Q/A scoring
+      navigate(`/feedback/${id}`, { replace: true });
+    } catch (error) {
+      console.error('Failed to end interview:', error);
+      navigate('/dashboard');
     }
   };
 
@@ -559,25 +626,18 @@ const Interview: React.FC = () => {
   // ─── Loading state ────────────────────────────────────────
   if (!currentInterview || stage === 'loading') {
     return (
-      <div className="flex flex-col h-full bg-[#141413] items-center justify-center">
+      <div className="flex flex-col h-full bg-background items-center justify-center">
         <div className="relative w-20 h-20 mb-8">
           <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: 'linear-gradient(135deg, #FFD744, #E59800)',
-              animation: 'orbBreathe 2s ease-in-out infinite',
-            }}
+            className="absolute inset-0 rounded-full bg-gradient-to-br from-primary to-primary/70"
+            style={{ animation: 'orbBreathe 2s ease-in-out infinite' }}
           />
           <div
-            className="absolute rounded-full"
-            style={{
-              inset: '-8px',
-              border: '1.5px solid rgba(255,215,68,0.2)',
-              animation: 'spin 3s linear infinite',
-            }}
+            className="absolute rounded-full border-2 border-primary/20"
+            style={{ inset: '-8px', animation: 'spin 3s linear infinite' }}
           />
         </div>
-        <p className="text-sm font-medium text-white/50 tracking-wide">
+        <p className="text-sm font-medium text-muted-foreground tracking-wide">
           Preparing your interview...
         </p>
       </div>
@@ -588,11 +648,11 @@ const Interview: React.FC = () => {
   const visibleMessages = messages.filter((m) => m.role !== 'system');
 
   return (
-    <div className="flex flex-col h-full bg-[#141413] text-white overflow-hidden">
+    <div className="flex flex-col h-full bg-background text-foreground overflow-hidden">
       {/* Persona Selector Modal */}
       {showPersonaSelector && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1c1c1a] border border-white/10 rounded-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <PersonaSelector
               selectedPersonaId={selectedPersona?.id}
               onSelect={handlePersonaSelect}
@@ -603,79 +663,88 @@ const Interview: React.FC = () => {
       )}
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+      <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-3 min-w-0">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => navigate('/dashboard')}
-            className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
-            title="Back to dashboard"
           >
             <ArrowLeft size={18} />
-          </button>
+          </Button>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-white/80 truncate">
+            <h1 className="text-sm font-semibold truncate">
               {currentInterview.title}
             </h1>
-            <p className="text-[11px] text-white/30 truncate">
+            <p className="text-[11px] text-muted-foreground truncate">
               {currentInterview.company} &middot; {currentInterview.position}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Timer */}
+          <Badge
+            variant="outline"
+            className={cn(
+              'gap-1 font-mono text-xs tabular-nums',
+              isTimerExpired
+                ? 'border-destructive text-destructive animate-pulse'
+                : isTimerWarning
+                  ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400'
+                  : 'border-border text-muted-foreground'
+            )}
+          >
+            <Clock size={12} />
+            {formatTime(remainingTime)}
+          </Badge>
+
           {/* Toggle text input */}
-          <button
+          <Button
+            variant={showTextInput ? 'secondary' : 'ghost'}
+            size="icon-sm"
             onClick={() => setShowTextInput(!showTextInput)}
-            className={`p-2 rounded-lg transition-colors ${
-              showTextInput
-                ? 'text-lemonade-accent bg-lemonade-accent/10'
-                : 'text-white/30 hover:text-white/60 hover:bg-white/5'
-            }`}
             title="Toggle text input"
           >
             <Keyboard size={16} />
-          </button>
+          </Button>
 
           {/* Mute toggle */}
-          <button
+          <Button
+            variant={isMuted ? 'destructive' : 'ghost'}
+            size="icon-sm"
             onClick={handleToggleMute}
-            className={`p-2 rounded-lg transition-colors ${
-              isMuted
-                ? 'text-red-400 bg-red-400/10'
-                : 'text-white/30 hover:text-white/60 hover:bg-white/5'
-            }`}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
+          </Button>
 
           {/* Audio Settings */}
-          <button
+          <Button
+            variant={showAudioSettings ? 'secondary' : 'ghost'}
+            size="icon-sm"
             onClick={() => setShowAudioSettings(!showAudioSettings)}
-            className={`p-2 rounded-lg transition-colors ${
-              showAudioSettings
-                ? 'text-lemonade-accent bg-lemonade-accent/10'
-                : 'text-white/30 hover:text-white/60 hover:bg-white/5'
-            }`}
             title="Audio settings"
           >
             <Settings size={16} />
-          </button>
+          </Button>
 
           {/* End Interview */}
-          <button
-            onClick={handleEndInterview}
-            className="ml-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors"
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleEndInterview(false)}
+            className="ml-2 gap-1.5"
           >
             <StopCircle size={14} />
             End
-          </button>
+          </Button>
         </div>
       </header>
 
       {/* Audio Settings Panel */}
       {showAudioSettings && (
-        <div className="border-b border-white/[0.06] bg-[#1a1a18] px-5 py-3">
+        <div className="border-b border-border bg-card px-5 py-3">
           <AudioSettings />
         </div>
       )}
@@ -684,12 +753,11 @@ const Interview: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Voice Orb Area */}
         <div className="flex-1 flex flex-col items-center justify-center min-h-[240px] relative">
-          {/* Subtle radial background */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'radial-gradient(ellipse 60% 50% at 50% 45%, rgba(255,215,68,0.03) 0%, transparent 100%)',
+                'radial-gradient(ellipse 60% 50% at 50% 45%, hsl(var(--primary) / 0.03) 0%, transparent 100%)',
             }}
           />
 
@@ -706,8 +774,8 @@ const Interview: React.FC = () => {
 
           {/* Mode indicator below orb */}
           {voiceReady && isHandsFreeMode && (
-            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-400/70 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-500 dark:text-emerald-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
               <span>
                 {isListening
                   ? 'Listening — speak naturally'
@@ -721,14 +789,13 @@ const Interview: React.FC = () => {
           )}
 
           {voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
-            <div className="mt-3 text-[11px] text-white/20">
+            <div className="mt-3 text-[11px] text-muted-foreground/40">
               Starting hands-free mode...
             </div>
           )}
 
-          {/* Voice not ready indicator */}
           {!voiceReady && (
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-white/25">
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
               <MicOff size={12} />
               <span>Voice unavailable — use text input</span>
             </div>
@@ -736,31 +803,19 @@ const Interview: React.FC = () => {
         </div>
 
         {/* ── Transcript Area ── */}
-        <div className="h-[42%] min-h-[200px] flex flex-col border-t border-white/[0.06]">
+        <div className="h-[42%] min-h-[200px] flex flex-col border-t border-border">
           {/* Status bar */}
-          <div className="px-5 py-2 flex items-center justify-between border-b border-white/[0.04]">
-            <span className="text-[11px] font-semibold text-white/20 uppercase tracking-widest">
+          <div className="px-5 py-2 flex items-center justify-between border-b border-border/50">
+            <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest">
               Transcript
             </span>
             <div className="flex items-center gap-3">
-              {isHandsFreeMode && (
-                <StatusDot color="green" label="Hands-free" />
-              )}
-              {isListening && (
-                <StatusDot color="yellow" label="Listening" />
-              )}
-              {isRecording && !isHandsFreeMode && (
-                <StatusDot color="red" label="Recording" />
-              )}
-              {isTranscribing && (
-                <StatusDot color="amber" label="Transcribing" />
-              )}
-              {isThinking && (
-                <StatusDot color="purple" label="Generating" />
-              )}
-              {isSpeaking && (
-                <StatusDot color="yellow" label="Speaking" />
-              )}
+              {isHandsFreeMode && <StatusDot color="green" label="Hands-free" />}
+              {isListening && <StatusDot color="yellow" label="Listening" />}
+              {isRecording && !isHandsFreeMode && <StatusDot color="red" label="Recording" />}
+              {isTranscribing && <StatusDot color="amber" label="Transcribing" />}
+              {isThinking && <StatusDot color="purple" label="Generating" />}
+              {isSpeaking && <StatusDot color="yellow" label="Speaking" />}
             </div>
           </div>
 
@@ -768,7 +823,7 @@ const Interview: React.FC = () => {
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
             {visibleMessages.length === 0 && !isThinking && (
               <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-white/15">
+                <p className="text-sm text-muted-foreground/30">
                   Your conversation will appear here
                 </p>
               </div>
@@ -781,10 +836,8 @@ const Interview: React.FC = () => {
             {/* Real-time transcription delta */}
             {transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="bg-lemonade-accent/5 border border-lemonade-accent/10 rounded-2xl rounded-br-md px-4 py-2.5">
-                  <p className="text-sm text-lemonade-accent/60 italic">
-                    {transcriptionDelta}
-                  </p>
+                <div className="bg-primary/5 border border-primary/10 rounded-xl rounded-br-sm px-4 py-2.5">
+                  <p className="text-sm text-primary/60 italic">{transcriptionDelta}</p>
                 </div>
               </div>
             )}
@@ -792,12 +845,12 @@ const Interview: React.FC = () => {
             {/* Transcribing indicator */}
             {isTranscribing && !transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-md px-4 py-2.5 flex items-center gap-2">
+                <div className="bg-primary/10 border border-primary/20 rounded-xl rounded-br-sm px-4 py-2.5 flex items-center gap-2">
                   <div className="flex items-center gap-[3px]">
                     {[0, 1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="w-[3px] bg-lemonade-accent/50 rounded-full"
+                        className="w-[3px] bg-primary/50 rounded-full"
                         style={{
                           height: `${8 + i * 2}px`,
                           animation: `pulse 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
@@ -805,9 +858,7 @@ const Interview: React.FC = () => {
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-lemonade-accent/70">
-                    Processing speech...
-                  </span>
+                  <span className="text-xs text-primary/70">Processing speech...</span>
                 </div>
               </div>
             )}
@@ -815,17 +866,17 @@ const Interview: React.FC = () => {
             {/* Thinking indicator */}
             {isThinking && (
               <div className="flex justify-start">
-                <div className="bg-white/[0.04] rounded-2xl rounded-bl-md px-4 py-2.5 flex items-center gap-2">
+                <div className="bg-muted rounded-xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2">
                   <div className="flex items-center gap-1">
                     {[0, 1, 2].map((i) => (
                       <div
                         key={i}
-                        className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 bg-muted-foreground/30 rounded-full animate-bounce"
                         style={{ animationDelay: `${i * 0.15}s` }}
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-white/30">Thinking...</span>
+                  <span className="text-xs text-muted-foreground/50">Thinking...</span>
                 </div>
               </div>
             )}
@@ -843,7 +894,7 @@ const Interview: React.FC = () => {
                   setTextInput('');
                 }
               }}
-              className="px-4 py-2.5 border-t border-white/[0.04] flex items-center gap-2"
+              className="px-4 py-2.5 border-t border-border/50 flex items-center gap-2"
             >
               <input
                 type="text"
@@ -851,15 +902,15 @@ const Interview: React.FC = () => {
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
-                className="flex-1 px-4 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/90 placeholder-white/20 focus:outline-none focus:border-lemonade-accent/30 focus:ring-1 focus:ring-lemonade-accent/20 disabled:opacity-40 transition-colors"
+                className="flex-1 px-4 py-2 text-sm bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring/50 disabled:opacity-40 transition-colors"
               />
-              <button
+              <Button
                 type="submit"
                 disabled={isSending || !textInput.trim()}
-                className="p-2 bg-lemonade-accent text-[#141413] rounded-xl hover:bg-lemonade-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                size="icon"
               >
                 <Send size={16} />
-              </button>
+              </Button>
             </form>
           )}
         </div>
@@ -885,7 +936,7 @@ const StatusDot: React.FC<StatusDotProps> = ({ color, label }) => {
   };
 
   return (
-    <span className="flex items-center gap-1.5 text-[10px] font-medium text-white/30 uppercase tracking-wider">
+    <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">
       <span className={`w-1.5 h-1.5 rounded-full ${colorMap[color]} animate-pulse`} />
       {label}
     </span>
@@ -901,21 +952,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] min-w-[60px]`}>
+      <div className="max-w-[75%] min-w-[60px]">
         <div
-          className={`px-4 py-2.5 text-sm leading-relaxed ${
+          className={cn(
+            'px-4 py-2.5 text-sm leading-relaxed',
             isUser
-              ? 'bg-lemonade-accent text-[#141413] rounded-2xl rounded-br-md'
-              : 'bg-white/[0.05] text-white/85 rounded-2xl rounded-bl-md'
-          }`}
+              ? 'bg-primary text-primary-foreground rounded-xl rounded-br-sm'
+              : 'bg-muted text-foreground rounded-xl rounded-bl-sm'
+          )}
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-        <p
-          className={`text-[10px] text-white/15 mt-1 ${
-            isUser ? 'text-right' : 'text-left'
-          }`}
-        >
+        <p className={`text-[10px] text-muted-foreground/40 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
           {format(new Date(message.timestamp), 'h:mm a')}
         </p>
       </div>

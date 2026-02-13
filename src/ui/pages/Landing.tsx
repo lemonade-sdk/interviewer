@@ -2,17 +2,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle, Loader2, Terminal, ExternalLink,
-  ChevronLeft, FileText, Briefcase, Check,
+  ChevronLeft, FileText, Briefcase, Check, Zap,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { InterviewType, UploadedDocument } from '../../types';
-
-const BUTTON_CLASS =
-  'w-52 h-14 rounded-full font-semibold text-base tracking-wide transition-all duration-500 flex items-center justify-center';
-
-const INPUT_CLASS =
-  'w-full px-5 py-4 bg-gray-50/50 border border-gray-200/60 rounded-2xl text-base text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-lemonade-accent focus:ring-4 focus:ring-lemonade-accent/10 transition-all duration-300 outline-none';
-const LABEL_CLASS = 'block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 ml-1';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import { Badge } from '../components/ui/badge';
+import { cn } from '../lib/utils';
 
 type Step = 'initial' | 'setup' | 'selection';
 
@@ -23,7 +29,7 @@ const Landing: React.FC = () => {
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const jobPostInputRef = useRef<HTMLInputElement>(null);
 
-  // ── System Check State (server install + running only) ──
+  // ── System Check State ──
   const [isChecking, setIsChecking] = useState(true);
   const [startError, setStartError] = useState<string | null>(null);
   const [lemonadeInstalled, setLemonadeInstalled] = useState<boolean | null>(null);
@@ -34,7 +40,6 @@ const Landing: React.FC = () => {
   const [jobPostDoc, setJobPostDoc] = useState<UploadedDocument | null>(null);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [isUploadingJobPost, setIsUploadingJobPost] = useState(false);
-  // Keep base64 in memory so the Preparing page can render the PDF without re-reading
   const resumeBase64Ref = useRef<string | null>(null);
 
   // ── Interview Setup Form ──
@@ -49,7 +54,7 @@ const Landing: React.FC = () => {
   const canBegin = bothDocsUploaded && !isChecking && lemonadeInstalled && serverRunning;
   const isFormValid = formData.title.trim() && formData.company.trim() && formData.position.trim();
 
-  // ── Background checks: only server install + running ──
+  // ── Background checks ──
   useEffect(() => {
     performBackgroundChecks();
   }, []);
@@ -125,7 +130,6 @@ const Landing: React.FC = () => {
           fileData,
         });
         setResumeDoc(doc);
-        console.log('Resume uploaded:', doc.fileName, `(${doc.extractedText.length} chars)`);
       } catch (error) {
         console.error('Failed to upload resume:', error);
         setStartError('Failed to upload resume. Please try again.');
@@ -163,7 +167,6 @@ const Landing: React.FC = () => {
           fileData,
         });
         setJobPostDoc(doc);
-        console.log('Job post uploaded:', doc.fileName, `(${doc.extractedText.length} chars)`);
       } catch (error) {
         console.error('Failed to upload job post:', error);
         setStartError('Failed to upload job post. Please try again.');
@@ -197,7 +200,6 @@ const Landing: React.FC = () => {
     setStep('selection');
   };
 
-  // ── Selection → navigate to /preparing (a separate page) ──
   const handleSelectionClick = (type: 'single' | 'multi') => {
     navigate('/preparing', {
       state: {
@@ -212,42 +214,8 @@ const Landing: React.FC = () => {
     });
   };
 
-  // ── Demo / Dev Helpers ──
-  const handleDemoMode = () => {
-    setResumeDoc({
-      id: 'demo-resume',
-      type: 'resume',
-      fileName: 'Demo_Resume.pdf',
-      filePath: '',
-      mimeType: 'application/pdf',
-      fileSize: 1024,
-      extractedText: 'Senior Software Engineer with 5 years of experience in React, Node.js, and TypeScript.',
-      uploadedAt: new Date().toISOString(),
-    });
-    setJobPostDoc({
-      id: 'demo-jobpost',
-      type: 'job_post',
-      fileName: 'Demo_Job_Description.pdf',
-      filePath: '',
-      mimeType: 'application/pdf',
-      fileSize: 1024,
-      extractedText: 'We are looking for a Senior Software Engineer to join our team. Must have experience with React and Node.js.',
-      uploadedAt: new Date().toISOString(),
-    });
-    setFormData({
-      title: 'Senior Software Engineer Interview',
-      company: 'Demo Corp',
-      position: 'Senior Software Engineer',
-      interviewType: 'technical',
-    });
-    // Skip directly to setup if server is ready, else wait for checks
-    if (lemonadeInstalled && serverRunning) {
-      setStep('setup');
-    }
-  };
-
   return (
-    <div className="h-screen w-full bg-lemonade-bg text-lemonade-fg overflow-hidden flex flex-col items-center justify-center relative">
+    <div className="h-screen w-full bg-background text-foreground overflow-hidden flex flex-col items-center justify-center relative">
       {/* Hidden file inputs */}
       <input
         ref={resumeInputRef}
@@ -266,23 +234,22 @@ const Landing: React.FC = () => {
 
       {/* Logo + Title */}
       <div className="flex flex-col items-center mb-12">
-        <img
-          src="/logo.png"
-          alt="lemonade"
-          className="w-20 h-20 mb-4 drop-shadow-lg"
-        />
-        <h1 className="text-3xl font-bold tracking-widest text-black">interviewer</h1>
+        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
+          <Zap className="w-8 h-8 text-primary-foreground" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-widest uppercase">interviewer</h1>
         <p
-          className={`mt-3 text-sm tracking-wide text-gray-500 transition-all duration-700 ${
+          className={cn(
+            'mt-3 text-sm tracking-wide text-muted-foreground transition-all duration-700',
             step !== 'initial'
               ? 'opacity-100 translate-y-0'
               : 'opacity-0 -translate-y-2 pointer-events-none'
-          }`}
+          )}
         >
           {step === 'setup'
             ? 'set up your interview'
             : step === 'selection'
-              ? 'select your interview process'
+              ? 'choose your interview format'
               : ''}
         </p>
       </div>
@@ -291,15 +258,16 @@ const Landing: React.FC = () => {
       {step === 'initial' && (
         <div className="flex flex-col items-center">
           {/* Upload Areas */}
-          <div className="flex items-center gap-6 mb-8">
+          <div className="flex items-center gap-5 mb-8">
             <button
               onClick={() => resumeInputRef.current?.click()}
               disabled={isUploadingResume}
-              className={`w-52 h-20 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center gap-1.5 ${
+              className={cn(
+                'w-52 h-20 rounded-xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center gap-1.5',
                 resumeDoc
-                  ? 'border-green-400 bg-green-50 text-green-700'
-                  : 'border-gray-300 bg-white/60 text-gray-500 hover:border-lemonade-accent hover:text-black hover:bg-white'
-              }`}
+                  ? 'border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 dark:border-green-500/30'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground hover:bg-accent/30'
+              )}
             >
               {isUploadingResume ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -319,11 +287,12 @@ const Landing: React.FC = () => {
             <button
               onClick={() => jobPostInputRef.current?.click()}
               disabled={isUploadingJobPost}
-              className={`w-52 h-20 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center gap-1.5 ${
+              className={cn(
+                'w-52 h-20 rounded-xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center gap-1.5',
                 jobPostDoc
-                  ? 'border-green-400 bg-green-50 text-green-700'
-                  : 'border-gray-300 bg-white/60 text-gray-500 hover:border-lemonade-accent hover:text-black hover:bg-white'
-              }`}
+                  ? 'border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 dark:border-green-500/30'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground hover:bg-accent/30'
+              )}
             >
               {isUploadingJobPost ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -342,208 +311,206 @@ const Landing: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-6">
-            <button
+          <div className="flex items-center gap-4">
+            <Button
               onClick={handleBeginClick}
               disabled={!canBegin}
-              className={`${BUTTON_CLASS} shadow-md active:scale-95 disabled:cursor-not-allowed transition-all duration-500 ${
-                canBegin
-                  ? 'bg-lemonade-accent text-black hover:bg-lemonade-accent-hover hover:shadow-lg animate-pulse'
-                  : 'bg-white text-gray-400 border-2 border-gray-200'
-              }`}
+              size="lg"
+              className="w-44 h-12 rounded-full font-semibold text-sm tracking-wide"
             >
-              {isChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : 'begin'}
-            </button>
+              {isChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'begin'}
+            </Button>
 
-            <button
+            <Button
               onClick={() => navigate('/dashboard')}
-              className={`${BUTTON_CLASS} border-2 border-lemonade-accent bg-white text-black hover:bg-lemonade-bg hover:shadow-md active:scale-95`}
+              variant="outline"
+              size="lg"
+              className="w-44 h-12 rounded-full font-semibold text-sm tracking-wide"
             >
               dashboard
-            </button>
+            </Button>
           </div>
-
-          {/* Demo Mode Button (for testing/dev) */}
-          <button
-            onClick={handleDemoMode}
-            className="mt-4 text-xs font-semibold text-gray-400 hover:text-lemonade-accent-hover transition-colors"
-          >
-            try demo mode (skip upload)
-          </button>
 
           {/* Upload hint */}
           {!bothDocsUploaded && !startError && !isChecking && (
-            <p className="mt-4 text-xs text-gray-400 tracking-wide">
+            <p className="mt-5 text-xs text-muted-foreground tracking-wide">
               upload both your resume and the job post to begin
             </p>
           )}
 
-          {/* Error — only server install/running issues */}
+          {/* Error */}
           {startError && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3 text-red-700 text-sm max-w-lg">
-              <div className="flex items-center gap-3">
-                <AlertCircle size={18} className="flex-shrink-0" />
-                <p>{startError}</p>
-              </div>
-
-              {lemonadeInstalled === false && (
-                <div className="ml-7 mt-1 flex flex-col gap-2">
-                  <a
-                    href="https://lemonade-server.ai/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition-colors text-sm"
-                  >
-                    <ExternalLink size={14} />
-                    Download Lemonade Server
-                  </a>
-                  <p className="text-xs text-gray-500">After installing, restart this application.</p>
+            <Card className="mt-6 max-w-lg border-destructive/50 bg-destructive/5">
+              <CardContent className="p-4 flex flex-col gap-3 text-sm">
+                <div className="flex items-center gap-3 text-destructive">
+                  <AlertCircle size={18} className="flex-shrink-0" />
+                  <p>{startError}</p>
                 </div>
-              )}
 
-              {lemonadeInstalled === true && !serverRunning && (
-                <div className="ml-7 mt-1 p-3 bg-gray-900 text-green-400 rounded-lg font-mono text-xs flex items-center gap-2">
-                  <Terminal size={14} className="flex-shrink-0 text-gray-500" />
-                  <code>lemonade-server serve</code>
-                </div>
-              )}
+                {lemonadeInstalled === false && (
+                  <div className="ml-7 mt-1 flex flex-col gap-2">
+                    <a
+                      href="https://lemonade-server.ai/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors text-sm w-fit"
+                    >
+                      <ExternalLink size={14} />
+                      Download Lemonade Server
+                    </a>
+                    <p className="text-xs text-muted-foreground">After installing, restart this application.</p>
+                  </div>
+                )}
 
-              <button
-                onClick={performBackgroundChecks}
-                className="text-xs font-bold uppercase tracking-wider hover:underline text-left ml-7"
-              >
-                Retry Connection
-              </button>
-            </div>
+                {lemonadeInstalled === true && !serverRunning && (
+                  <div className="ml-7 mt-1 p-3 bg-card border border-border rounded-lg font-mono text-xs flex items-center gap-2">
+                    <Terminal size={14} className="flex-shrink-0 text-muted-foreground" />
+                    <code className="text-foreground">lemonade-server serve</code>
+                  </div>
+                )}
+
+                <button
+                  onClick={performBackgroundChecks}
+                  className="text-xs font-bold uppercase tracking-wider hover:underline text-left ml-7 text-destructive"
+                >
+                  Retry Connection
+                </button>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
 
       {/* ===== STEP: SETUP ===== */}
       {step === 'setup' && (
-        <div className="w-full max-w-lg px-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/20 p-10 shadow-2xl shadow-black/5 ring-1 ring-black/5">
-            <div className="space-y-7">
-              <div>
-                <label className={LABEL_CLASS}>Title</label>
-                <input
-                  type="text"
+        <div className="w-full max-w-lg px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="border-border/50 shadow-xl">
+            <CardContent className="p-8 space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className={INPUT_CLASS}
                   placeholder="e.g., Senior Software Engineer Interview"
                   autoFocus
                 />
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className={LABEL_CLASS}>Company</label>
-                  <input
-                    type="text"
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className={INPUT_CLASS}
                     placeholder="e.g., Tech Corp"
                   />
                 </div>
-                <div>
-                  <label className={LABEL_CLASS}>Position</label>
-                  <input
-                    type="text"
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position</Label>
+                  <Input
+                    id="position"
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                    className={INPUT_CLASS}
                     placeholder="e.g., Senior Engineer"
                   />
                 </div>
               </div>
-              <div>
-                <label className={LABEL_CLASS}>Interview Type</label>
-                <div className="relative">
-                  <select
-                    value={formData.interviewType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, interviewType: e.target.value as InterviewType })
-                    }
-                    className={`${INPUT_CLASS} appearance-none cursor-pointer`}
-                  >
-                    <option value="general">General Interview</option>
-                    <option value="technical">Technical Assessment</option>
-                    <option value="behavioral">Behavioral Fit</option>
-                    <option value="system-design">System Design</option>
-                    <option value="coding">Live Coding</option>
-                    <option value="mixed">Mixed Format</option>
-                  </select>
-                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                    <ChevronLeft className="rotate-[-90deg] w-4 h-4" />
-                  </div>
-                </div>
+
+              <div className="space-y-2">
+                <Label>Interview Type</Label>
+                <Select
+                  value={formData.interviewType}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, interviewType: value as InterviewType })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General Interview</SelectItem>
+                    <SelectItem value="technical">Technical Assessment</SelectItem>
+                    <SelectItem value="behavioral">Behavioral Fit</SelectItem>
+                    <SelectItem value="system-design">System Design</SelectItem>
+                    <SelectItem value="coding">Live Coding</SelectItem>
+                    <SelectItem value="mixed">Mixed Format</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-100/50 flex gap-4 text-xs font-medium text-gray-500">
-              {resumeDoc && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm">
-                  <FileText size={12} className="text-lemonade-accent-hover" />
-                  <span className="truncate max-w-[120px]">{resumeDoc.fileName}</span>
-                </span>
-              )}
-              {jobPostDoc && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm">
-                  <Briefcase size={12} className="text-lemonade-accent-hover" />
-                  <span className="truncate max-w-[120px]">{jobPostDoc.fileName}</span>
-                </span>
-              )}
-            </div>
+              {/* Document badges */}
+              <div className="pt-4 border-t border-border flex gap-2 flex-wrap">
+                {resumeDoc && (
+                  <Badge variant="secondary" className="gap-1.5">
+                    <FileText size={12} />
+                    <span className="truncate max-w-[120px]">{resumeDoc.fileName}</span>
+                  </Badge>
+                )}
+                {jobPostDoc && (
+                  <Badge variant="secondary" className="gap-1.5">
+                    <Briefcase size={12} />
+                    <span className="truncate max-w-[120px]">{jobPostDoc.fileName}</span>
+                  </Badge>
+                )}
+              </div>
 
-            <div className="flex gap-4 mt-8">
-              <button
-                onClick={() => setStep('initial')}
-                className="flex items-center justify-center gap-2 px-6 py-4 border border-gray-200 text-gray-600 font-bold text-sm rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-              >
-                <ChevronLeft size={18} />
-                Back
-              </button>
-              <button
-                onClick={handleSetupNext}
-                disabled={!isFormValid}
-                className="flex-1 px-6 py-4 bg-lemonade-accent text-black font-bold text-sm rounded-2xl hover:bg-lemonade-accent-hover hover:shadow-lg hover:shadow-lemonade-accent/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.98]"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep('initial')}
+                  className="gap-2"
+                >
+                  <ChevronLeft size={16} />
+                  Back
+                </Button>
+                <Button
+                  onClick={handleSetupNext}
+                  disabled={!isFormValid}
+                  className="flex-1"
+                >
+                  Continue
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* ===== STEP: SELECTION ===== */}
       {step === 'selection' && (
-        <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
+        <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-8 text-center">
-            <p className="text-lg font-semibold text-black">{formData.title}</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-lg font-semibold">{formData.title}</p>
+            <p className="text-sm text-muted-foreground mt-1">
               {formData.company} &middot; {formData.position} &middot; {formData.interviewType}
             </p>
           </div>
 
-          <div className="flex items-center gap-6">
-            <button
+          <div className="flex items-center gap-4">
+            <Button
               onClick={() => handleSelectionClick('single')}
-              className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
+              variant="outline"
+              size="lg"
+              className="w-48 h-12 rounded-xl font-semibold"
             >
               one stage interview
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleSelectionClick('multi')}
-              className={`${BUTTON_CLASS} border-2 border-gray-200 bg-white text-black hover:border-lemonade-accent hover:shadow-md active:scale-95`}
+              variant="outline"
+              size="lg"
+              className="w-48 h-12 rounded-xl font-semibold"
             >
               multi stage interview
-            </button>
+            </Button>
           </div>
 
           <button
             onClick={() => setStep('setup')}
-            className="mt-6 flex items-center gap-1 text-sm text-gray-500 hover:text-black transition-colors"
+            className="mt-6 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronLeft size={14} />
             back to details

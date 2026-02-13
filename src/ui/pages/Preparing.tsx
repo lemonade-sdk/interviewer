@@ -16,7 +16,16 @@ import {
   Bot,
   Sparkles,
 } from 'lucide-react';
-import { InterviewType, CompatibleModel, UploadedDocument, AgentPersona, LoadedModel } from '../../types';
+import { InterviewType, InterviewStyle, CompatibleModel, UploadedDocument, AgentPersona, LoadedModel } from '../../types';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Progress } from '../components/ui/progress';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { Separator } from '../components/ui/separator';
+import { cn } from '../lib/utils';
 
 /* ────────────────────────────────────────────────────────────────────
    Route state passed from Landing
@@ -57,7 +66,6 @@ type PrepPhase =
   | 'downloading'
   | 'loading-model'
   | 'generating-persona'
-  | 'starting'
   | 'error';
 
 /* ────────────────────────────────────────────────────────────────────
@@ -132,6 +140,10 @@ const Preparing: React.FC = () => {
   const [jobAnalysis, setJobAnalysis] = useState<string | null>(null);
   const [resumeAnalysis, setResumeAnalysis] = useState<string | null>(null);
 
+  /* ── interview style & difficulty selectors ── */
+  const [interviewStyle, setInterviewStyle] = useState<InterviewStyle>('conversational');
+  const [questionDifficulty, setQuestionDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+
   /* ── guards ── */
   const didFetchRef = useRef(false);
 
@@ -195,7 +207,7 @@ const Preparing: React.FC = () => {
 
     void queueMicrotask(async () => {
       if (!window.electronAPI) {
-        setPhase('starting'); setStatusText('Ready!');
+        setPhase('generating-persona'); setPersonaGenStep('done'); setStatusText('Ready!');
         await new Promise(r => setTimeout(r, 600));
         navigate('/dashboard', { replace: true });
         return;
@@ -464,7 +476,12 @@ const Preparing: React.FC = () => {
         );
       }
 
-      await window.electronAPI.updateInterviewerSettings({ modelName: model.id, asrModel: bestASR?.id });
+      await window.electronAPI.updateInterviewerSettings({
+        modelName: model.id,
+        asrModel: bestASR?.id,
+        interviewStyle,
+        questionDifficulty,
+      });
 
       /* ════════════════════════════════════════════════════════════
          PERSONA GENERATION PHASE
@@ -523,11 +540,6 @@ const Preparing: React.FC = () => {
       }
 
       setPersonaGenStep('done');
-      setStatusText('Persona ready!');
-      await new Promise(r => setTimeout(r, 500));
-
-      /* ── start interview ── */
-      setPhase('starting');
       setStatusText('Starting interview...');
       const interview = await window.electronAPI.startInterview(
         {
@@ -560,39 +572,39 @@ const Preparing: React.FC = () => {
   if (!state) return null;
 
   const selectedModel = llmModels.find(m => m.id === selectedModelId) || null;
-  const isWorking = phase === 'downloading' || phase === 'loading-model' || phase === 'generating-persona' || phase === 'starting';
+  const isWorking = phase === 'downloading' || phase === 'loading-model' || phase === 'generating-persona';
 
   /* ══════════════════════════════════════════════════════════════════
      RENDER
      ══════════════════════════════════════════════════════════════════ */
   return (
-    <div className="h-screen w-full bg-lemonade-bg text-lemonade-fg flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden">
 
       {/* ═══════ TOP BAR ═══════ */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-black/5">
+      <header className="flex items-center justify-between px-8 py-4 border-b border-border bg-card">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => navigate('/')}
-            className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
-            title="Back"
           >
-            <ChevronLeft size={18} className="text-gray-500" />
-          </button>
+            <ChevronLeft size={18} />
+          </Button>
           <div>
-            <h1 className="text-base font-bold text-black leading-tight">
+            <h1 className="text-base font-semibold leading-tight">
               Prepare for your interview
             </h1>
-            <p className="text-[11px] text-gray-400 mt-0.5 tracking-wide">
+            <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">
               {state.formData.title} &middot; {state.formData.company} &middot; {state.formData.position}
             </p>
           </div>
         </div>
 
         {selectedModel && isWorking && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 backdrop-blur-sm border border-black/5 rounded-full">
-            <Cpu size={12} className="text-lemonade-accent-hover" />
-            <span className="text-[11px] font-semibold text-gray-600">{selectedModel.id}</span>
-          </div>
+          <Badge variant="secondary" className="gap-1.5">
+            <Cpu size={12} />
+            <span className="text-[11px] font-semibold">{selectedModel.id}</span>
+          </Badge>
         )}
       </header>
 
@@ -600,44 +612,44 @@ const Preparing: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ─── LEFT: Resume viewer ─── */}
-        <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-lemonade-bg via-white/40 to-lemonade-bg">
+        <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
           {pdfBlobUrl ? (
             <iframe
               src={pdfBlobUrl}
-              className="w-full h-full rounded-2xl border border-black/5 shadow-lg bg-white"
+              className="w-full h-full rounded-xl border border-border shadow-lg bg-card"
               title="Resume Preview"
             />
           ) : resumeText ? (
             <div className="w-full max-w-2xl mx-auto">
-              <div className="flex items-center gap-2 mb-3 text-gray-400">
+              <div className="flex items-center gap-2 mb-3 text-muted-foreground">
                 <FileText size={16} />
                 <span className="text-xs font-medium">{state.resumeFileName}</span>
               </div>
-              <div className="bg-white rounded-2xl border border-black/5 p-6 max-h-[75vh] overflow-y-auto shadow-lg">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{resumeText}</p>
-              </div>
+              <Card className="max-h-[75vh] overflow-y-auto">
+                <CardContent className="p-6">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{resumeText}</p>
+                </CardContent>
+              </Card>
             </div>
           ) : (
-            <div className="text-center text-gray-300 select-none">
-              <FileText size={56} className="mx-auto mb-4 opacity-40" />
-              <p className="text-sm font-medium text-gray-400">{state.resumeFileName || 'Your resume'}</p>
-              <p className="text-xs text-gray-300 mt-1">Review while we get things ready</p>
+            <div className="text-center select-none">
+              <FileText size={56} className="mx-auto mb-4 text-muted-foreground/30" />
+              <p className="text-sm font-medium text-muted-foreground">{state.resumeFileName || 'Your resume'}</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Review while we get things ready</p>
             </div>
           )}
         </div>
 
         {/* ─── RIGHT: Panel ─── */}
-        <aside className="w-[420px] border-l border-black/5 bg-white flex flex-col">
+        <aside className="w-[420px] border-l border-border bg-card flex flex-col">
 
           {/* ── loading list ── */}
           {phase === 'loading-list' && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
-              <div className="relative">
-                <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/15 flex items-center justify-center">
-                  <Loader2 size={22} className="animate-spin text-lemonade-accent-hover" />
-                </div>
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Loader2 size={22} className="animate-spin text-primary" />
               </div>
-              <p className="text-sm text-gray-400 font-medium">{statusText}</p>
+              <p className="text-sm text-muted-foreground font-medium">{statusText}</p>
             </div>
           )}
 
@@ -646,112 +658,124 @@ const Preparing: React.FC = () => {
              ══════════════════════════════════════════════ */}
           {phase === 'select' && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* header */}
-              <div className="px-7 pt-7 pb-4">
-                <h2 className="text-[13px] font-bold text-black uppercase tracking-widest">
-                  Choose a model
-                </h2>
-                <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
-                  Pick the AI model that will power your interview.
-                  Models marked <span className="text-green-500 font-semibold">ready</span> are
-                  already on your machine.
-                </p>
-              </div>
-
-              {/* scrollable list */}
-              <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-2">
-                {llmModels.map(model => {
-                  const selected = model.id === selectedModelId;
-                  return (
-                    <button
-                      key={model.id}
-                      onClick={() => setSelectedModelId(model.id)}
-                      className={`
-                        group w-full text-left px-4 py-3.5 rounded-2xl border-2 transition-all duration-200
-                        ${selected
-                          ? 'border-lemonade-accent bg-lemonade-accent/[0.06] shadow-sm'
-                          : 'border-transparent bg-gray-50/80 hover:bg-gray-50 hover:border-gray-200'
-                        }
-                      `}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        {/* radio dot */}
-                        <div className={`
-                          flex-shrink-0 w-[18px] h-[18px] rounded-full border-2 transition-all duration-200
-                          flex items-center justify-center
-                          ${selected
-                            ? 'border-lemonade-accent'
-                            : 'border-gray-300 group-hover:border-gray-400'
-                          }
-                        `}>
-                          {selected && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-lemonade-accent" />
-                          )}
-                        </div>
-
-                        {/* info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-900 truncate leading-tight">
-                            {model.id}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {model.suggested && (
-                              <span className="inline-flex items-center gap-[3px] text-[9px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-1.5 py-[2px] rounded-md">
-                                <Star size={8} className="fill-amber-400" />
-                                Suggested
-                              </span>
-                            )}
-                            {model.labels.filter(l => l !== 'llm').map(l => (
-                              <span key={l} className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 bg-gray-100 px-1.5 py-[2px] rounded-md">
-                                {l}
-                              </span>
-                            ))}
-                            {model.recipe && (
-                              <span className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 bg-gray-100 px-1.5 py-[2px] rounded-md">
-                                {model.recipe}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* right: size + status */}
-                        <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                          {model.size ? (
-                            <span className="text-[10px] font-semibold text-gray-400">
-                              {formatSize(model.size)}
-                            </span>
-                          ) : null}
-                          {model.downloaded ? (
-                            <span className="inline-flex items-center gap-[3px] text-[9px] font-bold text-green-600 bg-green-50 px-2 py-[2px] rounded-md">
-                              <HardDrive size={8} />
-                              Ready
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-[3px] text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-[2px] rounded-md">
-                              <Download size={8} />
-                              Download
-                            </span>
-                          )}
-                        </div>
+              <ScrollArea className="flex-1">
+                <div className="px-6 pt-6 pb-4 space-y-6">
+                  {/* Interview preferences */}
+                  <div className="space-y-4">
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      Interview Preferences
+                    </h2>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Style</Label>
+                        <Select value={interviewStyle} onValueChange={(v) => setInterviewStyle(v as InterviewStyle)}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="conversational">Conversational</SelectItem>
+                            <SelectItem value="formal">Formal</SelectItem>
+                            <SelectItem value="challenging">Challenging</SelectItem>
+                            <SelectItem value="supportive">Supportive</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Difficulty</Label>
+                        <Select value={questionDifficulty} onValueChange={(v) => setQuestionDifficulty(v as 'easy' | 'medium' | 'hard')}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="easy">Easy</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="hard">Hard</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Model Selection */}
+                  <div className="space-y-3">
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      Choose a model
+                    </h2>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Pick the AI model that will power your interview.
+                      Models marked <span className="text-green-500 dark:text-green-400 font-semibold">ready</span> are
+                      already on your machine.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {llmModels.map(model => {
+                      const selected = model.id === selectedModelId;
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => setSelectedModelId(model.id)}
+                          className={cn(
+                            'group w-full text-left px-4 py-3 rounded-lg border-2 transition-all duration-200',
+                            selected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-transparent bg-muted/50 hover:bg-muted hover:border-border'
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className={cn(
+                              'flex-shrink-0 w-4 h-4 rounded-full border-2 transition-all duration-200 flex items-center justify-center',
+                              selected ? 'border-primary' : 'border-muted-foreground/30 group-hover:border-muted-foreground/50'
+                            )}>
+                              {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-semibold truncate leading-tight">{model.id}</p>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                {model.suggested && (
+                                  <Badge variant="secondary" className="text-[9px] h-4 gap-0.5 px-1.5">
+                                    <Star size={8} className="fill-primary text-primary" />
+                                    Suggested
+                                  </Badge>
+                                )}
+                                {model.labels.filter(l => l !== 'llm').map(l => (
+                                  <Badge key={l} variant="outline" className="text-[9px] h-4 px-1.5">{l}</Badge>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                              {model.size ? (
+                                <span className="text-[10px] font-semibold text-muted-foreground">{formatSize(model.size)}</span>
+                              ) : null}
+                              {model.downloaded ? (
+                                <Badge className="text-[9px] h-4 bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400 gap-0.5">
+                                  <HardDrive size={8} /> Ready
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] h-4 gap-0.5">
+                                  <Download size={8} /> Download
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </ScrollArea>
 
               {/* action bar */}
-              <div className="px-5 py-5 border-t border-black/5">
-                <button
+              <div className="px-5 py-4 border-t border-border">
+                <Button
                   onClick={handleContinue}
                   disabled={!selectedModelId}
-                  className="
-                    w-full flex items-center justify-center gap-2.5 px-5 py-3.5
-                    bg-lemonade-accent text-black font-bold text-[13px] rounded-2xl
-                    hover:bg-lemonade-accent-hover hover:text-white
-                    active:scale-[0.98]
-                    disabled:opacity-30 disabled:cursor-not-allowed
-                    transition-all duration-200 shadow-sm
-                  "
+                  className="w-full gap-2"
+                  size="lg"
                 >
                   {selectedModel && !selectedModel.downloaded ? (
                     <>
@@ -764,7 +788,7 @@ const Preparing: React.FC = () => {
                       Start Interview
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -774,43 +798,28 @@ const Preparing: React.FC = () => {
              ══════════════════════════════════════════════ */}
           {phase === 'downloading' && (
             <div className="flex-1 flex flex-col px-8 pt-10">
-              {/* icon */}
-              <div className="w-14 h-14 rounded-2xl bg-lemonade-accent/15 flex items-center justify-center mb-6">
-                <Download size={24} className="text-lemonade-accent-hover animate-bounce" />
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+                <Download size={24} className="text-primary animate-bounce" />
               </div>
 
-              <h2 className="text-sm font-bold text-black uppercase tracking-widest mb-1">
-                Downloading
-              </h2>
-              <p className="text-[13px] font-semibold text-gray-700 mb-5">{selectedModel?.id}</p>
+              <h2 className="text-sm font-bold uppercase tracking-widest mb-1">Downloading</h2>
+              <p className="text-[13px] font-semibold text-muted-foreground mb-5">{selectedModel?.id}</p>
 
-              {/* progress bar */}
-              <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-3">
-                <div
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-lemonade-accent to-lemonade-accent-hover rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${dlProgress?.percent ?? 0}%` }}
-                />
-                {/* shimmer overlay */}
-                <div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse rounded-full"
-                  style={{ animationDuration: '2s' }}
-                />
-              </div>
+              <Progress value={dlProgress?.percent ?? 0} className="h-3 mb-3" />
 
-              {/* stats row */}
               <div className="flex items-baseline justify-between">
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   {dlProgress?.bytesDownloaded != null && dlProgress?.bytesTotal != null
                     ? `${formatBytes(dlProgress.bytesDownloaded)} / ${formatBytes(dlProgress.bytesTotal)}`
                     : 'Preparing...'}
                 </span>
-                <span className="text-lg font-bold text-black tabular-nums">
-                  {dlProgress?.percent ?? 0}<span className="text-xs font-semibold text-gray-400">%</span>
+                <span className="text-lg font-bold tabular-nums">
+                  {dlProgress?.percent ?? 0}<span className="text-xs font-semibold text-muted-foreground">%</span>
                 </span>
               </div>
 
               {dlProgress?.file && (
-                <p className="text-[10px] text-gray-300 truncate mt-2">
+                <p className="text-[10px] text-muted-foreground/60 truncate mt-2">
                   {dlProgress.file}
                   {dlProgress.totalFiles && dlProgress.totalFiles > 1
                     ? ` (file ${dlProgress.fileIndex} of ${dlProgress.totalFiles})`
@@ -818,7 +827,7 @@ const Preparing: React.FC = () => {
                 </p>
               )}
 
-              <p className="text-[11px] text-gray-300 mt-auto pb-6">
+              <p className="text-[11px] text-muted-foreground/50 mt-auto pb-6">
                 Review your resume while the model downloads.
               </p>
             </div>
@@ -830,15 +839,14 @@ const Preparing: React.FC = () => {
           {phase === 'loading-model' && (
             <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8">
               <div className="relative">
-                <div className="w-16 h-16 rounded-3xl bg-lemonade-accent/15 flex items-center justify-center">
-                  <Zap size={28} className="text-lemonade-accent-hover" />
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Zap size={28} className="text-primary" />
                 </div>
-                {/* spinning ring */}
-                <div className="absolute -inset-2 rounded-[22px] border-2 border-lemonade-accent/20 border-t-lemonade-accent animate-spin" />
+                <div className="absolute -inset-2 rounded-[18px] border-2 border-primary/20 border-t-primary animate-spin" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-bold text-black">{statusText}</p>
-                <p className="text-[11px] text-gray-400 mt-1.5">
+                <p className="text-sm font-semibold">{statusText}</p>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
                   Warming up the model — this can take a moment
                 </p>
               </div>
@@ -850,15 +858,14 @@ const Preparing: React.FC = () => {
              ══════════════════════════════════════════════ */}
           {phase === 'generating-persona' && (
             <div className="flex-1 flex flex-col px-8 pt-10">
-              {/* icon */}
-              <div className="w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center mb-6">
-                <Sparkles size={24} className="text-purple-600" />
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+                <Sparkles size={24} className="text-primary" />
               </div>
 
-              <h2 className="text-sm font-bold text-black uppercase tracking-widest mb-1">
+              <h2 className="text-sm font-bold uppercase tracking-widest mb-1">
                 Preparing Your Interview
               </h2>
-              <p className="text-[11px] text-gray-400 mb-6 leading-relaxed">
+              <p className="text-[11px] text-muted-foreground mb-6 leading-relaxed">
                 The AI is reading your documents and crafting a personalized interviewer.
               </p>
 
@@ -866,30 +873,29 @@ const Preparing: React.FC = () => {
               <div className="space-y-4">
                 {/* Step 1: Analyzing Job */}
                 <div className="flex items-start gap-3">
-                  <div className={`
-                    flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500
-                    ${personaGenStep === 'analyzing-job'
-                      ? 'bg-lemonade-accent/20'
-                      : 'bg-green-50'
-                    }
-                  `}>
+                  <div className={cn(
+                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500',
+                    personaGenStep === 'analyzing-job'
+                      ? 'bg-primary/15'
+                      : 'bg-green-100 dark:bg-green-950/50'
+                  )}>
                     {personaGenStep === 'analyzing-job' ? (
-                      <Loader2 size={14} className="animate-spin text-lemonade-accent-hover" />
+                      <Loader2 size={14} className="animate-spin text-primary" />
                     ) : (
                       <Check size={14} className="text-green-500" />
                     )}
                   </div>
                   <div className="pt-1">
-                    <p className={`text-[13px] font-semibold transition-colors duration-300 ${
-                      personaGenStep === 'analyzing-job' ? 'text-black' : 'text-green-600'
-                    }`}>
+                    <p className={cn('text-[13px] font-semibold transition-colors duration-300',
+                      personaGenStep === 'analyzing-job' ? 'text-foreground' : 'text-green-600 dark:text-green-400'
+                    )}>
                       Reading job description
                     </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       Understanding role requirements, skills, and expectations
                     </p>
                     {jobAnalysis && personaGenStep !== 'analyzing-job' && (
-                      <p className="text-[10px] text-gray-500 mt-1.5 bg-gray-50 rounded-lg p-2 leading-relaxed">
+                      <p className="text-[10px] text-muted-foreground mt-1.5 bg-muted rounded-lg p-2 leading-relaxed">
                         {jobAnalysis}
                       </p>
                     )}
@@ -898,38 +904,37 @@ const Preparing: React.FC = () => {
 
                 {/* Step 2: Analyzing Resume */}
                 <div className="flex items-start gap-3">
-                  <div className={`
-                    flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500
-                    ${personaGenStep === 'analyzing-resume'
-                      ? 'bg-lemonade-accent/20'
+                  <div className={cn(
+                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500',
+                    personaGenStep === 'analyzing-resume'
+                      ? 'bg-primary/15'
                       : personaGenStep === 'analyzing-job'
-                        ? 'bg-gray-100'
-                        : 'bg-green-50'
-                    }
-                  `}>
+                        ? 'bg-muted'
+                        : 'bg-green-100 dark:bg-green-950/50'
+                  )}>
                     {personaGenStep === 'analyzing-resume' ? (
-                      <Loader2 size={14} className="animate-spin text-lemonade-accent-hover" />
+                      <Loader2 size={14} className="animate-spin text-primary" />
                     ) : personaGenStep === 'analyzing-job' ? (
-                      <User size={14} className="text-gray-300" />
+                      <User size={14} className="text-muted-foreground/40" />
                     ) : (
                       <Check size={14} className="text-green-500" />
                     )}
                   </div>
                   <div className="pt-1">
-                    <p className={`text-[13px] font-semibold transition-colors duration-300 ${
+                    <p className={cn('text-[13px] font-semibold transition-colors duration-300',
                       personaGenStep === 'analyzing-resume'
-                        ? 'text-black'
+                        ? 'text-foreground'
                         : personaGenStep === 'analyzing-job'
-                          ? 'text-gray-300'
-                          : 'text-green-600'
-                    }`}>
+                          ? 'text-muted-foreground/40'
+                          : 'text-green-600 dark:text-green-400'
+                    )}>
                       Analyzing your resume
                     </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       Mapping your experience to the role requirements
                     </p>
                     {resumeAnalysis && (personaGenStep === 'crafting-persona' || personaGenStep === 'done') && (
-                      <p className="text-[10px] text-gray-500 mt-1.5 bg-gray-50 rounded-lg p-2 leading-relaxed">
+                      <p className="text-[10px] text-muted-foreground mt-1.5 bg-muted rounded-lg p-2 leading-relaxed">
                         {resumeAnalysis}
                       </p>
                     )}
@@ -938,72 +943,67 @@ const Preparing: React.FC = () => {
 
                 {/* Step 3: Crafting Persona */}
                 <div className="flex items-start gap-3">
-                  <div className={`
-                    flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500
-                    ${personaGenStep === 'crafting-persona'
-                      ? 'bg-purple-100'
+                  <div className={cn(
+                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500',
+                    personaGenStep === 'crafting-persona'
+                      ? 'bg-primary/15'
                       : personaGenStep === 'done'
-                        ? 'bg-green-50'
-                        : 'bg-gray-100'
-                    }
-                  `}>
+                        ? 'bg-green-100 dark:bg-green-950/50'
+                        : 'bg-muted'
+                  )}>
                     {personaGenStep === 'crafting-persona' ? (
-                      <Loader2 size={14} className="animate-spin text-purple-500" />
+                      <Loader2 size={14} className="animate-spin text-primary" />
                     ) : personaGenStep === 'done' ? (
                       <Check size={14} className="text-green-500" />
                     ) : (
-                      <Bot size={14} className="text-gray-300" />
+                      <Bot size={14} className="text-muted-foreground/40" />
                     )}
                   </div>
                   <div className="pt-1">
-                    <p className={`text-[13px] font-semibold transition-colors duration-300 ${
+                    <p className={cn('text-[13px] font-semibold transition-colors duration-300',
                       personaGenStep === 'crafting-persona'
-                        ? 'text-black'
+                        ? 'text-foreground'
                         : personaGenStep === 'done'
-                          ? 'text-green-600'
-                          : 'text-gray-300'
-                    }`}>
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-muted-foreground/40'
+                    )}>
                       Crafting interviewer persona
                     </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       Building a tailored interviewer for this specific role
                     </p>
                     {generatedPersona && personaGenStep === 'done' && (
-                      <div className="mt-2 bg-purple-50/80 border border-purple-100 rounded-xl p-3">
-                        <p className="text-[12px] font-bold text-purple-800">{generatedPersona.name}</p>
-                        <p className="text-[10px] text-purple-600 mt-0.5 leading-relaxed">{generatedPersona.description}</p>
-                        <div className="flex gap-1.5 mt-2">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-purple-500 bg-purple-100 px-1.5 py-[2px] rounded-md">
-                            {generatedPersona.interviewStyle}
-                          </span>
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-purple-500 bg-purple-100 px-1.5 py-[2px] rounded-md">
-                            {generatedPersona.questionDifficulty}
-                          </span>
-                        </div>
-                      </div>
+                      <Card className="mt-2 border-primary/20 bg-primary/5">
+                        <CardContent className="p-3">
+                          <p className="text-[12px] font-bold">{generatedPersona.name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{generatedPersona.description}</p>
+                          <div className="flex gap-1.5 mt-2">
+                            <Badge variant="secondary" className="text-[9px] h-4">{generatedPersona.interviewStyle}</Badge>
+                            <Badge variant="secondary" className="text-[9px] h-4">{generatedPersona.questionDifficulty}</Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
                     )}
                   </div>
                 </div>
+
+                {/* Step 4: Starting (merged from the old separate 'starting' phase) */}
+                {personaGenStep === 'done' && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <Loader2 size={14} className="animate-spin text-primary" />
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-[13px] font-semibold text-foreground">Starting interview...</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">You're almost there</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <p className="text-[11px] text-gray-300 mt-auto pb-6">
+              <p className="text-[11px] text-muted-foreground/50 mt-auto pb-6">
                 This ensures your interview is tailored to the exact role and your background.
               </p>
-            </div>
-          )}
-
-          {/* ══════════════════════════════════════════════
-              STARTING PHASE
-             ══════════════════════════════════════════════ */}
-          {phase === 'starting' && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8">
-              <div className="w-16 h-16 rounded-3xl bg-green-50 flex items-center justify-center">
-                <Check size={30} className="text-green-500" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold text-black">{statusText}</p>
-                <p className="text-[11px] text-gray-400 mt-1">You're almost there</p>
-              </div>
             </div>
           )}
 
@@ -1012,31 +1012,35 @@ const Preparing: React.FC = () => {
              ══════════════════════════════════════════════ */}
           {phase === 'error' && (
             <div className="flex-1 flex flex-col justify-center px-7">
-              <div className="bg-red-50/80 border border-red-200/60 rounded-2xl p-5">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <AlertCircle size={16} className="text-red-500" />
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <AlertCircle size={16} className="text-destructive" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-destructive mb-1">Something went wrong</p>
+                      <p className="text-xs text-destructive/80 whitespace-pre-wrap leading-relaxed">{errorText}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-red-800 mb-1">Something went wrong</p>
-                    <p className="text-xs text-red-600/80 whitespace-pre-wrap leading-relaxed">{errorText}</p>
+                  <div className="flex gap-3 mt-4 ml-11">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setErrorText(null); setPhase('select'); }}
+                    >
+                      Try again
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/')}
+                    >
+                      Go back
+                    </Button>
                   </div>
-                </div>
-                <div className="flex gap-3 mt-4 ml-11">
-                  <button
-                    onClick={() => { setErrorText(null); setPhase('select'); }}
-                    className="px-4 py-2 text-xs font-bold text-red-700 bg-red-100 hover:bg-red-200 rounded-xl transition-colors"
-                  >
-                    Try again
-                  </button>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="px-4 py-2 text-xs font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
-                  >
-                    Go back
-                  </button>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </aside>

@@ -313,6 +313,32 @@ ipcMain.handle(
   },
 );
 
+// ─── Detailed feedback generation: grades each Q/A pair individually ───
+ipcMain.handle('feedback:generate', async (event: IpcMainInvokeEvent, interviewId: string) => {
+  try {
+    const interview = await interviewRepo.findById(interviewId);
+    if (!interview) {
+      throw new Error(`Interview ${interviewId} not found`);
+    }
+
+    const feedback = await interviewService.generateDetailedFeedback(
+      interviewId,
+      interview.transcript,
+      (progressData) => {
+        event.sender.send('feedback:progress', progressData);
+      },
+    );
+
+    // Persist feedback to DB
+    await interviewRepo.update(interviewId, { feedback });
+
+    return feedback;
+  } catch (error) {
+    console.error('Failed to generate feedback:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('interview:get', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     return await interviewRepo.findById(interviewId);

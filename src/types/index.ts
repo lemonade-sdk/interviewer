@@ -52,8 +52,20 @@ export interface VADMetadata {
   vadEngine: string; // e.g., 'webrtc-vad', 'silero-vad'
 }
 
+export interface QuestionFeedback {
+  questionIndex: number;
+  question: string;
+  answer: string;
+  score: number;           // 0-100
+  rating: 'excellent' | 'good' | 'needs-improvement';
+  strengths: string[];
+  improvements: string[];
+  suggestedAnswer: string;
+}
+
 export interface InterviewFeedback {
   overallScore: number;
+  questionFeedbacks: QuestionFeedback[];
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
@@ -409,6 +421,11 @@ export interface IPC {
   saveAudioRecording: (audioData: { interviewId: string; messageId: string; audioBlob: string }) => Promise<{ success: boolean; filepath: string }>;
   getAudioRecordingsPath: () => Promise<string>;
   deleteAudioRecording: (filepath: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Feedback operations
+  generateFeedback: (interviewId: string) => Promise<InterviewFeedback>;
+  onFeedbackProgress: (callback: (data: { questionIndex: number; totalQuestions: number; status: string }) => void) => void;
+  offFeedbackProgress: () => void;
 
   // Document operations
   uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => Promise<UploadedDocument>;

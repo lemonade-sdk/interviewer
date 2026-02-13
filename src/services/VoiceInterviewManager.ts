@@ -21,6 +21,9 @@ import {
  * - transcription-started: When Whisper ASR begins processing (for UI feedback)
  * - transcription-complete: (text: string) When speech is transcribed
  * - transcription-delta: (text: string) Live transcription delta
+ * - utterance-complete: (text: string) Hands-free mode: user finished speaking (auto-submit)
+ * - listening-started: Hands-free mode: now listening for user speech
+ * - listening-stopped: Hands-free mode: stopped listening
  * - speaking-started: When TTS starts
  * - speaking-stopped: When TTS ends
  * - audio-level: (level: number) Current audio input level (0-1)
@@ -44,7 +47,11 @@ export class VoiceInterviewManager extends EventEmitter {
   private vadConfig: VADConfig;
   private asrConfig: ASRConfig;
 
-  // Accumulator for Tap-to-Speak mode
+  // Hands-free mode state
+  private _isHandsFreeMode: boolean = false;
+  private isProcessingUtterance: boolean = false;
+
+  // Accumulator for transcript across modes
   private accumulatedTranscript: string = '';
 
   constructor(
@@ -146,6 +153,177 @@ export class VoiceInterviewManager extends EventEmitter {
       this.isRecording = false;
       this.emit('recording-stopped');
     }
+  }
+
+  // ─── Hands-free conversational mode ─────────────────────
+  // After AI speaks, automatically listen for user speech via VAD + ASR.
+  // When VAD detects end of speech, collects the transcript and emits
+  // 'utterance-complete' so the UI can auto-submit it.
+
+  /**
+   * Enter hands-free mode.
+   * Begins listening immediately; VAD will auto-detect speech boundaries.
+   */
+  async startHandsFreeListening(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('VoiceInterviewManager not initialized');
+    }
+    if (!this.wsPort) {
+      throw new Error('Hands-free mode unavailable: WebSocket port not found');
+    }
+    if (this.isRecording) {
+      console.warn('startHandsFreeListening: already recording, skipping');
+      return;
+    }
+    if (this.isProcessingUtterance) {
+      console.warn('startHandsFreeListening: still processing previous utterance, skipping');
+      return;
+    }
+
+    this._isHandsFreeMode = true;
+
+    try {
+      const stream = await this.audioService.getStream();
+      this.currentAudioStream = stream;
+
+      // ── ASR ──
+      const wsUrl = `ws://localhost:${this.wsPort}`;
+      this.realtimeASR = new RealtimeASRService(wsUrl, this.asrModel, this.asrConfig);
+      this.accumulatedTranscript = '';
+
+      this.realtimeASR.on('delta', (delta: string) => {
+        this.emit('transcription-delta', delta);
+      });
+
+      this.realtimeASR.on('complete', (text: string) => {
+        if (text.trim()) {
+          this.accumulatedTranscript += (this.accumulatedTranscript ? ' ' : '') + text.trim();
+        }
+      });
+
+      this.realtimeASR.on('error', (error: Error) => {
+        this.emit('error', error);
+      });
+
+      await this.realtimeASR.start(stream);
+
+      // ── VAD ──
+      this.vadService = new VADService(this.vadConfig);
+
+      this.vadService.on('speech-start', () => {
+        this.emit('speech-detected');
+      });
+
+      this.vadService.on('speech-end', async () => {
+        this.emit('speech-ended');
+        // Auto-collect transcript and submit
+        await this.handleHandsFreeUtteranceEnd();
+      });
+
+      await this.vadService.start(stream);
+
+      this.isRecording = true;
+      this.emit('recording-started');
+      this.emit('listening-started');
+      console.log('Hands-free listening started');
+    } catch (error: any) {
+      console.error('Failed to start hands-free listening:', error);
+      this.isRecording = false;
+      this._isHandsFreeMode = false;
+      this.emit('error', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop hands-free listening (e.g. when AI starts speaking, or interview ends)
+   */
+  stopHandsFreeListening(graceful: boolean = false): void {
+    if (this.vadService) {
+      this.vadService.stop();
+      this.vadService = null;
+    }
+    if (this.realtimeASR) {
+      this.realtimeASR.stop(graceful);
+      this.realtimeASR = null;
+    }
+    if (this.isRecording) {
+      this.isRecording = false;
+      this.emit('recording-stopped');
+      this.emit('listening-stopped');
+    }
+  }
+
+  /**
+   * Exit hands-free mode entirely
+   */
+  exitHandsFreeMode(): void {
+    this._isHandsFreeMode = false;
+    this.stopHandsFreeListening(false);
+    console.log('Exited hands-free mode');
+  }
+
+  /**
+   * Whether we are currently in hands-free mode
+   */
+  get isHandsFreeMode(): boolean {
+    return this._isHandsFreeMode;
+  }
+
+  /**
+   * Internal: called when VAD detects speech-end in hands-free mode.
+   * Stops ASR gracefully, waits for final transcript, emits 'utterance-complete'.
+   */
+  private async handleHandsFreeUtteranceEnd(): Promise<void> {
+    if (this.isProcessingUtterance) return;
+    this.isProcessingUtterance = true;
+
+    try {
+      // Stop VAD + ASR (graceful — gives time for final transcript)
+      if (this.vadService) {
+        this.vadService.stop();
+        this.vadService = null;
+      }
+      if (this.realtimeASR) {
+        this.realtimeASR.stop(true); // keeps socket open for wsCloseDelayMs
+        this.realtimeASR = null;
+      }
+
+      this.isRecording = false;
+      this.emit('recording-stopped');
+      this.emit('listening-stopped');
+
+      // Wait for final transcript to arrive via the still-open socket
+      await new Promise((resolve) => setTimeout(resolve, this.asrConfig.wsCloseDelayMs));
+
+      const text = this.accumulatedTranscript.trim();
+      this.accumulatedTranscript = '';
+
+      if (text) {
+        console.log('Hands-free utterance complete:', text);
+        this.emit('utterance-complete', text);
+      } else {
+        console.log('Hands-free: no speech detected, resuming listening');
+        // No meaningful speech — restart listening
+        if (this._isHandsFreeMode) {
+          await this.startHandsFreeListening();
+        }
+      }
+    } catch (error: any) {
+      console.error('Error handling hands-free utterance end:', error);
+      this.emit('error', error);
+    } finally {
+      this.isProcessingUtterance = false;
+    }
+  }
+
+  /**
+   * Resume hands-free listening (called after AI finishes speaking)
+   */
+  async resumeHandsFreeListening(): Promise<void> {
+    if (!this._isHandsFreeMode) return;
+    if (this.isRecording || this.isSpeaking) return;
+    await this.startHandsFreeListening();
   }
 
   /**
@@ -397,6 +575,7 @@ export class VoiceInterviewManager extends EventEmitter {
       isInitialized: this.isInitialized,
       isRecording: this.isRecording,
       isSpeaking: this.isSpeaking,
+      isHandsFreeMode: this._isHandsFreeMode,
     };
   }
 
@@ -404,17 +583,23 @@ export class VoiceInterviewManager extends EventEmitter {
    * Clean up all resources
    */
   cleanup(): void {
+    // Exit hands-free mode
+    this._isHandsFreeMode = false;
+    this.isProcessingUtterance = false;
+
     // Stop any ongoing operations
-    if (this.isRecording) {
-      this.audioService.stopRecording().catch(console.error);
+    if (this.vadService) {
+      this.vadService.stop();
+      this.vadService = null;
+    }
+
+    if (this.realtimeASR) {
+      this.realtimeASR.stop(false);
+      this.realtimeASR = null;
     }
 
     if (this.isSpeaking) {
       this.ttsService.stop();
-    }
-
-    if (this.vadService) {
-      this.vadService.stop();
     }
 
     if (this.currentAudioStream) {
@@ -424,11 +609,6 @@ export class VoiceInterviewManager extends EventEmitter {
 
     // Clean up services
     this.audioService.cleanup();
-    
-    if (this.realtimeASR) {
-      this.realtimeASR.stop();
-      this.realtimeASR = null;
-    }
     
     // Remove all event listeners
     this.removeAllListeners();

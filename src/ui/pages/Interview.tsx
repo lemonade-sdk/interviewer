@@ -58,12 +58,15 @@ const Interview: React.FC = () => {
   const [showAudioSettings, setShowAudioSettings] = useState(false);
   const [voiceReady, setVoiceReady] = useState(false);
   const [showTextInput, setShowTextInput] = useState(!voiceHint);
-  const [isRealtimeMode, setIsRealtimeMode] = useState(false);
   const [transcriptionDelta, setTranscriptionDelta] = useState('');
+  const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   // Voice manager instance
   const voiceManagerRef = useRef<VoiceInterviewManager | null>(null);
   const hasInitiatedRef = useRef(false);
+  // Ref to track whether we should resume listening after AI finishes speaking
+  const shouldResumeListeningRef = useRef(false);
 
   // ─── Effects ──────────────────────────────────────────────
   useEffect(() => {
@@ -123,11 +126,32 @@ const Interview: React.FC = () => {
       setMessages((prev) => [...prev, response]);
 
       if (!isMuted) {
+        // Mark that we should resume listening after TTS finishes
+        shouldResumeListeningRef.current = true;
         await voiceManagerRef.current.speak(response.content);
+        // TTS finished → start hands-free listening
+        await startHandsFreeMode();
+      } else {
+        // Muted — still start listening so user can speak
+        await startHandsFreeMode();
       }
     } catch (error) {
       console.error('Failed to initiate interview with TTS:', error);
       setIsThinking(false);
+      // Try to start listening even if TTS failed
+      await startHandsFreeMode();
+    }
+  };
+
+  const startHandsFreeMode = async () => {
+    const manager = voiceManagerRef.current;
+    if (!manager) return;
+    try {
+      setIsHandsFreeMode(true);
+      await manager.startHandsFreeListening();
+    } catch (error) {
+      console.error('Failed to start hands-free listening:', error);
+      setIsHandsFreeMode(false);
     }
   };
   const saveTranscript = async () => {
@@ -217,10 +241,30 @@ const Interview: React.FC = () => {
       manager.on('transcription-complete', async (text: string) => {
         setIsTranscribing(false);
         setTranscriptionDelta('');
+        // Only auto-send in non-hands-free mode (tap-to-speak)
+        // In hands-free mode, 'utterance-complete' handles submission
+        if (!manager.isHandsFreeMode && text.trim() && id) {
+          await sendVoiceMessage(text);
+        }
+      });
+
+      // ── Hands-free mode events ──
+      manager.on('utterance-complete', async (text: string) => {
+        console.log('Hands-free utterance received:', text);
+        setTranscriptionDelta('');
         if (text.trim() && id) {
           await sendVoiceMessage(text);
         }
       });
+      manager.on('listening-started', () => {
+        setIsListening(true);
+        setIsRecording(true);
+      });
+      manager.on('listening-stopped', () => {
+        setIsListening(false);
+        setTranscriptionDelta('');
+      });
+
       manager.on('speaking-started', () => setIsSpeaking(true));
       manager.on('speaking-stopped', () => setIsSpeaking(false));
       manager.on('error', (error: Error) => {
@@ -248,6 +292,12 @@ const Interview: React.FC = () => {
 
   const sendTextMessage = async (text: string) => {
     if (!id) return;
+    const manager = voiceManagerRef.current;
+
+    // Pause hands-free listening while AI processes + speaks
+    if (manager?.isHandsFreeMode && manager.getState().isRecording) {
+      manager.stopHandsFreeListening(false);
+    }
 
     const tempUserMsg: Message = {
       id: Date.now().toString(),
@@ -264,18 +314,35 @@ const Interview: React.FC = () => {
       setMessages((prev) => [...prev, response]);
 
       // TTS playback if voice mode and not muted
-      if (voiceMode && voiceManagerRef.current && !isMuted) {
+      if (voiceMode && manager && !isMuted) {
         try {
-          await voiceManagerRef.current.speak(response.content);
+          await manager.speak(response.content);
         } catch (error) {
           console.error('TTS playback failed:', error);
         }
       }
 
       await loadInterview();
+
+      // Resume hands-free listening after AI finishes speaking
+      if (manager?.isHandsFreeMode) {
+        try {
+          await manager.resumeHandsFreeListening();
+        } catch (error) {
+          console.error('Failed to resume hands-free listening:', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsThinking(false);
+      // Still try to resume listening on error
+      if (manager?.isHandsFreeMode) {
+        try {
+          await manager.resumeHandsFreeListening();
+        } catch (e) {
+          console.error('Failed to resume listening after error:', e);
+        }
+      }
     } finally {
       setIsSending(false);
     }
@@ -290,38 +357,35 @@ const Interview: React.FC = () => {
 
   // ─── Actions ──────────────────────────────────────────────
   const handleOrbClick = async () => {
-    if (!voiceManagerRef.current) {
+    const manager = voiceManagerRef.current;
+    if (!manager) {
       setShowTextInput(true);
       return;
     }
 
     try {
-      if (isRecording) {
-        if (isRealtimeMode) {
-          voiceManagerRef.current.stopRealtimeStreaming();
-          setIsRealtimeMode(false);
-        } else {
-          await voiceManagerRef.current.stopVoiceInput();
+      // If AI is speaking, interrupt it
+      if (isSpeaking) {
+        manager.stopSpeaking();
+        // If in hands-free mode, start listening now
+        if (isHandsFreeMode) {
+          await manager.resumeHandsFreeListening();
         }
+        return;
+      }
+
+      // Toggle hands-free mode
+      if (isHandsFreeMode) {
+        // Currently in hands-free mode — exit it
+        manager.exitHandsFreeMode();
+        setIsHandsFreeMode(false);
+        setIsListening(false);
       } else {
-        if (isSpeaking) {
-          voiceManagerRef.current.stopSpeaking();
-        }
-        
-        // Default to real-time mode if available
-        if (voiceManagerRef.current.getState().isInitialized) {
-          setIsRealtimeMode(true);
-          await voiceManagerRef.current.startRealtimeStreaming();
-        } else {
-          await voiceManagerRef.current.startVoiceInput({
-            enableVAD: true,
-            vadSensitivity: 0.7,
-          });
-        }
+        // Enter hands-free mode
+        await startHandsFreeMode();
       }
     } catch (error: any) {
-      console.error('Recording toggle failed:', error);
-      setIsRealtimeMode(false);
+      console.error('Orb click handler failed:', error);
     }
   };
 
@@ -494,15 +558,37 @@ const Interview: React.FC = () => {
           />
 
           <VoiceOrb
-            isListening={isRecording}
+            isListening={isRecording || isListening}
             isSpeaking={isSpeaking}
             audioLevel={audioLevel}
             isVADActive={isVADActive}
             isTranscribing={isTranscribing}
             isThinking={isThinking}
             onClick={handleOrbClick}
-            disabled={isSending && !isRecording}
+            disabled={isSending && !isRecording && !isHandsFreeMode}
           />
+
+          {/* Mode indicator below orb */}
+          {voiceReady && isHandsFreeMode && (
+            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-400/70 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>
+                {isListening
+                  ? 'Listening — speak naturally'
+                  : isSpeaking
+                    ? 'AI is speaking...'
+                    : isThinking
+                      ? 'AI is thinking...'
+                      : 'Hands-free mode active'}
+              </span>
+            </div>
+          )}
+
+          {voiceReady && !isHandsFreeMode && !isRecording && (
+            <div className="mt-3 text-[11px] text-white/20">
+              Tap the orb to start hands-free conversation
+            </div>
+          )}
 
           {/* Voice not ready indicator */}
           {!voiceReady && (
@@ -521,10 +607,13 @@ const Interview: React.FC = () => {
               Transcript
             </span>
             <div className="flex items-center gap-3">
-              {isRealtimeMode && (
-                <StatusDot color="yellow" label="Real-time" />
+              {isHandsFreeMode && (
+                <StatusDot color="green" label="Hands-free" />
               )}
-              {isRecording && !isRealtimeMode && (
+              {isListening && (
+                <StatusDot color="yellow" label="Listening" />
+              )}
+              {isRecording && !isHandsFreeMode && (
                 <StatusDot color="red" label="Recording" />
               )}
               {isTranscribing && (
@@ -646,7 +735,7 @@ const Interview: React.FC = () => {
 // ─── Sub-components ────────────────────────────────────────
 
 interface StatusDotProps {
-  color: 'red' | 'amber' | 'purple' | 'yellow';
+  color: 'red' | 'amber' | 'purple' | 'yellow' | 'green';
   label: string;
 }
 
@@ -656,6 +745,7 @@ const StatusDot: React.FC<StatusDotProps> = ({ color, label }) => {
     amber: 'bg-amber-500',
     purple: 'bg-purple-400',
     yellow: 'bg-yellow-400',
+    green: 'bg-emerald-400',
   };
 
   return (

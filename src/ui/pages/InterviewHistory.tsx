@@ -4,26 +4,9 @@ import { Search, Trash2, Eye, Clock, MessageSquare } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Interview } from '../../types';
 import { format } from 'date-fns';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
-import { Separator } from '../components/ui/separator';
-import { cn } from '../lib/utils';
+import { LemonTabs } from '../components/lemon/LemonTabs';
+import { LemonDialog } from '../components/lemon/LemonDialog';
+import { LemonSelect } from '../components/lemon/LemonSelect';
 
 const InterviewHistory: React.FC = () => {
   const navigate = useNavigate();
@@ -41,17 +24,12 @@ const InterviewHistory: React.FC = () => {
       interview.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.position.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesFilter =
-      filterType === 'all' || interview.interviewType === filterType;
-
+    const matchesFilter = filterType === 'all' || interview.interviewType === filterType;
     return matchesSearch && matchesFilter;
   });
 
   const handleDelete = async (interviewId: string) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this interview? This action cannot be undone.'
-    );
+    const confirmed = window.confirm('Delete this interview? This action cannot be undone.');
     if (confirmed) {
       try {
         await window.electronAPI.deleteInterview(interviewId);
@@ -64,237 +42,232 @@ const InterviewHistory: React.FC = () => {
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600 dark:text-green-400';
-    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+    if (score >= 60) return 'text-lemonade-accent-hover';
     return 'text-red-600 dark:text-red-400';
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-background">
-      <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="h-full overflow-y-auto bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
+      <div className="p-8 max-w-5xl mx-auto space-y-6 pb-16">
         <div>
-          <h1 className="text-2xl font-bold tracking-wide">History</h1>
-          <p className="text-sm text-muted-foreground mt-1">Review your past interviews</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">History</h1>
+          <p className="text-sm text-gray-500 dark:text-white/40 mt-1">Review your past interviews</p>
         </div>
 
         {/* Search and Filters */}
-        <Card>
-          <CardContent className="p-4 flex gap-3 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-              <Input
-                type="text"
-                placeholder="Search interviews..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="technical">Technical</SelectItem>
-                <SelectItem value="behavioral">Behavioral</SelectItem>
-                <SelectItem value="system-design">System Design</SelectItem>
-                <SelectItem value="coding">Coding</SelectItem>
-                <SelectItem value="general">General</SelectItem>
-                <SelectItem value="mixed">Mixed</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={15} />
+            <input
+              type="text"
+              placeholder="Search interviews..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none"
+            />
+          </div>
+          <LemonSelect
+            value={filterType}
+            onChange={setFilterType}
+            className="w-44"
+            options={[
+              { value: 'all', label: 'All Types' },
+              { value: 'technical', label: 'Technical' },
+              { value: 'behavioral', label: 'Behavioral' },
+              { value: 'system-design', label: 'System Design' },
+              { value: 'coding', label: 'Coding' },
+              { value: 'general', label: 'General' },
+              { value: 'mixed', label: 'Mixed' },
+            ]}
+          />
+        </div>
 
         {/* Interviews List */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {filteredInterviews.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <MessageSquare size={36} className="mx-auto text-muted-foreground/30 mb-4" />
-                <p className="text-sm text-muted-foreground">No interviews found matching your criteria.</p>
-              </CardContent>
-            </Card>
+            <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-12 text-center transition-colors duration-300">
+              <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
+              <p className="text-sm text-gray-500 dark:text-white/40">No interviews found matching your criteria.</p>
+            </div>
           ) : (
             filteredInterviews.map((interview) => (
-              <Card key={interview.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-semibold truncate">{interview.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {interview.company} &middot; {interview.position}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/60">
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                          {interview.interviewType}
-                        </Badge>
-                        <span className="flex items-center gap-1">
-                          <Clock size={10} />
-                          {format(new Date(interview.startedAt), 'MMM d, yyyy')}
-                        </span>
-                        {interview.duration && (
-                          <span>{Math.round(interview.duration / 60)} min</span>
-                        )}
-                      </div>
-
-                      {interview.feedback && (
-                        <div className="mt-3 flex items-center gap-4">
-                          <span className={cn('text-2xl font-bold', getScoreColor(interview.feedback.overallScore))}>
-                            {interview.feedback.overallScore}%
-                          </span>
-                          <p className="text-xs text-muted-foreground line-clamp-1 flex-1">
-                            {interview.feedback.detailedFeedback}
-                          </p>
-                        </div>
+              <div key={interview.id} className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-5 hover:border-gray-300/60 dark:hover:border-white/10 transition-all duration-200">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold truncate text-gray-900 dark:text-white/90">{interview.title}</h3>
+                    <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">
+                      {interview.company} &middot; {interview.position}
+                    </p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-white/30">
+                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/5 rounded-full">
+                        {interview.interviewType}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} />
+                        {format(new Date(interview.startedAt), 'MMM d, yyyy')}
+                      </span>
+                      {interview.duration && (
+                        <span>{Math.round(interview.duration / 60)} min</span>
                       )}
                     </div>
-                    <div className="flex gap-1 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setSelectedInterview(interview)}
-                        title="View Details"
-                      >
-                        <Eye size={16} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleDelete(interview.id)}
-                        title="Delete"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
+                    {interview.feedback && (
+                      <div className="mt-3 flex items-center gap-4">
+                        <span className={`text-xl font-bold ${getScoreColor(interview.feedback.overallScore)}`}>
+                          {interview.feedback.overallScore}%
+                        </span>
+                        <p className="text-xs text-gray-500 dark:text-white/40 line-clamp-1 flex-1">
+                          {interview.feedback.detailedFeedback}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex gap-1 ml-4">
+                    <button
+                      onClick={() => setSelectedInterview(interview)}
+                      title="View Details"
+                      className="p-2 rounded-xl text-gray-400 dark:text-white/30 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
+                    >
+                      <Eye size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(interview.id)}
+                      title="Delete"
+                      className="p-2 rounded-xl text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))
           )}
         </div>
       </div>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selectedInterview} onOpenChange={(open) => !open && setSelectedInterview(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
-          {selectedInterview && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{selectedInterview.title}</DialogTitle>
-                <p className="text-sm text-muted-foreground">
-                  {selectedInterview.company} &middot; {selectedInterview.position}
-                </p>
-              </DialogHeader>
-
-              <Tabs defaultValue="feedback" className="flex-1 overflow-hidden flex flex-col">
-                <TabsList className="w-full justify-start">
-                  <TabsTrigger value="feedback">Feedback</TabsTrigger>
-                  <TabsTrigger value="transcript">Transcript</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="feedback" className="flex-1 overflow-y-auto mt-4">
-                  {selectedInterview.feedback ? (
-                    <div className="space-y-5">
-                      <div className="flex items-center gap-4">
-                        <span className={cn('text-4xl font-bold', getScoreColor(selectedInterview.feedback.overallScore))}>
-                          {selectedInterview.feedback.overallScore}%
-                        </span>
-                        <span className="text-sm text-muted-foreground">Overall Score</span>
-                      </div>
-
-                      {selectedInterview.feedback.strengths.length > 0 && (
-                        <div>
-                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Strengths</h4>
-                          <ul className="space-y-1">
-                            {selectedInterview.feedback.strengths.map((s, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <span className="text-green-500 mt-0.5">+</span>
-                                <span>{s}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {selectedInterview.feedback.weaknesses.length > 0 && (
-                        <div>
-                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Areas for Improvement</h4>
-                          <ul className="space-y-1">
-                            {selectedInterview.feedback.weaknesses.map((w, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <span className="text-yellow-500 mt-0.5">!</span>
-                                <span>{w}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {selectedInterview.feedback.suggestions.length > 0 && (
-                        <div>
-                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Suggestions</h4>
-                          <ul className="space-y-1">
-                            {selectedInterview.feedback.suggestions.map((s, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <span className="text-primary mt-0.5">&rarr;</span>
-                                <span>{s}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <Separator />
-
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Detailed Feedback</h4>
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                          {selectedInterview.feedback.detailedFeedback}
-                        </p>
-                      </div>
-
-                      {/* View detailed Q/A feedback */}
-                      {selectedInterview.feedback.questionFeedbacks &&
-                       selectedInterview.feedback.questionFeedbacks.length > 0 && (
-                        <Button
-                          onClick={() => {
-                            setSelectedInterview(null);
-                            navigate(`/feedback/${selectedInterview.id}`);
-                          }}
-                          className="gap-2"
-                        >
-                          View Detailed Question Feedback
-                        </Button>
-                      )}
+      <LemonDialog
+        open={!!selectedInterview}
+        onClose={() => setSelectedInterview(null)}
+        title={selectedInterview?.title}
+        subtitle={
+          selectedInterview && (
+            <p className="text-sm text-gray-500 dark:text-white/40">
+              {selectedInterview.company} &middot; {selectedInterview.position}
+            </p>
+          )
+        }
+        className="max-w-4xl max-h-[85vh] flex flex-col"
+      >
+        {selectedInterview && (
+          <LemonTabs
+            defaultValue="feedback"
+            className="flex-1 overflow-hidden flex flex-col"
+            listClassName="px-6 pt-2"
+            contentClassName="flex-1 overflow-y-auto mt-4 px-6 pb-6"
+            tabs={[
+              {
+                value: 'feedback',
+                label: 'Feedback',
+                content: selectedInterview.feedback ? (
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-4">
+                      <span className={`text-3xl font-bold ${getScoreColor(selectedInterview.feedback.overallScore)}`}>
+                        {selectedInterview.feedback.overallScore}%
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-white/40">Overall Score</span>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No feedback available for this interview.
-                    </p>
-                  )}
-                </TabsContent>
 
-                <TabsContent value="transcript" className="flex-1 overflow-y-auto mt-4">
+                    {selectedInterview.feedback.strengths.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Strengths</h4>
+                        <ul className="space-y-1">
+                          {selectedInterview.feedback.strengths.map((s, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedInterview.feedback.weaknesses.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Areas for Improvement</h4>
+                        <ul className="space-y-1">
+                          {selectedInterview.feedback.weaknesses.map((w, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-yellow-500 dark:text-yellow-400 mt-0.5">!</span>
+                              <span>{w}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedInterview.feedback.suggestions.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Suggestions</h4>
+                        <ul className="space-y-1">
+                          {selectedInterview.feedback.suggestions.map((s, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-lemonade-accent-hover mt-0.5">&rarr;</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
+
+                    <div>
+                      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Detailed Feedback</h4>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                        {selectedInterview.feedback.detailedFeedback}
+                      </p>
+                    </div>
+
+                    {selectedInterview.feedback.questionFeedbacks &&
+                     selectedInterview.feedback.questionFeedbacks.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setSelectedInterview(null);
+                          navigate(`/feedback/${selectedInterview.id}`);
+                        }}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                      >
+                        View Detailed Question Feedback
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-white/40 text-center py-8">
+                    No feedback available for this interview.
+                  </p>
+                ),
+              },
+              {
+                value: 'transcript',
+                label: 'Transcript',
+                content: (
                   <div className="space-y-3">
                     {selectedInterview.transcript
                       .filter((msg) => msg.role !== 'system')
                       .map((message) => (
                         <div
                           key={message.id}
-                          className={cn(
-                            'p-3 rounded-lg text-sm',
+                          className={`p-3 rounded-xl text-sm ${
                             message.role === 'user'
-                              ? 'bg-primary/10 ml-12'
-                              : 'bg-muted mr-12'
-                          )}
+                              ? 'bg-lemonade-accent/10 ml-12'
+                              : 'bg-lemonade-bg dark:bg-white/[0.03] mr-12'
+                          }`}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-muted-foreground">
+                            <span className="text-xs font-medium text-gray-500 dark:text-white/40">
                               {message.role === 'user' ? 'You' : 'Interviewer'}
                             </span>
-                            <span className="text-[10px] text-muted-foreground/60">
+                            <span className="text-[11px] text-gray-400 dark:text-white/30">
                               {format(new Date(message.timestamp), 'h:mm a')}
                             </span>
                           </div>
@@ -302,12 +275,12 @@ const InterviewHistory: React.FC = () => {
                         </div>
                       ))}
                   </div>
-                </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+                ),
+              },
+            ]}
+          />
+        )}
+      </LemonDialog>
     </div>
   );
 };

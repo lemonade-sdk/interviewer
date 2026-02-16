@@ -84,6 +84,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDocument: (id: string) => ipcRenderer.invoke('document:get', id),
   getDocumentFileData: (id: string) => ipcRenderer.invoke('document:getFileData', id),
   deleteDocument: (id: string) => ipcRenderer.invoke('document:delete', id),
+  extractJobDetails: (jobPostDocId: string) => ipcRenderer.invoke('document:extractJobDetails', jobPostDocId),
   
   // MCP operations
   getMCPServers: () => ipcRenderer.invoke('mcp:getServers'),

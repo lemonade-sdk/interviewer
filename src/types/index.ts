@@ -433,6 +433,12 @@ export interface IPC {
   getDocument: (id: string) => Promise<UploadedDocument | null>;
   getDocumentFileData: (id: string) => Promise<{ base64: string; mimeType: string; fileName: string } | null>;
   deleteDocument: (id: string) => Promise<boolean>;
+  extractJobDetails: (jobPostDocId: string) => Promise<{
+    title: string;
+    company: string;
+    position: string;
+    interviewType: string;
+  }>;
 
   // MCP operations
   getMCPServers: () => Promise<MCPServer[]>;

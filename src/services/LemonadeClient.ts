@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import http from 'http';
 import https from 'https';
+import net from 'net';
 import { InterviewerSettings, Message, ModelConfig } from '../types';
 import axios from 'axios';
 
@@ -132,17 +133,34 @@ export class LemonadeClient {
       let responseContent = choice?.message?.content ?? '';
 
       // DeepSeek / reasoning models may return empty `content` with a
-      // populated `reasoning_content` field.  Use it as a fallback so
-      // the user at least sees the model's reasoning output.
+      // populated `reasoning_content` field.  Try to extract useful output
+      // (e.g. JSON) from the reasoning before falling back to the raw text.
       if (!responseContent && choice?.message) {
         const msg = choice.message as any;
         if (msg.reasoning_content) {
           console.warn(
-            'Model returned empty content but has reasoning_content — using reasoning as response.',
+            'Model returned empty content but has reasoning_content — attempting extraction.',
             `finish_reason=${choice.finish_reason}, reasoning length=${msg.reasoning_content.length}`,
           );
-          // Strip the internal thinking wrapper if present and extract useful text
-          responseContent = msg.reasoning_content;
+          const reasoning: string = msg.reasoning_content;
+
+          // Heuristic: try to find a JSON object embedded in the reasoning text.
+          // Reasoning models sometimes include the final answer inside their thinking.
+          const jsonStart = reasoning.lastIndexOf('{');
+          const jsonEnd = reasoning.lastIndexOf('}');
+          if (jsonStart !== -1 && jsonEnd > jsonStart) {
+            try {
+              JSON.parse(reasoning.slice(jsonStart, jsonEnd + 1));
+              // Valid JSON found in reasoning — use just that fragment
+              responseContent = reasoning.slice(jsonStart, jsonEnd + 1);
+              console.info('Extracted JSON from reasoning_content.');
+            } catch {
+              // Not valid JSON; fall through to raw reasoning
+              responseContent = reasoning;
+            }
+          } else {
+            responseContent = reasoning;
+          }
         }
       }
 
@@ -684,30 +702,34 @@ export class LemonadeClient {
 
       // websocket_port is missing — the server likely was NOT compiled
       // with LEMON_HAS_WEBSOCKET, or the WS server did not start.
-      // Check if any Whisper model is loaded and extract its backend port
-      // as a last-resort heuristic (some builds expose WS on the backend port).
-      const whisperModel = (health.all_models_loaded ?? []).find(
-        (m) => m.recipe === 'whispercpp' || m.model_name.toLowerCase().startsWith('whisper'),
-      );
-      if (whisperModel?.backend_url) {
-        try {
-          const url = new URL(whisperModel.backend_url);
-          const port = parseInt(url.port, 10);
-          if (!isNaN(port)) {
-            console.warn(
-              `[getWebSocketPort] websocket_port not in /health. ` +
-              `Falling back to Whisper backend port ${port} from ${whisperModel.backend_url}. ` +
-              `This may not work — consider updating lemonade-server to a build with WebSocket support.`,
-            );
-            return port;
-          }
-        } catch {
-          // ignore parse failure
-        }
+
+      // Try to probe the default WebSocket port (9000) as a fallback
+      // This handles cases where the server is running but /health doesn't report the port
+      const defaultPort = 9000;
+      const isPortOpen = await new Promise<boolean>((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(200); // Quick check
+        socket.on('connect', () => {
+          socket.destroy();
+          resolve(true);
+        });
+        socket.on('timeout', () => {
+          socket.destroy();
+          resolve(false);
+        });
+        socket.on('error', () => {
+          resolve(false);
+        });
+        socket.connect(defaultPort, '127.0.0.1');
+      });
+
+      if (isPortOpen) {
+        console.log(`[getWebSocketPort] websocket_port not in /health, but port ${defaultPort} is open. Using it.`);
+        return defaultPort;
       }
 
       console.warn(
-        '[getWebSocketPort] No websocket_port found in /health response. ' +
+        '[getWebSocketPort] No websocket_port found in /health response and port 9000 is closed. ' +
         'Real-time transcription requires a lemonade-server build with WebSocket support. ' +
         'Check that LEMON_HAS_WEBSOCKET is enabled in your build.',
       );

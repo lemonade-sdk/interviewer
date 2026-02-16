@@ -10,6 +10,8 @@ import {
   Keyboard,
   MicOff,
   Clock,
+  User,
+  Bot
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
@@ -24,9 +26,8 @@ import { PersonaSelector } from '../components/PersonaSelector';
 import { AudioSettings } from '../components/AudioSettings';
 import { VoiceOrb } from '../components/VoiceOrb';
 import { VoiceInterviewManager } from '../../services/VoiceInterviewManager';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { cn } from '../lib/utils';
+import { LemonBadge, LemonDialog } from '../components/lemon';
+import { cn } from '@ui/lib';
 
 type InterviewStage = 'loading' | 'interview';
 
@@ -36,7 +37,6 @@ const Interview: React.FC = () => {
   const location = useLocation();
   const { currentInterview, setCurrentInterview } = useStore();
 
-  // Voice hint from Preparing page (not a gate — we always try to initialize)
   const voiceHint = (location.state as any)?.voiceEnabled ?? true;
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,11 +44,9 @@ const Interview: React.FC = () => {
   const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Stage management
   const [stage, setStage] = useState<InterviewStage>('loading');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Voice state
   const [showPersonaSelector, setShowPersonaSelector] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<AgentPersona | null>(null);
   const [voiceMode] = useState(true);
@@ -66,20 +64,16 @@ const Interview: React.FC = () => {
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
 
-  // Interview timer (seconds)
   const [timerSeconds, setTimerSeconds] = useState(0);
-  const [timerDuration, setTimerDuration] = useState(1800); // 30min default, loaded from settings
+  const [timerDuration, setTimerDuration] = useState(1800);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isTimerWarning = timerSeconds >= timerDuration * 0.8; // 80% threshold
+  const isTimerWarning = timerSeconds >= timerDuration * 0.8;
   const isTimerExpired = timerSeconds >= timerDuration;
 
-  // Voice manager instance
   const voiceManagerRef = useRef<VoiceInterviewManager | null>(null);
   const hasInitiatedRef = useRef(false);
-  // Ref to track whether we should resume listening after AI finishes speaking
   const shouldResumeListeningRef = useRef(false);
 
-  // ─── Timer formatting ───────────────────────────────────
   const formatTime = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -94,10 +88,9 @@ const Interview: React.FC = () => {
       loadInterview();
       loadDefaultPersona();
       initializeVoiceManager();
-      // Load timer duration from settings
       window.electronAPI?.getSettings().then((s) => {
         if (s?.defaultInterviewDuration) {
-          setTimerDuration(s.defaultInterviewDuration * 60); // convert minutes to seconds
+          setTimerDuration(s.defaultInterviewDuration * 60);
         }
       }).catch(() => {});
     }
@@ -112,7 +105,6 @@ const Interview: React.FC = () => {
     };
   }, [id]);
 
-  // Start timer when interview stage begins
   useEffect(() => {
     if (stage === 'interview' && !timerIntervalRef.current) {
       timerIntervalRef.current = setInterval(() => {
@@ -127,22 +119,18 @@ const Interview: React.FC = () => {
     };
   }, [stage]);
 
-  // Auto-end when timer expires
   useEffect(() => {
     if (isTimerExpired && id) {
-      handleEndInterview(true); // auto-end
+      handleEndInterview(true);
     }
   }, [isTimerExpired]);
 
-  // TTS Initiation + auto hands-free
   useEffect(() => {
     if (stage === 'interview' && voiceReady && !hasInitiatedRef.current) {
       hasInitiatedRef.current = true;
       if (messages.length === 0) {
-        // Fresh interview: AI speaks first, then hands-free starts inside handleTTSInitiation
         handleTTSInitiation();
       } else {
-        // Resumed interview with existing messages: go straight to hands-free
         startHandsFreeMode();
       }
     }
@@ -152,7 +140,6 @@ const Interview: React.FC = () => {
     scrollToBottom();
   }, [messages, isTranscribing, isThinking, transcriptionDelta]);
 
-  // Auto-save transcript
   useEffect(() => {
     if (id && messages.length > 0 && currentInterview) {
       const timeoutId = setTimeout(() => saveTranscript(), 1000);
@@ -160,7 +147,6 @@ const Interview: React.FC = () => {
     }
   }, [messages, id]);
 
-  // Transition to interview stage
   useEffect(() => {
     if (currentInterview && !isLoaded) {
       const timer = setTimeout(() => {
@@ -181,7 +167,6 @@ const Interview: React.FC = () => {
       setIsThinking(true);
 
       if (!isMuted) {
-        // ─── Streaming path: AI speaks as tokens arrive ────
         const assistantMsgId = (Date.now() + 1).toString();
         let accumulatedText = '';
 
@@ -230,7 +215,6 @@ const Interview: React.FC = () => {
         shouldResumeListeningRef.current = true;
         await startHandsFreeMode();
       } else {
-        // ─── Non-streaming: muted ──────────────────────────
         const response = await window.electronAPI.sendMessage(id, greetingText);
         setIsThinking(false);
         setMessages((prev) => [...prev, response]);
@@ -256,6 +240,7 @@ const Interview: React.FC = () => {
       setIsHandsFreeMode(false);
     }
   };
+
   const saveTranscript = async () => {
     if (!id || messages.length === 0) return;
     try {
@@ -285,7 +270,6 @@ const Interview: React.FC = () => {
       const defaultPersona = await window.electronAPI.getDefaultPersona();
       if (defaultPersona) setSelectedPersona(defaultPersona);
     } catch {
-      // Persona loading is non-critical
     }
   };
 
@@ -310,10 +294,7 @@ const Interview: React.FC = () => {
             asrModel = settings.asrModel as typeof asrModel;
           }
         }
-        
-        // Fetch WebSocket port from Lemonade Server
         wsPort = await window.electronAPI.getWebSocketPort();
-        console.log('WebSocket port for real-time ASR:', wsPort);
       } catch (err) {
         console.warn('Failed to fetch settings or wsPort:', err);
       }
@@ -327,7 +308,6 @@ const Interview: React.FC = () => {
         DEFAULT_ASR_CONFIG,
       );
 
-      // Wire events
       manager.on('recording-started', () => setIsRecording(true));
       manager.on('recording-stopped', () => {
         setIsRecording(false);
@@ -343,16 +323,12 @@ const Interview: React.FC = () => {
       manager.on('transcription-complete', async (text: string) => {
         setIsTranscribing(false);
         setTranscriptionDelta('');
-        // Only auto-send in non-hands-free mode (tap-to-speak)
-        // In hands-free mode, 'utterance-complete' handles submission
         if (!manager.isHandsFreeMode && text.trim() && id) {
           await sendVoiceMessage(text);
         }
       });
 
-      // ── Hands-free mode events ──
       manager.on('utterance-complete', async (text: string) => {
-        console.log('Hands-free utterance received:', text);
         setTranscriptionDelta('');
         if (text.trim() && id) {
           await sendVoiceMessage(text);
@@ -376,7 +352,6 @@ const Interview: React.FC = () => {
       await manager.initialize();
       voiceManagerRef.current = manager;
       setVoiceReady(true);
-      console.log('Voice manager initialized');
     } catch (error) {
       console.error('Voice manager initialization failed:', error);
       setVoiceReady(false);
@@ -396,7 +371,6 @@ const Interview: React.FC = () => {
     if (!id) return;
     const manager = voiceManagerRef.current;
 
-    // Pause hands-free listening while AI processes + speaks
     if (manager?.isHandsFreeMode && manager.getState().isRecording) {
       manager.stopHandsFreeListening(false);
     }
@@ -409,27 +383,19 @@ const Interview: React.FC = () => {
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
-    // ─── Streaming path: voice mode with TTS pipelining ──────
-    // Tokens are streamed from the LLM and fed into the sentence
-    // chunker → TTS queue so the AI starts speaking within seconds.
     const useStreaming = voiceMode && manager && !isMuted;
 
     if (useStreaming) {
-      // Prepare a placeholder assistant message that updates as tokens arrive
       const assistantMsgId = (Date.now() + 1).toString();
       let accumulatedText = '';
 
       try {
         setIsThinking(true);
-
-        // Start the TTS pipeline BEFORE tokens arrive
         manager.startStreamingPipeline();
 
-        // Register the token listener — feeds each token to the chunker
         window.electronAPI.onLLMToken((token: string) => {
           accumulatedText += token;
           manager.feedToken(token);
-          // Update the assistant message in the UI as tokens arrive (typewriter)
           setMessages((prev) => {
             const existing = prev.find((m) => m.id === assistantMsgId);
             if (existing) {
@@ -449,14 +415,10 @@ const Interview: React.FC = () => {
           });
         });
 
-        // Start the streaming IPC — resolves when the LLM finishes
-        setIsThinking(false); // LLM is now streaming, no longer "thinking"
+        setIsThinking(false);
         const response = await window.electronAPI.sendMessageStreaming(id, text);
-
-        // Flush remaining buffered text to TTS
         manager.flushRemainingText();
 
-        // Ensure the final message content uses the cleaned response from main process
         if (response) {
           setMessages((prev) =>
             prev.map((m) =>
@@ -465,16 +427,11 @@ const Interview: React.FC = () => {
           );
         }
 
-        // Wait for TTS queue to finish playing all sentences
         await manager.waitForTTSQueueDrain();
-
-        // Clean up listeners
         window.electronAPI.offLLMToken();
         window.electronAPI.offLLMDone();
-
         await loadInterview();
 
-        // Resume hands-free listening
         if (manager.isHandsFreeMode) {
           try {
             await manager.resumeHandsFreeListening();
@@ -503,16 +460,13 @@ const Interview: React.FC = () => {
       return;
     }
 
-    // ─── Non-streaming path: text mode or muted ─────────────
     try {
       setIsThinking(true);
       const response = await window.electronAPI.sendMessage(id, text);
       setIsThinking(false);
       setMessages((prev) => [...prev, response]);
-
       await loadInterview();
 
-      // Resume hands-free listening after response
       if (manager?.isHandsFreeMode) {
         try {
           await manager.resumeHandsFreeListening();
@@ -551,24 +505,19 @@ const Interview: React.FC = () => {
     }
 
     try {
-      // If AI is speaking, interrupt it
       if (isSpeaking) {
         manager.stopSpeaking();
-        // If in hands-free mode, start listening now
         if (isHandsFreeMode) {
           await manager.resumeHandsFreeListening();
         }
         return;
       }
 
-      // Toggle hands-free mode
       if (isHandsFreeMode) {
-        // Currently in hands-free mode — exit it
         manager.exitHandsFreeMode();
         setIsHandsFreeMode(false);
         setIsListening(false);
       } else {
-        // Enter hands-free mode
         await startHandsFreeMode();
       }
     } catch (error: any) {
@@ -593,12 +542,10 @@ const Interview: React.FC = () => {
       if (!confirmed) return;
     }
 
-    // Stop voice manager
     if (voiceManagerRef.current) {
       voiceManagerRef.current.cleanup();
       voiceManagerRef.current = null;
     }
-    // Stop timer
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
@@ -606,7 +553,6 @@ const Interview: React.FC = () => {
 
     try {
       await window.electronAPI.endInterview(id);
-      // Navigate to feedback page for detailed Q/A scoring
       navigate(`/feedback/${id}`, { replace: true });
     } catch (error) {
       console.error('Failed to end interview:', error);
@@ -626,18 +572,18 @@ const Interview: React.FC = () => {
   // ─── Loading state ────────────────────────────────────────
   if (!currentInterview || stage === 'loading') {
     return (
-      <div className="flex flex-col h-full bg-background items-center justify-center">
+      <div className="flex flex-col h-full bg-lemonade-bg dark:bg-lemonade-dark-bg items-center justify-center transition-colors duration-300">
         <div className="relative w-20 h-20 mb-8">
           <div
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-primary to-primary/70"
+            className="absolute inset-0 rounded-full bg-gradient-to-br from-lemonade-accent to-lemonade-accent-hover"
             style={{ animation: 'orbBreathe 2s ease-in-out infinite' }}
           />
           <div
-            className="absolute rounded-full border-2 border-primary/20"
+            className="absolute rounded-full border-2 border-lemonade-accent/20"
             style={{ inset: '-8px', animation: 'spin 3s linear infinite' }}
           />
         </div>
-        <p className="text-sm font-medium text-muted-foreground tracking-wide">
+        <p className="text-sm font-medium text-gray-500 dark:text-white/50 tracking-wide">
           Preparing your interview...
         </p>
       </div>
@@ -648,103 +594,118 @@ const Interview: React.FC = () => {
   const visibleMessages = messages.filter((m) => m.role !== 'system');
 
   return (
-    <div className="flex flex-col h-full bg-background text-foreground overflow-hidden">
-      {/* Persona Selector Modal */}
-      {showPersonaSelector && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <PersonaSelector
-              selectedPersonaId={selectedPersona?.id}
-              onSelect={handlePersonaSelect}
-              onClose={() => setShowPersonaSelector(false)}
-            />
-          </div>
+    <div className="flex flex-col h-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white overflow-hidden transition-colors duration-300">
+      {/* Persona Selector Dialog */}
+      <LemonDialog
+        open={showPersonaSelector}
+        onClose={() => setShowPersonaSelector(false)}
+        title="Select Interviewer Persona"
+        subtitle={<span className="text-xs text-gray-500">Choose the personality and style of your interviewer.</span>}
+        className="max-w-4xl"
+      >
+        <div className="p-6">
+          <PersonaSelector
+            selectedPersonaId={selectedPersona?.id}
+            onSelect={handlePersonaSelect}
+            onClose={() => setShowPersonaSelector(false)}
+          />
         </div>
-      )}
+      </LemonDialog>
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
+      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <button
             onClick={() => navigate('/dashboard')}
+            className="p-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
           >
             <ArrowLeft size={18} />
-          </Button>
+          </button>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold truncate">
-              {currentInterview.title}
-            </h1>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-semibold truncate">
+                {currentInterview.title}
+              </h1>
+              <LemonBadge variant="outline">
+                {currentInterview.interviewType}
+              </LemonBadge>
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
               {currentInterview.company} &middot; {currentInterview.position}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {/* Timer */}
-          <Badge
-            variant="outline"
-            className={cn(
-              'gap-1 font-mono text-xs tabular-nums',
-              isTimerExpired
-                ? 'border-destructive text-destructive animate-pulse'
-                : isTimerWarning
-                  ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400'
-                  : 'border-border text-muted-foreground'
-            )}
-          >
+          <span className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-xl font-mono text-xs tabular-nums transition-colors",
+            isTimerExpired
+              ? "border-red-500 text-red-500 dark:text-red-400 animate-pulse"
+              : isTimerWarning
+                ? "border-yellow-400 text-yellow-600 dark:text-yellow-400"
+                : "border-gray-200/60 dark:border-white/10 text-gray-500 dark:text-white/50"
+          )}>
             <Clock size={12} />
             {formatTime(remainingTime)}
-          </Badge>
+          </span>
 
           {/* Toggle text input */}
-          <Button
-            variant={showTextInput ? 'secondary' : 'ghost'}
-            size="icon-sm"
+          <button
             onClick={() => setShowTextInput(!showTextInput)}
             title="Toggle text input"
+            className={cn(
+              "p-2 rounded-xl transition-colors",
+              showTextInput
+                ? "bg-lemonade-accent/15 text-lemonade-accent-hover"
+                : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
+            )}
           >
             <Keyboard size={16} />
-          </Button>
+          </button>
 
           {/* Mute toggle */}
-          <Button
-            variant={isMuted ? 'destructive' : 'ghost'}
-            size="icon-sm"
+          <button
             onClick={handleToggleMute}
             title={isMuted ? 'Unmute' : 'Mute'}
+            className={cn(
+              "p-2 rounded-xl transition-colors",
+              isMuted
+                ? "bg-red-500/15 text-red-500"
+                : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
+            )}
           >
             {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </Button>
+          </button>
 
           {/* Audio Settings */}
-          <Button
-            variant={showAudioSettings ? 'secondary' : 'ghost'}
-            size="icon-sm"
+          <button
             onClick={() => setShowAudioSettings(!showAudioSettings)}
             title="Audio settings"
+            className={cn(
+              "p-2 rounded-xl transition-colors",
+              showAudioSettings
+                ? "bg-lemonade-accent/15 text-lemonade-accent-hover"
+                : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
+            )}
           >
             <Settings size={16} />
-          </Button>
+          </button>
 
           {/* End Interview */}
-          <Button
-            variant="destructive"
-            size="sm"
+          <button
             onClick={() => handleEndInterview(false)}
-            className="ml-2 gap-1.5"
+            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/15 text-red-600 dark:text-red-400 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition-colors"
           >
             <StopCircle size={14} />
             End
-          </Button>
+          </button>
         </div>
       </header>
 
       {/* Audio Settings Panel */}
       {showAudioSettings && (
-        <div className="border-b border-border bg-card px-5 py-3">
+        <div className="border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface px-5 py-3 transition-colors duration-300">
           <AudioSettings />
         </div>
       )}
@@ -757,7 +718,7 @@ const Interview: React.FC = () => {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'radial-gradient(ellipse 60% 50% at 50% 45%, hsl(var(--primary) / 0.03) 0%, transparent 100%)',
+                'radial-gradient(ellipse 60% 50% at 50% 45%, rgba(255,215,68,0.04) 0%, transparent 100%)',
             }}
           />
 
@@ -773,40 +734,42 @@ const Interview: React.FC = () => {
           />
 
           {/* Mode indicator below orb */}
-          {voiceReady && isHandsFreeMode && (
-            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-500 dark:text-emerald-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-              <span>
-                {isListening
-                  ? 'Listening — speak naturally'
-                  : isSpeaking
-                    ? 'AI is speaking...'
-                    : isThinking
-                      ? 'AI is thinking...'
-                      : 'Hands-free mode active'}
-              </span>
-            </div>
-          )}
+          <div className="mt-4 h-8 flex items-center justify-center">
+            {voiceReady && isHandsFreeMode && (
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>
+                  {isListening
+                    ? 'Listening — speak naturally'
+                    : isSpeaking
+                      ? 'AI is speaking...'
+                      : isThinking
+                        ? 'AI is thinking...'
+                        : 'Hands-free mode active'}
+                </span>
+              </div>
+            )}
 
-          {voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
-            <div className="mt-3 text-[11px] text-muted-foreground/40">
-              Starting hands-free mode...
-            </div>
-          )}
+            {voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
+              <p className="text-[11px] text-gray-400 dark:text-white/30">
+                Starting hands-free mode...
+              </p>
+            )}
 
-          {!voiceReady && (
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
-              <MicOff size={12} />
-              <span>Voice unavailable — use text input</span>
-            </div>
-          )}
+            {!voiceReady && (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-white/40">
+                <MicOff size={12} />
+                <span>Voice unavailable — use text input</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Transcript Area ── */}
-        <div className="h-[42%] min-h-[200px] flex flex-col border-t border-border">
+        <div className="h-[45%] min-h-[240px] flex flex-col border-t border-gray-200/50 dark:border-white/5">
           {/* Status bar */}
-          <div className="px-5 py-2 flex items-center justify-between border-b border-border/50">
-            <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest">
+          <div className="px-6 py-2.5 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
+            <span className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Transcript
             </span>
             <div className="flex items-center gap-3">
@@ -820,10 +783,10 @@ const Interview: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
             {visibleMessages.length === 0 && !isThinking && (
               <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-muted-foreground/30">
+                <p className="text-sm text-gray-400 dark:text-white/30">
                   Your conversation will appear here
                 </p>
               </div>
@@ -836,8 +799,8 @@ const Interview: React.FC = () => {
             {/* Real-time transcription delta */}
             {transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="bg-primary/5 border border-primary/10 rounded-xl rounded-br-sm px-4 py-2.5">
-                  <p className="text-sm text-primary/60 italic">{transcriptionDelta}</p>
+                <div className="max-w-[75%] bg-lemonade-accent/10 dark:bg-lemonade-accent/5 border border-lemonade-accent/20 dark:border-lemonade-accent/10 rounded-2xl rounded-br-sm px-4 py-2.5">
+                  <p className="text-sm text-lemonade-accent-hover dark:text-lemonade-accent/60 italic">{transcriptionDelta}</p>
                 </div>
               </div>
             )}
@@ -845,12 +808,12 @@ const Interview: React.FC = () => {
             {/* Transcribing indicator */}
             {isTranscribing && !transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="bg-primary/10 border border-primary/20 rounded-xl rounded-br-sm px-4 py-2.5 flex items-center gap-2">
+                <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-sm px-4 py-2.5 flex items-center gap-2">
                   <div className="flex items-center gap-[3px]">
                     {[0, 1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="w-[3px] bg-primary/50 rounded-full"
+                        className="w-[3px] bg-lemonade-accent/50 rounded-full"
                         style={{
                           height: `${8 + i * 2}px`,
                           animation: `pulse 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
@@ -858,7 +821,7 @@ const Interview: React.FC = () => {
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-primary/70">Processing speech...</span>
+                  <span className="text-xs text-lemonade-accent-hover dark:text-lemonade-accent/70">Processing speech...</span>
                 </div>
               </div>
             )}
@@ -866,17 +829,17 @@ const Interview: React.FC = () => {
             {/* Thinking indicator */}
             {isThinking && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2">
+                <div className="bg-gray-100 dark:bg-white/[0.04] rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2">
                   <div className="flex items-center gap-1">
                     {[0, 1, 2].map((i) => (
                       <div
                         key={i}
-                        className="w-1.5 h-1.5 bg-muted-foreground/30 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 bg-gray-400 dark:bg-white/30 rounded-full animate-bounce"
                         style={{ animationDelay: `${i * 0.15}s` }}
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-muted-foreground/50">Thinking...</span>
+                  <span className="text-xs text-gray-500 dark:text-white/50">Thinking...</span>
                 </div>
               </div>
             )}
@@ -884,7 +847,7 @@ const Interview: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Text input — togglable */}
+          {/* Text input */}
           {showTextInput && (
             <form
               onSubmit={(e) => {
@@ -894,7 +857,7 @@ const Interview: React.FC = () => {
                   setTextInput('');
                 }
               }}
-              className="px-4 py-2.5 border-t border-border/50 flex items-center gap-2"
+              className="px-5 py-3 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-2.5"
             >
               <input
                 type="text"
@@ -902,15 +865,15 @@ const Interview: React.FC = () => {
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
-                className="flex-1 px-4 py-2 text-sm bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring/50 disabled:opacity-40 transition-colors"
+                className="flex-1 px-4 py-2.5 text-sm bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
               />
-              <Button
+              <button
                 type="submit"
                 disabled={isSending || !textInput.trim()}
-                size="icon"
+                className="p-2.5 bg-lemonade-accent text-black rounded-2xl hover:bg-lemonade-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <Send size={16} />
-              </Button>
+              </button>
             </form>
           )}
         </div>
@@ -936,8 +899,8 @@ const StatusDot: React.FC<StatusDotProps> = ({ color, label }) => {
   };
 
   return (
-    <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">
-      <span className={`w-1.5 h-1.5 rounded-full ${colorMap[color]} animate-pulse`} />
+    <span className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 dark:text-white/40 uppercase tracking-wider">
+      <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", colorMap[color])} />
       {label}
     </span>
   );
@@ -951,22 +914,32 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className="max-w-[75%] min-w-[60px]">
+    <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
+      {!isUser && (
+        <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0 mt-0.5 text-gray-400">
+          <Bot size={15} />
+        </div>
+      )}
+      <div className="max-w-[75%] min-w-[80px]">
         <div
           className={cn(
-            'px-4 py-2.5 text-sm leading-relaxed',
+            "px-4 py-3 text-sm leading-[1.7]",
             isUser
-              ? 'bg-primary text-primary-foreground rounded-xl rounded-br-sm'
-              : 'bg-muted text-foreground rounded-xl rounded-bl-sm'
+              ? "bg-lemonade-accent text-black rounded-2xl rounded-br-sm"
+              : "bg-gray-100 dark:bg-white/[0.05] text-black dark:text-white rounded-2xl rounded-bl-sm"
           )}
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-        <p className={`text-[10px] text-muted-foreground/40 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
+        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-1.5 px-1", isUser ? "text-right" : "text-left")}>
           {format(new Date(message.timestamp), 'h:mm a')}
         </p>
       </div>
+      {isUser && (
+        <div className="w-8 h-8 rounded-xl bg-lemonade-accent flex items-center justify-center shrink-0 mt-0.5 text-black">
+          <User size={15} />
+        </div>
+      )}
     </div>
   );
 };

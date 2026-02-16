@@ -20,6 +20,11 @@ export class RealtimeASRService extends EventEmitter {
   private isConnected: boolean = false;
   private config: ASRConfig;
 
+  /** Circuit breaker: consecutive empty transcripts received from server */
+  private consecutiveEmptyTranscripts: number = 0;
+  private static readonly MAX_EMPTY_TRANSCRIPTS = 5;
+  private circuitBroken: boolean = false;
+
   constructor(wsUrl: string, model: string = 'Whisper-Tiny', config?: Partial<ASRConfig>) {
     super();
     this.wsUrl = wsUrl;
@@ -32,6 +37,10 @@ export class RealtimeASRService extends EventEmitter {
    */
   async start(stream: MediaStream): Promise<void> {
     if (this.isConnected) return;
+
+    // Reset circuit breaker state
+    this.consecutiveEmptyTranscripts = 0;
+    this.circuitBroken = false;
 
     return new Promise((resolve, reject) => {
       try {
@@ -123,11 +132,15 @@ export class RealtimeASRService extends EventEmitter {
   private async setupAudioCapture(stream: MediaStream): Promise<void> {
     try {
       this.stream = stream;
-      this.audioContext = new AudioContext({ sampleRate: this.config.targetSampleRate });
+
+      // Use native sample rate to avoid Chromium silence bug when requesting
+      // non-native rates with ScriptProcessorNode. Downsample to targetSampleRate
+      // in the onaudioprocess callback instead.
+      this.audioContext = new AudioContext();
+      const nativeSR = this.audioContext.sampleRate;
+      const targetSR = this.config.targetSampleRate;
       const source = this.audioContext.createMediaStreamSource(this.stream);
 
-      // ScriptProcessor is deprecated but widely supported for simple PCM streaming.
-      // AudioWorklet is preferred for production but requires a separate module file.
       this.processor = this.audioContext.createScriptProcessor(this.config.bufferSize, 1, 1);
 
       source.connect(this.processor);
@@ -135,12 +148,17 @@ export class RealtimeASRService extends EventEmitter {
 
       this.processor.onaudioprocess = (e) => {
         if (!this.isConnected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+        if (this.circuitBroken) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
-        // Convert Float32 → Int16 PCM
-        const pcmData = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
+
+        // Downsample from native rate to target rate (e.g. 48000 → 16000)
+        const ratio = nativeSR / targetSR;
+        const downLen = Math.floor(inputData.length / ratio);
+        const pcmData = new Int16Array(downLen);
+        for (let i = 0; i < downLen; i++) {
+          const srcIdx = Math.floor(i * ratio);
+          const s = Math.max(-1, Math.min(1, inputData[srcIdx]));
           pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
 
@@ -182,9 +200,28 @@ export class RealtimeASRService extends EventEmitter {
       case 'conversation.item.input_audio_transcription.delta':
         this.emit('delta', event.delta);
         break;
-      case 'conversation.item.input_audio_transcription.completed':
-        this.emit('complete', event.transcript);
+      case 'conversation.item.input_audio_transcription.completed': {
+        const text = event.transcript || '';
+        this.emit('complete', text);
+
+        // Circuit breaker: detect loop of empty/silence responses
+        const isBasicallyEmpty = !text.trim() || 
+          text.includes('[BLANK_AUDIO]') || 
+          text.includes('(silence)');
+
+        if (isBasicallyEmpty) {
+          this.consecutiveEmptyTranscripts++;
+          if (this.consecutiveEmptyTranscripts >= RealtimeASRService.MAX_EMPTY_TRANSCRIPTS) {
+            console.warn('RealtimeASRService: Circuit breaker tripped (too many empty transcripts). Stopping audio capture.');
+            this.circuitBroken = true;
+            this.stopAudioCapture(); // Stop sending audio but keep socket open
+            this.emit('error', new Error('No speech detected for too long. Please try again.'));
+          }
+        } else {
+          this.consecutiveEmptyTranscripts = 0;
+        }
         break;
+      }
       case 'error':
         console.error('Server error:', event.error);
         this.emit('error', new Error(event.error?.message || 'Unknown server error'));

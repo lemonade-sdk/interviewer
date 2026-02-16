@@ -4,13 +4,6 @@ import {
   ChevronLeft, ChevronRight, Loader2, CheckCircle2,
   AlertTriangle, XCircle, ArrowLeft, Trophy, Zap,
 } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Progress } from '../components/ui/progress';
-import { Separator } from '../components/ui/separator';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { cn } from '../lib/utils';
 import { InterviewFeedback } from '../../types';
 
 type FeedbackPhase = 'loading' | 'reviewing';
@@ -26,7 +19,6 @@ const Feedback: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [animatingIn, setAnimatingIn] = useState(false);
 
-  // Generate feedback on mount
   useEffect(() => {
     if (!id) return;
     generateFeedback();
@@ -39,20 +31,16 @@ const Feedback: React.FC = () => {
 
   const generateFeedback = useCallback(async () => {
     if (!id || !window.electronAPI) return;
-
     try {
-      // Listen for progress events
       window.electronAPI.onFeedbackProgress((data) => {
         setProgressInfo(data);
       });
-
       const result = await window.electronAPI.generateFeedback(id);
       setFeedback(result);
       setPhase('reviewing');
       setAnimatingIn(true);
       setTimeout(() => setAnimatingIn(false), 600);
     } catch (err: any) {
-      console.error('Failed to generate feedback:', err);
       setError(err.message || 'Failed to generate feedback');
     } finally {
       if (window.electronAPI) {
@@ -61,7 +49,6 @@ const Feedback: React.FC = () => {
     }
   }, [id]);
 
-  // Navigate through questions
   const goToQuestion = (index: number) => {
     if (!feedback || index < 0 || index >= feedback.questionFeedbacks.length) return;
     setAnimatingIn(true);
@@ -75,67 +62,69 @@ const Feedback: React.FC = () => {
     ? Math.round((progressInfo.questionIndex / progressInfo.totalQuestions) * 100)
     : 0;
 
-  // Rating color utilities
   const getRatingColor = (rating: string) => {
     switch (rating) {
       case 'excellent': return 'text-green-600 dark:text-green-400';
-      case 'good': return 'text-yellow-600 dark:text-yellow-400';
+      case 'good': return 'text-lemonade-accent-hover';
       case 'needs-improvement': return 'text-red-600 dark:text-red-400';
-      default: return 'text-muted-foreground';
+      default: return 'text-gray-500 dark:text-white/40';
     }
   };
 
   const getRatingBg = (rating: string) => {
     switch (rating) {
-      case 'excellent': return 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800';
-      case 'good': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800';
-      case 'needs-improvement': return 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800';
-      default: return 'bg-muted border-border';
+      case 'excellent': return 'bg-green-50 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/15';
+      case 'good': return 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15';
+      case 'needs-improvement': return 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15';
+      default: return 'bg-gray-50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/5';
     }
   };
 
   const getRatingIcon = (rating: string) => {
     switch (rating) {
-      case 'excellent': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case 'good': return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
-      case 'needs-improvement': return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'excellent': return <CheckCircle2 className="w-4 h-4 text-green-500 dark:text-green-400" />;
+      case 'good': return <AlertTriangle className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
+      case 'needs-improvement': return <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />;
       default: return null;
     }
   };
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600 dark:text-green-400';
-    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+    if (score >= 60) return 'text-lemonade-accent-hover';
     return 'text-red-600 dark:text-red-400';
   };
 
   // ─── LOADING PHASE ───
   if (phase === 'loading') {
     return (
-      <div className="h-screen w-full bg-background text-foreground flex flex-col items-center justify-center">
+      <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col items-center justify-center transition-colors duration-300">
         <div className="w-full max-w-md px-6 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <div className="w-14 h-14 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
+            <Loader2 className="w-7 h-7 text-lemonade-accent-hover animate-spin" />
           </div>
 
           <div className="text-center space-y-2">
-            <h2 className="text-xl font-semibold">Analyzing Your Interview</h2>
-            <p className="text-sm text-muted-foreground">{progressInfo.status}</p>
+            <h2 className="text-lg font-bold">Analyzing Your Interview</h2>
+            <p className="text-sm text-gray-500 dark:text-white/40">{progressInfo.status}</p>
           </div>
 
           <div className="w-full space-y-2">
-            <Progress value={progressPercent} className="h-2" />
-            <p className="text-xs text-muted-foreground text-center">
+            <div className="w-full h-2 bg-gray-200/60 dark:bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-lemonade-accent to-lemonade-accent-hover rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 dark:text-white/30 text-center">
               {progressInfo.questionIndex} of {progressInfo.totalQuestions} questions graded
             </p>
           </div>
 
           {error && (
-            <Card className="w-full border-destructive/50 bg-destructive/5">
-              <CardContent className="p-4 text-sm text-destructive">
-                {error}
-              </CardContent>
-            </Card>
+            <div className="w-full border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-2xl p-4 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </div>
           )}
         </div>
       </div>
@@ -145,83 +134,80 @@ const Feedback: React.FC = () => {
   // ─── REVIEWING PHASE ───
   if (!feedback || !currentQF) {
     return (
-      <div className="h-screen w-full bg-background text-foreground flex items-center justify-center">
-        <p className="text-muted-foreground">No feedback data available.</p>
+      <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg flex items-center justify-center transition-colors duration-300">
+        <p className="text-gray-500 dark:text-white/40">No feedback data available.</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+        <div className="flex items-center gap-3">
+          <button
             onClick={() => navigate('/dashboard')}
+            className="p-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+            <ArrowLeft className="w-[18px] h-[18px]" />
+          </button>
           <div>
-            <h1 className="text-lg font-semibold">Interview Feedback</h1>
-            <p className="text-xs text-muted-foreground">
+            <h1 className="text-sm font-semibold">Interview Feedback</h1>
+            <p className="text-[11px] text-gray-500 dark:text-white/40">
               Question {currentQuestionIndex + 1} of {totalQuestions}
             </p>
           </div>
         </div>
 
-        {/* Overall Score */}
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Overall Score</p>
-            <p className={cn('text-2xl font-bold', getScoreColor(feedback.overallScore))}>
+            <p className="text-[11px] text-gray-400 dark:text-white/30 uppercase tracking-wider font-medium">Overall</p>
+            <p className={`text-xl font-bold ${getScoreColor(feedback.overallScore)}`}>
               {feedback.overallScore}%
             </p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Trophy className={cn('w-5 h-5', getScoreColor(feedback.overallScore))} />
+          <div className="w-9 h-9 rounded-xl bg-lemonade-accent/10 flex items-center justify-center">
+            <Trophy className={`w-4 h-4 ${getScoreColor(feedback.overallScore)}`} />
           </div>
         </div>
       </header>
 
-      {/* Main Content - Split View */}
+      {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Q/A */}
-        <div className="flex-1 border-r border-border flex flex-col">
-          <div className="px-6 py-3 bg-muted/30 border-b border-border">
+        <div className="flex-1 border-r border-gray-200/50 dark:border-white/5 flex flex-col">
+          <div className="px-6 py-2.5 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
             <div className="flex items-center gap-2">
               {getRatingIcon(currentQF.rating)}
-              <Badge variant="secondary" className={cn('text-xs', getRatingColor(currentQF.rating))}>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
                 {currentQF.rating.replace('-', ' ')}
-              </Badge>
-              <span className={cn('text-lg font-bold ml-auto', getScoreColor(currentQF.score))}>
+              </span>
+              <span className={`text-base font-bold ml-auto ${getScoreColor(currentQF.score)}`}>
                 {currentQF.score}/100
               </span>
             </div>
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className={cn(
-              'p-6 space-y-6 transition-all duration-400',
-              animatingIn ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
-            )}>
+          <div className="flex-1 overflow-y-auto">
+            <div className={`p-6 space-y-5 transition-all duration-300 ${
+              animatingIn ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
+            }`}>
               {/* Question */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Question {currentQuestionIndex + 1}
                 </p>
-                <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/5">
                   <p className="text-sm leading-relaxed">{currentQF.question}</p>
                 </div>
               </div>
 
               {/* Answer */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Your Answer
                 </p>
-                <div className="p-4 rounded-lg bg-card border border-border">
+                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/5">
                   <p className="text-sm leading-relaxed">{currentQF.answer}</p>
                 </div>
               </div>
@@ -229,83 +215,88 @@ const Feedback: React.FC = () => {
               {/* Suggested Answer */}
               {currentQF.suggestedAnswer && (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Zap className="w-3 h-3 text-primary" />
+                  <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider flex items-center gap-1.5">
+                    <Zap className="w-3 h-3 text-lemonade-accent-hover" />
                     Suggested Response
                   </p>
-                  <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="p-4 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
                     <p className="text-sm leading-relaxed">{currentQF.suggestedAnswer}</p>
                   </div>
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
 
         {/* Right Side: Feedback & Suggestions */}
-        <div className="w-[380px] flex flex-col">
-          <div className="px-6 py-3 bg-muted/30 border-b border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="w-[360px] flex flex-col">
+          <div className="px-6 py-2.5 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
+            <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Feedback & Suggestions
             </p>
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className={cn(
-              'p-6 space-y-5 transition-all duration-400 delay-100',
-              animatingIn ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
-            )}>
+          <div className="flex-1 overflow-y-auto">
+            <div className={`p-6 space-y-5 transition-all duration-300 delay-100 ${
+              animatingIn ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
+            }`}>
               {/* Strengths */}
               {currentQF.strengths.length > 0 && (
-                <Card className={cn('border', getRatingBg('excellent'))}>
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                <div className="bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-2xl overflow-hidden">
+                  <div className="px-4 pt-4 pb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3 h-3" />
                       Strengths
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4 pt-0">
+                    </h3>
+                  </div>
+                  <div className="px-4 pb-4">
                     <ul className="space-y-1.5">
                       {currentQF.strengths.map((s, i) => (
                         <li key={i} className="text-sm text-green-800 dark:text-green-300 flex items-start gap-2">
-                          <span className="text-green-500 mt-0.5">+</span>
+                          <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
                           <span>{s}</span>
                         </li>
                       ))}
                     </ul>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {/* Improvements */}
               {currentQF.improvements.length > 0 && (
-                <Card className={cn('border', getRatingBg(
-                  currentQF.rating === 'needs-improvement' ? 'needs-improvement' : 'good'
-                ))}>
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-yellow-700 dark:text-yellow-400 flex items-center gap-1.5">
-                      <AlertTriangle className="w-3.5 h-3.5" />
+                <div className={`border rounded-2xl overflow-hidden ${
+                  currentQF.rating === 'needs-improvement'
+                    ? 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15'
+                    : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15'
+                }`}>
+                  <div className="px-4 pt-4 pb-2">
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
+                      currentQF.rating === 'needs-improvement' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
+                    }`}>
+                      <AlertTriangle className="w-3 h-3" />
                       Areas to Improve
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4 pt-0">
+                    </h3>
+                  </div>
+                  <div className="px-4 pb-4">
                     <ul className="space-y-1.5">
                       {currentQF.improvements.map((imp, i) => (
-                        <li key={i} className="text-sm text-yellow-800 dark:text-yellow-300 flex items-start gap-2">
-                          <span className="text-yellow-500 mt-0.5">!</span>
+                        <li key={i} className={`text-sm flex items-start gap-2 ${
+                          currentQF.rating === 'needs-improvement' ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'
+                        }`}>
+                          <span className={currentQF.rating === 'needs-improvement' ? 'text-red-500 mt-0.5' : 'text-amber-500 mt-0.5'}>!</span>
                           <span>{imp}</span>
                         </li>
                       ))}
                     </ul>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
-              <Separator />
+              <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
 
               {/* Question Navigator */}
               <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   All Questions
                 </p>
                 <div className="grid grid-cols-5 gap-2">
@@ -313,12 +304,11 @@ const Feedback: React.FC = () => {
                     <button
                       key={idx}
                       onClick={() => goToQuestion(idx)}
-                      className={cn(
-                        'w-full aspect-square rounded-md text-xs font-bold transition-all flex items-center justify-center border',
+                      className={`w-full aspect-square rounded-xl text-xs font-semibold transition-all flex items-center justify-center border ${
                         idx === currentQuestionIndex
-                          ? 'bg-primary text-primary-foreground border-primary scale-110'
+                          ? 'bg-lemonade-accent text-black border-lemonade-accent scale-105'
                           : getRatingBg(qf.rating) + ' hover:scale-105'
-                      )}
+                      }`}
                     >
                       {idx + 1}
                     </button>
@@ -326,57 +316,51 @@ const Feedback: React.FC = () => {
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
 
       {/* Footer Navigation */}
-      <footer className="flex items-center justify-between px-6 py-3 border-t border-border bg-card">
-        <Button
-          variant="outline"
-          size="sm"
+      <footer className="flex items-center justify-between px-6 py-3 border-t border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+        <button
           onClick={() => goToQuestion(currentQuestionIndex - 1)}
           disabled={currentQuestionIndex === 0}
-          className="gap-1.5"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" />
           Previous
-        </Button>
+        </button>
 
         <div className="flex items-center gap-1.5">
           {feedback.questionFeedbacks.map((_, idx) => (
             <button
               key={idx}
               onClick={() => goToQuestion(idx)}
-              className={cn(
-                'w-2 h-2 rounded-full transition-all',
+              className={`h-2 rounded-full transition-all ${
                 idx === currentQuestionIndex
-                  ? 'bg-primary w-6'
-                  : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-              )}
+                  ? 'bg-lemonade-accent w-6'
+                  : 'bg-gray-300 dark:bg-white/15 w-2 hover:bg-gray-400 dark:hover:bg-white/30'
+              }`}
             />
           ))}
         </div>
 
         {currentQuestionIndex < totalQuestions - 1 ? (
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={() => goToQuestion(currentQuestionIndex + 1)}
-            className="gap-1.5"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
           >
             Next
             <ChevronRight className="w-4 h-4" />
-          </Button>
+          </button>
         ) : (
-          <Button
-            size="sm"
+          <button
             onClick={() => navigate('/dashboard')}
-            className="gap-1.5"
+            className="flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-lemonade-accent text-black rounded-xl hover:bg-lemonade-accent-hover transition-colors"
           >
             Done
             <CheckCircle2 className="w-4 h-4" />
-          </Button>
+          </button>
         )}
       </footer>
     </div>

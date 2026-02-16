@@ -17,15 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { InterviewType, InterviewStyle, CompatibleModel, UploadedDocument, AgentPersona, LoadedModel } from '../../types';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Progress } from '../components/ui/progress';
-import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { Separator } from '../components/ui/separator';
-import { cn } from '../lib/utils';
+import { LemonSelect } from '../components/lemon/LemonSelect';
 
 /* ────────────────────────────────────────────────────────────────────
    Route state passed from Landing
@@ -68,9 +60,6 @@ type PrepPhase =
   | 'generating-persona'
   | 'error';
 
-/* ────────────────────────────────────────────────────────────────────
-   Sub-steps within persona generation for visual feedback
-   ──────────────────────────────────────────────────────────────────── */
 type PersonaGenStep =
   | 'analyzing-job'
   | 'analyzing-resume'
@@ -116,59 +105,38 @@ const Preparing: React.FC = () => {
   const location = useLocation();
   const state = location.state as PreparingState | undefined;
 
-  /* ── phase ── */
   const [phase, setPhase] = useState<PrepPhase>('loading-list');
-
-  /* ── model catalogue ── */
   const [llmModels, setLlmModels] = useState<CompatibleModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-
-  /* ── download ── */
   const [dlProgress, setDlProgress] = useState<DownloadProgress | null>(null);
-
-  /* ── status / error ── */
   const [statusText, setStatusText] = useState('Fetching compatible models...');
   const [errorText, setErrorText] = useState<string | null>(null);
-
-  /* ── resume preview ── */
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [resumeText, setResumeText] = useState<string | null>(null);
-
-  /* ── persona generation ── */
   const [personaGenStep, setPersonaGenStep] = useState<PersonaGenStep>('analyzing-job');
   const [generatedPersona, setGeneratedPersona] = useState<AgentPersona | null>(null);
   const [jobAnalysis, setJobAnalysis] = useState<string | null>(null);
   const [resumeAnalysis, setResumeAnalysis] = useState<string | null>(null);
-
-  /* ── interview style & difficulty selectors ── */
   const [interviewStyle, setInterviewStyle] = useState<InterviewStyle>('conversational');
   const [questionDifficulty, setQuestionDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-
-  /* ── guards ── */
   const didFetchRef = useRef(false);
 
-  /* ── redirect if no state ── */
   useEffect(() => {
     if (!state) navigate('/', { replace: true });
   }, [state, navigate]);
 
-  /* ── clean‑up blob URL ── */
   useEffect(() => {
     return () => {
       if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
     };
   }, [pdfBlobUrl]);
 
-  /* ── clean‑up SSE listener ── */
   useEffect(() => {
     return () => {
       window.electronAPI?.offPullProgress?.();
     };
   }, []);
 
-  /* ────────────────────────────────────────
-     PDF preview builder
-     ──────────────────────────────────────── */
   const buildPdfPreview = useCallback(async () => {
     const decode = (b64: string) => {
       const raw = atob(b64);
@@ -195,9 +163,6 @@ const Preparing: React.FC = () => {
     } catch { /* non-critical */ }
   }, [state]);
 
-  /* ────────────────────────────────────────
-     Step 1  —  Fetch model list on mount
-     ──────────────────────────────────────── */
   // eslint-disable-next-line react-hooks/set-state-in-effect -- setState runs in queueMicrotask callback, not sync
   useEffect(() => {
     if (!state || didFetchRef.current) return;
@@ -236,9 +201,6 @@ const Preparing: React.FC = () => {
     });
   }, [state, navigate, buildPdfPreview, loadResumeText]);
 
-  /* ────────────────────────────────────────
-     Step 2  —  User clicks "Continue"
-     ──────────────────────────────────────── */
   const handleContinue = useCallback(async () => {
     if (!state || !selectedModelId || !window.electronAPI) return;
     const model = llmModels.find(m => m.id === selectedModelId);
@@ -246,30 +208,15 @@ const Preparing: React.FC = () => {
     setErrorText(null);
 
     try {
-      /* ════════════════════════════════════════════════════════════
-         SMART MODEL MANAGEMENT
-         Before loading anything, check what's already loaded on the
-         server to avoid redundant loads and prevent multi-loading.
-         Only ONE LLM and ONE ASR model should ever be active.
-         ════════════════════════════════════════════════════════════ */
-
-      // Query current server state to see what's already loaded
-      // and what model types the server supports (max_models)
       let loadedModels: LoadedModel[] = [];
       let serverSupportsAudio = false;
       try {
         const health = await window.electronAPI.getServerHealth();
         loadedModels = health?.all_models_loaded ?? [];
-        // Check if the server supports audio models:
-        // 1. max_models.audio explicitly set to > 0, OR
-        // 2. Audio models are already loaded (server allows audio even if
-        //    max_models doesn't include the "audio" key — default is 1).
         const maxModels = health?.max_models;
-        const hasAudioSlot = maxModels?.audio != null ? maxModels.audio > 0 : true; // default audio=1
+        const hasAudioSlot = maxModels?.audio != null ? maxModels.audio > 0 : true;
         const hasLoadedAudio = loadedModels.some(m => m.type === 'audio');
         serverSupportsAudio = hasAudioSlot || hasLoadedAudio;
-        console.log('Currently loaded models:', loadedModels.map(m => `${m.model_name} (${m.type})`));
-        console.log('Server supports audio models:', serverSupportsAudio, '| max_models:', maxModels);
       } catch {
         console.warn('Could not query server health, will proceed with fresh loads');
       }
@@ -277,16 +224,13 @@ const Preparing: React.FC = () => {
       const loadedLLM = loadedModels.find(m => m.type === 'llm');
       const loadedASR = loadedModels.find(m => m.type === 'audio');
 
-      /* ── download selected LLM if needed ── */
       if (!model.downloaded) {
         setPhase('downloading');
         setDlProgress({ percent: 0 });
         setStatusText(`Downloading ${model.id}...`);
-
         window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
         const pull = await window.electronAPI.pullModelStreaming(model.id);
         window.electronAPI.offPullProgress();
-
         if (pull === false || (pull && !pull.success)) {
           setPhase('error');
           setErrorText(`Download failed: ${pull && pull.message ? pull.message : 'Unknown error'}`);
@@ -296,50 +240,25 @@ const Preparing: React.FC = () => {
         setLlmModels(prev => prev.map(m => m.id === model.id ? { ...m, downloaded: true } : m));
       }
 
-      /* ── load LLM (smart: skip if already active, unload stale if different) ── */
       setPhase('loading-model');
 
       if (loadedLLM && loadedLLM.model_name === model.id) {
-        // The correct LLM is already loaded, but the context window may be
-        // too small (server default is 4096).  We need ctx_size >= 16384 for
-        // persona generation.  Force a reload with the desired ctx_size
-        // because the /health endpoint doesn't expose the current n_ctx.
-        console.log(`LLM ${model.id} is already loaded — reloading with ctx_size=16384`);
         setStatusText(`Optimizing ${model.id} context window...`);
-        try {
-          await window.electronAPI.unloadModel(model.id);
-        } catch (e) {
-          console.warn('Unload before ctx_size reload failed (non-fatal):', e);
-        }
+        try { await window.electronAPI.unloadModel(model.id); } catch { /* non-fatal */ }
         const reloadOpts: Record<string, any> = { ctx_size: 16384 };
-        if (model.recipe === 'llamacpp') {
-          reloadOpts.llamacpp_backend = 'vulkan';
-        }
+        if (model.recipe === 'llamacpp') reloadOpts.llamacpp_backend = 'vulkan';
         const reload = await window.electronAPI.loadModel(model.id, reloadOpts);
         if (reload === false || (reload && !reload.success)) {
           console.warn('Reload with ctx_size failed, continuing with existing config:', reload);
         }
       } else {
-        // Unload any stale LLM first to free memory (only 1 LLM should be active)
         if (loadedLLM) {
           setStatusText(`Unloading ${loadedLLM.model_name}...`);
-          console.log(`Unloading stale LLM: ${loadedLLM.model_name}`);
-          try {
-            await window.electronAPI.unloadModel(loadedLLM.model_name);
-          } catch (unloadErr) {
-            console.warn('Failed to unload stale LLM (non-fatal):', unloadErr);
-          }
+          try { await window.electronAPI.unloadModel(loadedLLM.model_name); } catch { /* non-fatal */ }
         }
-
-        // Load the selected LLM with an expanded context window.
-        // The persona generation prompt needs ~5-6K tokens (JD + resume + instructions + output),
-        // and the default 4096 is too small.  Request 16384 so there's ample room for both
-        // persona generation and multi-turn interview conversations.
         setStatusText(`Loading ${model.id}...`);
         const opts: Record<string, any> = { ctx_size: 16384 };
-        if (model.recipe === 'llamacpp') {
-          opts.llamacpp_backend = 'vulkan';
-        }
+        if (model.recipe === 'llamacpp') opts.llamacpp_backend = 'vulkan';
         const load = await window.electronAPI.loadModel(model.id, opts);
         if (load === false || (load && !load.success)) {
           setPhase('error');
@@ -348,43 +267,23 @@ const Preparing: React.FC = () => {
         }
       }
 
-      /* ════════════════════════════════════════════════════════════
-         AUDIO MODELS: ASR (Whisper) + TTS (Kokoro)
-         Always attempt to load audio models regardless of the
-         max_models.audio value — the server may support audio even
-         if the health endpoint doesn't report the slot. If loading
-         truly fails we degrade gracefully (text-only interview).
-         ════════════════════════════════════════════════════════════ */
       let bestASR: CompatibleModel | null = null;
       let ttsReady = false;
       let asrReady = false;
-
       setStatusText('Preparing voice features...');
 
-      // Fetch the full model catalog to find audio models
       let allModels: CompatibleModel[] = [];
-      try {
-        allModels = await window.electronAPI.listAllModels();
-      } catch {
-        console.warn('Could not list models for audio setup');
-      }
+      try { allModels = await window.electronAPI.listAllModels(); } catch { /* noop */ }
 
-      /* ── ASR (Whisper) — speech-to-text ── */
       const asrs = allModels.filter(m => m.labels.includes('audio') && !m.id.toLowerCase().includes('kokoro'));
-      bestASR =
-        asrs.find(m => m.suggested && m.downloaded) ||
-        asrs.find(m => m.suggested) ||
-        asrs.find(m => m.downloaded) ||
-        asrs[0] || null;
+      bestASR = asrs.find(m => m.suggested && m.downloaded) || asrs.find(m => m.suggested) || asrs.find(m => m.downloaded) || asrs[0] || null;
 
       if (bestASR) {
-        // Download ASR model if needed
         if (!bestASR.downloaded) {
           setStatusText(`Downloading ${bestASR.id} for speech recognition...`);
           window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
           const asrPull = await window.electronAPI.pullModelStreaming(bestASR.id);
           window.electronAPI.offPullProgress();
-
           if (asrPull === false || (asrPull && !asrPull.success)) {
             console.warn('ASR model download failed:', asrPull);
           } else {
@@ -392,57 +291,32 @@ const Preparing: React.FC = () => {
           }
         }
 
-        // Load ASR model (smart: skip if already active)
         if (bestASR.downloaded) {
           if (loadedASR && loadedASR.model_name === bestASR.id) {
-            console.log(`ASR model ${bestASR.id} is already loaded`);
             asrReady = true;
           } else {
             if (loadedASR) {
-              try { await window.electronAPI.unloadModel(loadedASR.model_name); } catch { /* non-fatal: unload may fail */ }
+              try { await window.electronAPI.unloadModel(loadedASR.model_name); } catch { /* non-fatal */ }
             }
             setStatusText(`Loading ${bestASR.id}...`);
             const asrLoad = await window.electronAPI.loadModel(bestASR.id);
             if (asrLoad === false || (asrLoad && !asrLoad.success)) {
               const msg = asrLoad && asrLoad.message ? asrLoad.message : 'Unknown error';
               console.warn(`ASR model load failed: ${msg}`);
-              if (msg.includes('max_models') || msg.includes('audio') || !serverSupportsAudio) {
-                console.error(
-                  '╔══════════════════════════════════════════════════════════╗\n' +
-                  '║  AUDIO MODELS UNAVAILABLE                               ║\n' +
-                  '║  Your Lemonade Server has no audio model slot.           ║\n' +
-                  '║  Restart the server with:                                ║\n' +
-                  '║    lemonade-server --max-loaded-models 1 1 1 2           ║\n' +
-                  '║  (LLMs, Embeddings, Reranking, Audio)                    ║\n' +
-                  '║  This enables both Whisper (ASR) and Kokoro (TTS).       ║\n' +
-                  '╚══════════════════════════════════════════════════════════╝'
-                );
-              }
             } else {
-              console.log(`ASR model ${bestASR.id} loaded successfully`);
               asrReady = true;
             }
           }
         }
-      } else {
-        console.warn('No ASR (Whisper) model found in model catalog');
       }
 
-      /* ── TTS (Kokoro) — text-to-speech ── */
-      // kokoro-v1 is the TTS model that powers /api/v1/audio/speech.
-      // It may appear in the model list, or it may need to be loaded by name.
       const ttsModelId = 'kokoro-v1';
-      const loadedTTS = loadedModels.find(
-        m => m.model_name.toLowerCase().includes('kokoro')
-      );
+      const loadedTTS = loadedModels.find(m => m.model_name.toLowerCase().includes('kokoro'));
 
       if (loadedTTS) {
-        console.log(`TTS model ${loadedTTS.model_name} is already loaded`);
         ttsReady = true;
       } else {
-        // Try to find kokoro in the catalog
         const kokoroModel = allModels.find(m => m.id.toLowerCase().includes('kokoro'));
-
         if (kokoroModel && !kokoroModel.downloaded) {
           setStatusText(`Downloading ${kokoroModel.id} for text-to-speech...`);
           window.electronAPI.onPullProgress((data: DownloadProgress) => setDlProgress(data));
@@ -450,30 +324,12 @@ const Preparing: React.FC = () => {
           window.electronAPI.offPullProgress();
           if (ttsPull && ttsPull.success) kokoroModel.downloaded = true;
         }
-
-        // Attempt to load the TTS model
         const ttsId = kokoroModel?.id || ttsModelId;
         setStatusText(`Loading ${ttsId} for speech...`);
         try {
           const ttsLoad = await window.electronAPI.loadModel(ttsId);
-          if (ttsLoad && ttsLoad.success) {
-            console.log(`TTS model ${ttsId} loaded successfully`);
-            ttsReady = true;
-          } else {
-            console.warn(`TTS model load failed: ${ttsLoad && typeof ttsLoad !== 'boolean' ? ttsLoad.message : 'Unknown error'}`);
-          }
-        } catch (ttsErr: any) {
-          console.warn('TTS model load error:', ttsErr.message || ttsErr);
-        }
-      }
-
-      // Log final audio readiness
-      console.log(`Voice features: ASR=${asrReady ? 'ready' : 'unavailable'}, TTS=${ttsReady ? 'ready' : 'unavailable'}`);
-      if (!asrReady && !ttsReady && !serverSupportsAudio) {
-        console.error(
-          'Voice features disabled. To enable, restart Lemonade Server with:\n' +
-          '  lemonade-server --max-loaded-models 1 1 1 2'
-        );
+          if (ttsLoad && ttsLoad.success) ttsReady = true;
+        } catch { /* non-fatal */ }
       }
 
       await window.electronAPI.updateInterviewerSettings({
@@ -483,31 +339,21 @@ const Preparing: React.FC = () => {
         questionDifficulty,
       });
 
-      /* ════════════════════════════════════════════════════════════
-         PERSONA GENERATION PHASE
-         The AI reads the job description, then the resume,
-         then synthesizes an interviewer persona.
-         ════════════════════════════════════════════════════════════ */
       setPhase('generating-persona');
       setPersonaGenStep('analyzing-job');
       setStatusText('Analyzing job description...');
 
-      // Fetch both documents' extracted text
       let jobText = '';
       let resumeDocText = '';
-
       if (state.jobPostDocId) {
         const jobDoc = await window.electronAPI.getDocument(state.jobPostDocId);
         jobText = jobDoc?.extractedText || '';
       }
-
       if (state.resumeDocId) {
         const resumeDoc = await window.electronAPI.getDocument(state.resumeDocId);
         resumeDocText = resumeDoc?.extractedText || '';
       }
 
-      // Visual step progression (the actual generation is one LLM call,
-      // but we show incremental steps for user feedback)
       await new Promise(r => setTimeout(r, 800));
       setPersonaGenStep('analyzing-resume');
       setStatusText('Analyzing your resume...');
@@ -516,27 +362,20 @@ const Preparing: React.FC = () => {
       setStatusText('Crafting interviewer persona...');
 
       let personaId: string | undefined;
-
       if (jobText && resumeDocText) {
         try {
           const result = await window.electronAPI.generatePersona({
             jobDescriptionText: jobText,
             resumeText: resumeDocText,
-            interviewType: state.interviewMode === 'single'
-              ? state.formData.interviewType
-              : 'behavioral',
+            interviewType: state.interviewMode === 'single' ? state.formData.interviewType : 'behavioral',
             company: state.formData.company,
             position: state.formData.position,
           });
-
           setGeneratedPersona(result.persona);
           setJobAnalysis(result.jobAnalysis);
           setResumeAnalysis(result.resumeAnalysis);
           personaId = result.persona.id;
-        } catch (personaErr: any) {
-          console.warn('Persona generation failed, proceeding with default prompt:', personaErr);
-          // Non-fatal: continue without a persona
-        }
+        } catch { /* non-fatal */ }
       }
 
       setPersonaGenStep('done');
@@ -546,10 +385,7 @@ const Preparing: React.FC = () => {
           title: state.formData.title,
           company: state.formData.company,
           position: state.formData.position,
-          interviewType:
-            state.interviewMode === 'single'
-              ? state.formData.interviewType
-              : ('behavioral' as InterviewType),
+          interviewType: state.interviewMode === 'single' ? state.formData.interviewType : ('behavioral' as InterviewType),
         },
         personaId,
       );
@@ -557,54 +393,42 @@ const Preparing: React.FC = () => {
 
       setStatusText('Ready!');
       await new Promise(r => setTimeout(r, 350));
-      navigate(`/interview/${interview.id}`, {
-        replace: true,
-        state: { voiceEnabled: asrReady && ttsReady },
-      });
+      navigate(`/interview/${interview.id}`, { replace: true, state: { voiceEnabled: asrReady && ttsReady } });
     } catch (e: any) {
-      console.error('Preparation failed:', e);
       setPhase('error');
       setErrorText(e.message || 'An unexpected error occurred.');
     }
-  }, [state, selectedModelId, llmModels, navigate]);
+  }, [state, selectedModelId, llmModels, navigate, interviewStyle, questionDifficulty]);
 
-  /* ────────────────── guard ──────────────── */
   if (!state) return null;
 
   const selectedModel = llmModels.find(m => m.id === selectedModelId) || null;
   const isWorking = phase === 'downloading' || phase === 'loading-model' || phase === 'generating-persona';
 
-  /* ══════════════════════════════════════════════════════════════════
-     RENDER
-     ══════════════════════════════════════════════════════════════════ */
   return (
-    <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
 
       {/* ═══════ TOP BAR ═══════ */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-border bg-card">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon-sm"
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+        <div className="flex items-center gap-3">
+          <button
             onClick={() => navigate('/')}
+            className="p-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
           >
             <ChevronLeft size={18} />
-          </Button>
+          </button>
           <div>
-            <h1 className="text-base font-semibold leading-tight">
-              Prepare for your interview
-            </h1>
-            <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">
+            <h1 className="text-sm font-semibold leading-tight">Prepare for your interview</h1>
+            <p className="text-[11px] text-gray-500 dark:text-white/40 mt-0.5">
               {state.formData.title} &middot; {state.formData.company} &middot; {state.formData.position}
             </p>
           </div>
         </div>
-
         {selectedModel && isWorking && (
-          <Badge variant="secondary" className="gap-1.5">
-            <Cpu size={12} />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-xl text-gray-600 dark:text-white/60">
+            <Cpu size={12} className="text-lemonade-accent-hover" />
             <span className="text-[11px] font-semibold">{selectedModel.id}</span>
-          </Badge>
+          </span>
         )}
       </header>
 
@@ -612,101 +436,97 @@ const Preparing: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ─── LEFT: Resume viewer ─── */}
-        <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
+        <div className="flex-1 flex items-center justify-center p-8 bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
           {pdfBlobUrl ? (
             <iframe
               src={pdfBlobUrl}
-              className="w-full h-full rounded-xl border border-border shadow-lg bg-card"
+              className="w-full h-full rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white dark:bg-lemonade-dark-surface"
               title="Resume Preview"
             />
           ) : resumeText ? (
             <div className="w-full max-w-2xl mx-auto">
-              <div className="flex items-center gap-2 mb-3 text-muted-foreground">
-                <FileText size={16} />
+              <div className="flex items-center gap-2 mb-3 text-gray-500 dark:text-white/40">
+                <FileText size={14} />
                 <span className="text-xs font-medium">{state.resumeFileName}</span>
               </div>
-              <Card className="max-h-[75vh] overflow-y-auto">
-                <CardContent className="p-6">
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{resumeText}</p>
-                </CardContent>
-              </Card>
+              <div className="max-h-[75vh] overflow-y-auto bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed dark:text-white/80">{resumeText}</p>
+              </div>
             </div>
           ) : (
             <div className="text-center select-none">
-              <FileText size={56} className="mx-auto mb-4 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">{state.resumeFileName || 'Your resume'}</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Review while we get things ready</p>
+              <FileText size={48} className="mx-auto mb-4 text-gray-300 dark:text-white/15" />
+              <p className="text-sm font-medium text-gray-500 dark:text-white/40">{state.resumeFileName || 'Your resume'}</p>
+              <p className="text-xs text-gray-400 dark:text-white/30 mt-1">Review while we get things ready</p>
             </div>
           )}
         </div>
 
         {/* ─── RIGHT: Panel ─── */}
-        <aside className="w-[420px] border-l border-border bg-card flex flex-col">
+        <aside className="w-[400px] border-l border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface flex flex-col transition-colors duration-300">
 
           {/* ── loading list ── */}
           {phase === 'loading-list' && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Loader2 size={22} className="animate-spin text-primary" />
+              <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-lemonade-accent-hover" />
               </div>
-              <p className="text-sm text-muted-foreground font-medium">{statusText}</p>
+              <p className="text-sm text-gray-500 dark:text-white/40 font-medium">{statusText}</p>
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════
-              SELECT PHASE — the model catalogue
-             ══════════════════════════════════════════════ */}
+          {/* ═══════ SELECT PHASE ═══════ */}
           {phase === 'select' && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <ScrollArea className="flex-1">
-                <div className="px-6 pt-6 pb-4 space-y-6">
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-5 pt-5 pb-4 space-y-5">
                   {/* Interview preferences */}
-                  <div className="space-y-4">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  <div className="space-y-3">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
                       Interview Preferences
                     </h2>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Style</Label>
-                        <Select value={interviewStyle} onValueChange={(v) => setInterviewStyle(v as InterviewStyle)}>
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="conversational">Conversational</SelectItem>
-                            <SelectItem value="formal">Formal</SelectItem>
-                            <SelectItem value="challenging">Challenging</SelectItem>
-                            <SelectItem value="supportive">Supportive</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <label className="text-xs font-medium text-gray-500 dark:text-white/40">Style</label>
+                        <LemonSelect
+                          value={interviewStyle}
+                          onChange={(v) => setInterviewStyle(v as InterviewStyle)}
+                          className="h-9 text-xs"
+                          options={[
+                            { value: 'conversational', label: 'Conversational' },
+                            { value: 'formal', label: 'Formal' },
+                            { value: 'challenging', label: 'Challenging' },
+                            { value: 'supportive', label: 'Supportive' },
+                          ]}
+                        />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Difficulty</Label>
-                        <Select value={questionDifficulty} onValueChange={(v) => setQuestionDifficulty(v as 'easy' | 'medium' | 'hard')}>
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="easy">Easy</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="hard">Hard</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <label className="text-xs font-medium text-gray-500 dark:text-white/40">Difficulty</label>
+                        <LemonSelect
+                          value={questionDifficulty}
+                          onChange={(v) => setQuestionDifficulty(v as 'easy' | 'medium' | 'hard')}
+                          className="h-9 text-xs"
+                          options={[
+                            { value: 'easy', label: 'Easy' },
+                            { value: 'medium', label: 'Medium' },
+                            { value: 'hard', label: 'Hard' },
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>
 
-                  <Separator />
+                  <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
 
                   {/* Model Selection */}
-                  <div className="space-y-3">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  <div className="space-y-2">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
                       Choose a model
                     </h2>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Pick the AI model that will power your interview.
-                      Models marked <span className="text-green-500 dark:text-green-400 font-semibold">ready</span> are
-                      already on your machine.
+                    <p className="text-[11px] text-gray-500 dark:text-white/40 leading-relaxed">
+                      Pick the AI model for your interview.
+                      Models marked <span className="text-green-600 dark:text-green-400 font-medium">ready</span> are
+                      already downloaded.
                     </p>
                   </div>
 
@@ -717,48 +537,46 @@ const Preparing: React.FC = () => {
                         <button
                           key={model.id}
                           onClick={() => setSelectedModelId(model.id)}
-                          className={cn(
-                            'group w-full text-left px-4 py-3 rounded-lg border-2 transition-all duration-200',
+                          className={`group w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
                             selected
-                              ? 'border-primary bg-primary/5'
-                              : 'border-transparent bg-muted/50 hover:bg-muted hover:border-border'
-                          )}
+                              ? 'border-lemonade-accent bg-lemonade-accent/[0.06]'
+                              : 'border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/10'
+                          }`}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <div className={cn(
-                              'flex-shrink-0 w-4 h-4 rounded-full border-2 transition-all duration-200 flex items-center justify-center',
-                              selected ? 'border-primary' : 'border-muted-foreground/30 group-hover:border-muted-foreground/50'
-                            )}>
-                              {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                            <div className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                              selected ? 'border-lemonade-accent' : 'border-gray-300 dark:border-white/20'
+                            }`}>
+                              {selected && <div className="w-2 h-2 rounded-full bg-lemonade-accent" />}
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-semibold truncate leading-tight">{model.id}</p>
+                              <p className="text-xs font-semibold truncate leading-tight">{model.id}</p>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 {model.suggested && (
-                                  <Badge variant="secondary" className="text-[9px] h-4 gap-0.5 px-1.5">
-                                    <Star size={8} className="fill-primary text-primary" />
+                                  <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">
+                                    <Star size={9} className="fill-lemonade-accent text-lemonade-accent" />
                                     Suggested
-                                  </Badge>
+                                  </span>
                                 )}
                                 {model.labels.filter(l => l !== 'llm').map(l => (
-                                  <Badge key={l} variant="outline" className="text-[9px] h-4 px-1.5">{l}</Badge>
+                                  <span key={l} className="text-[11px] px-1.5 py-px border border-gray-200/50 dark:border-white/5 rounded-full text-gray-500 dark:text-white/40">{l}</span>
                                 ))}
                               </div>
                             </div>
 
-                            <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                            <div className="shrink-0 flex flex-col items-end gap-1">
                               {model.size ? (
-                                <span className="text-[10px] font-semibold text-muted-foreground">{formatSize(model.size)}</span>
+                                <span className="text-[11px] font-medium text-gray-400 dark:text-white/30">{formatSize(model.size)}</span>
                               ) : null}
                               {model.downloaded ? (
-                                <Badge className="text-[9px] h-4 bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400 gap-0.5">
-                                  <HardDrive size={8} /> Ready
-                                </Badge>
+                                <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-px bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400 rounded-full font-medium">
+                                  <HardDrive size={9} /> Ready
+                                </span>
                               ) : (
-                                <Badge variant="outline" className="text-[9px] h-4 gap-0.5">
-                                  <Download size={8} /> Download
-                                </Badge>
+                                <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-px border border-gray-200/50 dark:border-white/5 text-gray-500 dark:text-white/40 rounded-full">
+                                  <Download size={9} /> Download
+                                </span>
                               )}
                             </div>
                           </div>
@@ -767,59 +585,61 @@ const Preparing: React.FC = () => {
                     })}
                   </div>
                 </div>
-              </ScrollArea>
+              </div>
 
               {/* action bar */}
-              <div className="px-5 py-4 border-t border-border">
-                <Button
+              <div className="px-5 py-4 border-t border-gray-100/60 dark:border-white/[0.04]">
+                <button
                   onClick={handleContinue}
                   disabled={!selectedModelId}
-                  className="w-full gap-2"
-                  size="lg"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                 >
                   {selectedModel && !selectedModel.downloaded ? (
                     <>
-                      <Download size={15} />
+                      <Download size={14} />
                       Download &amp; Start Interview
                     </>
                   ) : (
                     <>
-                      <ArrowRight size={15} />
+                      <ArrowRight size={14} />
                       Start Interview
                     </>
                   )}
-                </Button>
+                </button>
               </div>
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════
-              DOWNLOADING PHASE
-             ══════════════════════════════════════════════ */}
+          {/* ═══════ DOWNLOADING PHASE ═══════ */}
           {phase === 'downloading' && (
-            <div className="flex-1 flex flex-col px-8 pt-10">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-                <Download size={24} className="text-primary animate-bounce" />
+            <div className="flex-1 flex flex-col px-6 pt-8">
+              <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center mb-5">
+                <Download size={22} className="text-lemonade-accent-hover animate-bounce" />
               </div>
 
-              <h2 className="text-sm font-bold uppercase tracking-widest mb-1">Downloading</h2>
-              <p className="text-[13px] font-semibold text-muted-foreground mb-5">{selectedModel?.id}</p>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-1">Downloading</h2>
+              <p className="text-sm font-semibold text-gray-600 dark:text-white/50 mb-5">{selectedModel?.id}</p>
 
-              <Progress value={dlProgress?.percent ?? 0} className="h-3 mb-3" />
+              <div className="w-full h-2.5 bg-gray-200/60 dark:bg-white/10 rounded-full overflow-hidden mb-3">
+                <div
+                  className="h-full bg-gradient-to-r from-lemonade-accent to-lemonade-accent-hover rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${dlProgress?.percent ?? 0}%` }}
+                />
+              </div>
 
               <div className="flex items-baseline justify-between">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-gray-500 dark:text-white/40">
                   {dlProgress?.bytesDownloaded != null && dlProgress?.bytesTotal != null
                     ? `${formatBytes(dlProgress.bytesDownloaded)} / ${formatBytes(dlProgress.bytesTotal)}`
                     : 'Preparing...'}
                 </span>
-                <span className="text-lg font-bold tabular-nums">
-                  {dlProgress?.percent ?? 0}<span className="text-xs font-semibold text-muted-foreground">%</span>
+                <span className="text-base font-bold tabular-nums">
+                  {dlProgress?.percent ?? 0}<span className="text-xs font-medium text-gray-400 dark:text-white/30">%</span>
                 </span>
               </div>
 
               {dlProgress?.file && (
-                <p className="text-[10px] text-muted-foreground/60 truncate mt-2">
+                <p className="text-[11px] text-gray-400 dark:text-white/30 truncate mt-2">
                   {dlProgress.file}
                   {dlProgress.totalFiles && dlProgress.totalFiles > 1
                     ? ` (file ${dlProgress.fileIndex} of ${dlProgress.totalFiles})`
@@ -827,220 +647,119 @@ const Preparing: React.FC = () => {
                 </p>
               )}
 
-              <p className="text-[11px] text-muted-foreground/50 mt-auto pb-6">
+              <p className="text-[11px] text-gray-400 dark:text-white/30 mt-auto pb-6">
                 Review your resume while the model downloads.
               </p>
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════
-              LOADING MODEL PHASE
-             ══════════════════════════════════════════════ */}
+          {/* ═══════ LOADING MODEL PHASE ═══════ */}
           {phase === 'loading-model' && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8">
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
               <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Zap size={28} className="text-primary" />
+                <div className="w-14 h-14 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
+                  <Zap size={24} className="text-lemonade-accent-hover" />
                 </div>
-                <div className="absolute -inset-2 rounded-[18px] border-2 border-primary/20 border-t-primary animate-spin" />
+                <div className="absolute -inset-2 rounded-[18px] border-2 border-lemonade-accent/15 border-t-lemonade-accent animate-spin" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-semibold">{statusText}</p>
-                <p className="text-[11px] text-muted-foreground mt-1.5">
+                <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1.5">
                   Warming up the model — this can take a moment
                 </p>
               </div>
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════
-              GENERATING PERSONA PHASE
-             ══════════════════════════════════════════════ */}
+          {/* ═══════ GENERATING PERSONA PHASE ═══════ */}
           {phase === 'generating-persona' && (
-            <div className="flex-1 flex flex-col px-8 pt-10">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-                <Sparkles size={24} className="text-primary" />
+            <div className="flex-1 flex flex-col px-6 pt-8">
+              <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center mb-5">
+                <Sparkles size={22} className="text-lemonade-accent-hover" />
               </div>
 
-              <h2 className="text-sm font-bold uppercase tracking-widest mb-1">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-1">
                 Preparing Your Interview
               </h2>
-              <p className="text-[11px] text-muted-foreground mb-6 leading-relaxed">
+              <p className="text-[11px] text-gray-500 dark:text-white/40 mb-6 leading-relaxed">
                 The AI is reading your documents and crafting a personalized interviewer.
               </p>
 
-              {/* Step indicators */}
               <div className="space-y-4">
-                {/* Step 1: Analyzing Job */}
-                <div className="flex items-start gap-3">
-                  <div className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500',
-                    personaGenStep === 'analyzing-job'
-                      ? 'bg-primary/15'
-                      : 'bg-green-100 dark:bg-green-950/50'
-                  )}>
-                    {personaGenStep === 'analyzing-job' ? (
-                      <Loader2 size={14} className="animate-spin text-primary" />
-                    ) : (
-                      <Check size={14} className="text-green-500" />
-                    )}
-                  </div>
-                  <div className="pt-1">
-                    <p className={cn('text-[13px] font-semibold transition-colors duration-300',
-                      personaGenStep === 'analyzing-job' ? 'text-foreground' : 'text-green-600 dark:text-green-400'
-                    )}>
-                      Reading job description
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Understanding role requirements, skills, and expectations
-                    </p>
-                    {jobAnalysis && personaGenStep !== 'analyzing-job' && (
-                      <p className="text-[10px] text-muted-foreground mt-1.5 bg-muted rounded-lg p-2 leading-relaxed">
-                        {jobAnalysis}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <PersonaStep
+                  isActive={personaGenStep === 'analyzing-job'}
+                  isDone={personaGenStep !== 'analyzing-job'}
+                  icon={<FileText size={13} />}
+                  title="Reading job description"
+                  subtitle="Understanding role requirements and expectations"
+                  analysis={jobAnalysis && personaGenStep !== 'analyzing-job' ? jobAnalysis : null}
+                />
+                <PersonaStep
+                  isActive={personaGenStep === 'analyzing-resume'}
+                  isDone={personaGenStep === 'crafting-persona' || personaGenStep === 'done'}
+                  isPending={personaGenStep === 'analyzing-job'}
+                  icon={<User size={13} />}
+                  title="Analyzing your resume"
+                  subtitle="Mapping your experience to the role"
+                  analysis={(personaGenStep === 'crafting-persona' || personaGenStep === 'done') ? resumeAnalysis : null}
+                />
+                <PersonaStep
+                  isActive={personaGenStep === 'crafting-persona'}
+                  isDone={personaGenStep === 'done'}
+                  isPending={personaGenStep === 'analyzing-job' || personaGenStep === 'analyzing-resume'}
+                  icon={<Bot size={13} />}
+                  title="Crafting interviewer persona"
+                  subtitle="Building a tailored interviewer for this role"
+                  persona={personaGenStep === 'done' ? generatedPersona : null}
+                />
 
-                {/* Step 2: Analyzing Resume */}
-                <div className="flex items-start gap-3">
-                  <div className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500',
-                    personaGenStep === 'analyzing-resume'
-                      ? 'bg-primary/15'
-                      : personaGenStep === 'analyzing-job'
-                        ? 'bg-muted'
-                        : 'bg-green-100 dark:bg-green-950/50'
-                  )}>
-                    {personaGenStep === 'analyzing-resume' ? (
-                      <Loader2 size={14} className="animate-spin text-primary" />
-                    ) : personaGenStep === 'analyzing-job' ? (
-                      <User size={14} className="text-muted-foreground/40" />
-                    ) : (
-                      <Check size={14} className="text-green-500" />
-                    )}
-                  </div>
-                  <div className="pt-1">
-                    <p className={cn('text-[13px] font-semibold transition-colors duration-300',
-                      personaGenStep === 'analyzing-resume'
-                        ? 'text-foreground'
-                        : personaGenStep === 'analyzing-job'
-                          ? 'text-muted-foreground/40'
-                          : 'text-green-600 dark:text-green-400'
-                    )}>
-                      Analyzing your resume
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Mapping your experience to the role requirements
-                    </p>
-                    {resumeAnalysis && (personaGenStep === 'crafting-persona' || personaGenStep === 'done') && (
-                      <p className="text-[10px] text-muted-foreground mt-1.5 bg-muted rounded-lg p-2 leading-relaxed">
-                        {resumeAnalysis}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Step 3: Crafting Persona */}
-                <div className="flex items-start gap-3">
-                  <div className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500',
-                    personaGenStep === 'crafting-persona'
-                      ? 'bg-primary/15'
-                      : personaGenStep === 'done'
-                        ? 'bg-green-100 dark:bg-green-950/50'
-                        : 'bg-muted'
-                  )}>
-                    {personaGenStep === 'crafting-persona' ? (
-                      <Loader2 size={14} className="animate-spin text-primary" />
-                    ) : personaGenStep === 'done' ? (
-                      <Check size={14} className="text-green-500" />
-                    ) : (
-                      <Bot size={14} className="text-muted-foreground/40" />
-                    )}
-                  </div>
-                  <div className="pt-1">
-                    <p className={cn('text-[13px] font-semibold transition-colors duration-300',
-                      personaGenStep === 'crafting-persona'
-                        ? 'text-foreground'
-                        : personaGenStep === 'done'
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-muted-foreground/40'
-                    )}>
-                      Crafting interviewer persona
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Building a tailored interviewer for this specific role
-                    </p>
-                    {generatedPersona && personaGenStep === 'done' && (
-                      <Card className="mt-2 border-primary/20 bg-primary/5">
-                        <CardContent className="p-3">
-                          <p className="text-[12px] font-bold">{generatedPersona.name}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{generatedPersona.description}</p>
-                          <div className="flex gap-1.5 mt-2">
-                            <Badge variant="secondary" className="text-[9px] h-4">{generatedPersona.interviewStyle}</Badge>
-                            <Badge variant="secondary" className="text-[9px] h-4">{generatedPersona.questionDifficulty}</Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                </div>
-
-                {/* Step 4: Starting (merged from the old separate 'starting' phase) */}
                 {personaGenStep === 'done' && (
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-                      <Loader2 size={14} className="animate-spin text-primary" />
+                    <div className="shrink-0 w-7 h-7 rounded-lg bg-lemonade-accent/15 flex items-center justify-center">
+                      <Loader2 size={13} className="animate-spin text-lemonade-accent-hover" />
                     </div>
-                    <div className="pt-1">
-                      <p className="text-[13px] font-semibold text-foreground">Starting interview...</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">You're almost there</p>
+                    <div className="pt-0.5">
+                      <p className="text-xs font-semibold">Starting interview...</p>
+                      <p className="text-[11px] text-gray-500 dark:text-white/40 mt-0.5">Almost there</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              <p className="text-[11px] text-muted-foreground/50 mt-auto pb-6">
+              <p className="text-[11px] text-gray-400 dark:text-white/30 mt-auto pb-6">
                 This ensures your interview is tailored to the exact role and your background.
               </p>
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════
-              ERROR PHASE
-             ══════════════════════════════════════════════ */}
+          {/* ═══════ ERROR PHASE ═══════ */}
           {phase === 'error' && (
-            <div className="flex-1 flex flex-col justify-center px-7">
-              <Card className="border-destructive/30 bg-destructive/5">
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <AlertCircle size={16} className="text-destructive" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-bold text-destructive mb-1">Something went wrong</p>
-                      <p className="text-xs text-destructive/80 whitespace-pre-wrap leading-relaxed">{errorText}</p>
-                    </div>
+            <div className="flex-1 flex flex-col justify-center px-6">
+              <div className="border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-2xl p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertCircle size={14} className="text-red-500 dark:text-red-400" />
                   </div>
-                  <div className="flex gap-3 mt-4 ml-11">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { setErrorText(null); setPhase('select'); }}
-                    >
-                      Try again
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate('/')}
-                    >
-                      Go back
-                    </Button>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">Something went wrong</p>
+                    <p className="text-xs text-red-500/80 dark:text-red-400/60 whitespace-pre-wrap leading-relaxed">{errorText}</p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex gap-3 mt-4 ml-10">
+                  <button
+                    onClick={() => { setErrorText(null); setPhase('select'); }}
+                    className="px-4 py-2 text-xs font-semibold border border-gray-200/60 dark:border-white/10 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+                  >
+                    Try again
+                  </button>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
+                  >
+                    Go back
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </aside>
@@ -1048,5 +767,48 @@ const Preparing: React.FC = () => {
     </div>
   );
 };
+
+/* ── Persona generation step sub-component ── */
+const PersonaStep: React.FC<{
+  isActive: boolean;
+  isDone: boolean;
+  isPending?: boolean;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  analysis?: string | null;
+  persona?: AgentPersona | null;
+}> = ({ isActive, isDone, isPending, icon, title, subtitle, analysis, persona }) => (
+  <div className="flex items-start gap-3">
+    <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+      isActive ? 'bg-lemonade-accent/15' : isDone ? 'bg-green-100 dark:bg-green-500/15' : 'bg-gray-100 dark:bg-white/[0.04]'
+    }`}>
+      {isActive ? <Loader2 size={13} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={13} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
+    </div>
+    <div className="pt-0.5">
+      <p className={`text-xs font-semibold transition-colors ${
+        isActive ? '' : isDone ? 'text-green-600 dark:text-green-400' : isPending ? 'text-gray-300 dark:text-white/20' : ''
+      }`}>
+        {title}
+      </p>
+      <p className="text-[11px] text-gray-500 dark:text-white/40 mt-0.5">{subtitle}</p>
+      {analysis && (
+        <p className="text-[11px] text-gray-500 dark:text-white/35 mt-1.5 bg-gray-50 dark:bg-white/[0.03] rounded-lg p-2 leading-relaxed">
+          {analysis}
+        </p>
+      )}
+      {persona && (
+        <div className="mt-2 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-xl p-3">
+          <p className="text-xs font-semibold">{persona.name}</p>
+          <p className="text-[11px] text-gray-500 dark:text-white/40 mt-0.5 leading-relaxed">{persona.description}</p>
+          <div className="flex gap-1.5 mt-2">
+            <span className="text-[11px] px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.interviewStyle}</span>
+            <span className="text-[11px] px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.questionDifficulty}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+);
 
 export default Preparing;

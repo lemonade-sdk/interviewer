@@ -1,13 +1,8 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Clock, Award, MessageSquare, Play, BarChart3 } from 'lucide-react';
+import { Plus, MessageSquare, Award, BarChart3 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { Interview } from '../../types';
-import { format } from 'date-fns';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { cn } from '../lib/utils';
+import { LemonCard, InterviewCard } from '../components/lemon';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -28,115 +23,93 @@ const Dashboard: React.FC = () => {
     : 0;
 
   return (
-    <div className="h-full overflow-y-auto bg-background">
-      <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="h-full overflow-y-auto transition-colors duration-300">
+      <div className="p-8 max-w-5xl mx-auto space-y-8 pb-16">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-wide">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Welcome back</p>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">
+              Dashboard
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
+              Welcome back. You have {completedInterviews.length} completed interview{completedInterviews.length !== 1 ? 's' : ''}.
+            </p>
           </div>
-          <Button onClick={() => navigate('/')} className="gap-2 rounded-full">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          >
             <Plus size={16} />
             New Interview
-          </Button>
+          </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <MessageSquare size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Interviews</p>
-                <p className="text-2xl font-bold mt-0.5">{interviews.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <Award size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Average Score</p>
-                <p className="text-2xl font-bold mt-0.5">{averageScore}%</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <BarChart3 size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">In Progress</p>
-                <p className="text-2xl font-bold mt-0.5">{inProgressInterviews.length}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-3 gap-5">
+          <StatCard
+            icon={<MessageSquare size={20} />}
+            label="Total Interviews"
+            value={interviews.length}
+          />
+          <StatCard
+            icon={<Award size={20} />}
+            label="Average Score"
+            value={`${averageScore}%`}
+            highlight
+          />
+          <StatCard
+            icon={<BarChart3 size={20} />}
+            label="In Progress"
+            value={inProgressInterviews.length}
+          />
         </div>
 
         {/* In Progress Interviews */}
         {inProgressInterviews.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                In Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-1">
+          <section className="space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+              In Progress
+            </h2>
+            <div className="space-y-2">
               {inProgressInterviews.map(interview => (
-                <div
+                <InterviewCard
                   key={interview.id}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group"
+                  interview={interview}
                   onClick={() => navigate(`/interview/${interview.id}`)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                      {interview.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {interview.company} &middot; {interview.position}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px]">in progress</Badge>
-                    <Button variant="outline" size="xs" className="gap-1">
-                      <Play size={10} />
-                      Resume
-                    </Button>
-                  </div>
-                </div>
+                />
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         )}
 
         {/* Recent Interviews */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent Interviews
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+            Recent Activity
+          </h2>
+          
+          <LemonCard noPadding>
             {recentInterviews.length === 0 ? (
               <div className="text-center py-16">
-                <MessageSquare size={36} className="mx-auto text-muted-foreground/30 mb-4" />
-                <p className="text-sm text-muted-foreground mb-5">No interviews yet</p>
-                <Button onClick={() => navigate('/')} className="rounded-full">
+                <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white/80">No interviews yet</h3>
+                <p className="text-sm text-gray-500 dark:text-white/40 mt-1 mb-6 max-w-xs mx-auto">
+                  Start your first AI-powered interview to get detailed feedback.
+                </p>
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                >
                   Start Interview
-                </Button>
+                </button>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
                 {recentInterviews.map(interview => (
                   <InterviewCard
                     key={interview.id}
                     interview={interview}
+                    className="rounded-none border-none hover:bg-lemonade-bg/60 dark:hover:bg-white/[0.03]"
                     onClick={() => {
                       if (interview.status === 'in-progress') {
                         navigate(`/interview/${interview.id}`);
@@ -148,68 +121,39 @@ const Dashboard: React.FC = () => {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </LemonCard>
+        </section>
       </div>
     </div>
   );
 };
 
-interface InterviewCardProps {
-  interview: Interview;
-  onClick: () => void;
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  highlight?: boolean;
 }
 
-const InterviewCard: React.FC<InterviewCardProps> = ({ interview, onClick }) => {
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 dark:text-green-400';
-    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
+const StatCard: React.FC<StatCardProps> = ({ icon, label, value, highlight = false }) => {
   return (
-    <div
-      onClick={onClick}
-      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group"
-    >
-      <div className="flex-1 min-w-0">
-        <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-          {interview.title}
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {interview.company} &middot; {interview.position}
-        </p>
-        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground/60">
-          <span className="flex items-center gap-1">
-            <Clock size={10} />
-            {format(new Date(interview.startedAt), 'MMM d, yyyy')}
-          </span>
-          <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-            {interview.interviewType}
-          </Badge>
+    <LemonCard className={highlight ? 'bg-lemonade-accent border-lemonade-accent text-black' : ''}>
+      <div className="flex items-center gap-4">
+        <div className={highlight ? 'text-black/60' : 'w-10 h-10 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover'}>
+          {highlight ? icon : <div className="flex items-center justify-center">{icon}</div>}
+        </div>
+        <div>
+          <p className={`text-xs font-medium uppercase tracking-wider ${
+            highlight ? 'text-black/50' : 'text-gray-400 dark:text-white/30'
+          }`}>
+            {label}
+          </p>
+          <p className="text-2xl font-bold mt-0.5">
+            {value}
+          </p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        {interview.status === 'completed' && interview.feedback && (
-          <span className={cn('text-xl font-bold', getScoreColor(interview.feedback.overallScore))}>
-            {interview.feedback.overallScore}%
-          </span>
-        )}
-        <StatusBadge status={interview.status} />
-      </div>
-    </div>
-  );
-};
-
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const variant = status === 'completed' ? 'default' :
-                  status === 'in-progress' ? 'secondary' :
-                  'outline';
-
-  return (
-    <Badge variant={variant as any} className="text-[10px]">
-      {status.replace('-', ' ')}
-    </Badge>
+    </LemonCard>
   );
 };
 

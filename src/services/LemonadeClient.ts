@@ -219,13 +219,14 @@ export class LemonadeClient {
         throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }
 
-      // Strip model-generated tool-call artifacts that some models (DeepSeek, Qwen3)
-      // embed directly in the content field.  These are NOT real function calls — they
-      // are part of the model's trained output format and the llamacpp backend does not
-      // always strip them.  If left in, they appear in the chat UI and get spoken by TTS.
+      // Clean tool-call artifacts that some models (DeepSeek, Qwen3) embed directly
+      // in the content field. These are NOT real function calls — they are part of
+      // the model's trained output format and the llamacpp backend does not always
+      // strip them. If left in, they appear in the chat UI and get spoken by TTS.
       //
-      // Also strip Markdown formatting (bold, headers, horizontal rules) to ensure
-      // clean text for TTS and transcript display.
+      // Uses cleanForDisplay to preserve formatting (line breaks, lists, markdown)
+      // for readable transcript display. TTS-specific cleaning happens separately
+      // in VoiceInterviewManager before speech synthesis.
       responseContent = this.cleanResponseContent(responseContent);
 
       return responseContent;
@@ -324,6 +325,7 @@ export class LemonadeClient {
       }
 
       // Apply the same cleaning used by the non-streaming path
+      // (removes tool artifacts, preserves formatting for transcript display)
       accumulated = this.cleanResponseContent(accumulated);
 
       return accumulated;
@@ -856,11 +858,15 @@ export class LemonadeClient {
   }
 
   /**
-   * Clean model response content using the unified TextProcessingService.
-   * Delegates to TextProcessingService for consistent text cleaning across the app.
+   * Clean model response content for display in the transcript.
+   * Uses cleanForDisplay to preserve formatting (line breaks, lists, etc.)
+   * while removing tool-call artifacts.
+   * 
+   * Note: TTS-specific cleaning (removing markdown for speech) happens
+   * separately in VoiceInterviewManager.cleanForTTS() before speaking.
    */
   private cleanResponseContent(content: string): string {
-    return TextProcessingService.cleanForTTS(content);
+    return TextProcessingService.cleanForDisplay(content);
   }
 
   /**

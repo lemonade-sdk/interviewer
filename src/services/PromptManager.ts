@@ -14,8 +14,9 @@ export class PromptManager {
     return PromptManager.instance;
   }
 
-  private interpolate(template: string, variables: PromptVariables): string {
-    return template.replace(/\$\{(\w+)\}/g, (_, key) => {
+  private interpolate(template: string | string[], variables: PromptVariables): string {
+    const text = Array.isArray(template) ? template.join('\n') : template;
+    return text.replace(/\$\{(\w+)\}/g, (_, key) => {
       const value = variables[key];
       return value !== undefined ? String(value) : `\${${key}}`;
     });
@@ -31,7 +32,7 @@ export class PromptManager {
     numberOfQuestions: number;
     followUpInstruction: string;
   }): string {
-    return this.interpolate(prompts.interview.systemPrompt.withPersona, variables);
+    return this.interpolate(prompts.interview.systemPrompt.withPersona as string | string[], variables);
   }
 
   getInterviewSystemPromptFallback(variables: {
@@ -45,18 +46,19 @@ export class PromptManager {
     styleAdjective: string;
     typeSpecificInstruction: string;
   }): string {
-    return this.interpolate(prompts.interview.systemPrompt.fallback, variables);
+    return this.interpolate(prompts.interview.systemPrompt.fallback as string | string[], variables);
   }
 
   getFeedbackComprehensivePrompt(): string {
-    return prompts.interview.feedback.comprehensive;
+    const p = prompts.interview.feedback.comprehensive as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
   }
 
   getFeedbackGradingPrompt(variables: {
     question: string;
     answer: string;
   }): string {
-    return this.interpolate(prompts.interview.feedback.grading, variables);
+    return this.interpolate(prompts.interview.feedback.grading as string | string[], variables);
   }
 
   getPersonaGenerationUserPrompt(variables: {
@@ -67,11 +69,12 @@ export class PromptManager {
     position: string;
     styleInstruction: string;
   }): string {
-    return this.interpolate(prompts.persona.generation.userPrompt, variables);
+    return this.interpolate(prompts.persona.generation.userPrompt as string | string[], variables);
   }
 
   getPersonaGenerationSystemPrompt(): string {
-    return prompts.persona.generation.systemPrompt;
+    const p = prompts.persona.generation.systemPrompt as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
   }
 
   getPersonaGenerationFallbackPrompt(variables: {
@@ -82,16 +85,17 @@ export class PromptManager {
     resume: string;
     toneInstruction: string;
   }): string {
-    return this.interpolate(prompts.persona.generation.fallback, variables);
+    return this.interpolate(prompts.persona.generation.fallback as string | string[], variables);
   }
 
   getDocumentExtractionUserPrompt(variables: {
     jobText: string;
   }): string {
-    return this.interpolate(prompts.document.extraction.userPrompt, variables);
+    return this.interpolate(prompts.document.extraction.userPrompt as string | string[], variables);
   }
 
   getDocumentExtractionSystemPrompt(): string {
-    return prompts.document.extraction.systemPrompt;
+    const p = prompts.document.extraction.systemPrompt as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
   }
 }

@@ -120,8 +120,8 @@ export class LemonadeClient {
       // We guarantee zero crashes by mathematically capping the input tokens before sending.
       // -----------------------------------------------------------------------
 
-      // Default to 16k context window if not specified (standard for modern small models like Llama 3.1/Phi 3.5)
-      const totalContextWindow = 16384;
+      // Default to 4k context window if not specified (standard for smaller models)
+      const totalContextWindow = 4096;
       
       const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
       
@@ -283,8 +283,8 @@ export class LemonadeClient {
         }
       }
 
-      // Default to 16k context window if not specified
-      const totalContextWindow = 16384;
+      // Default to 4k context window if not specified
+      const totalContextWindow = 4096;
       const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
       
       // Determine how much space we have for input (History + System Prompt)

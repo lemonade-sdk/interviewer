@@ -9,10 +9,86 @@ export class InterviewService {
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
 
+  /* ── Context-window management ──────────────────────────────────────
+   * With a 4K context window, we must ensure the combined size of
+   *   system prompt + conversation history + model output
+   * stays within budget.  We use a sliding window: always keep the
+   * system message(s), then retain only the most recent N exchange
+   * pairs (user + assistant).  The full transcript is preserved in
+   * session.messages for feedback generation and persistence.
+   *
+   * Budget estimate (4 096 tokens):
+   *   System prompt ≈ 400-800 tokens
+   *   6 Q&A pairs  ≈ 2 400 tokens  (avg ~400 tok/pair)
+   *   Output reserve = max_tokens (default 1 000)
+   *   ─────────────────────────────
+   *   Total ≈ 3 800-4 200 → tight fit
+   */
+  private static readonly MAX_CONTEXT_PAIRS = 4;
+
   constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository) {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
+  }
+
+  /**
+   * Build a windowed view of the conversation for the model.
+   * Keeps all system messages + the last `maxPairs` exchange pairs.
+   * Does NOT mutate the original array.
+   */
+  private buildWindowedMessages(
+    messages: Message[],
+    maxPairs: number = InterviewService.MAX_CONTEXT_PAIRS,
+  ): Message[] {
+    const systemMsgs = messages.filter(m => m.role === 'system');
+    const history    = messages.filter(m => m.role !== 'system');
+
+    if (history.length <= maxPairs * 2) {
+      // Conversation is short enough — send everything
+      return messages;
+    }
+
+    // Keep only the most recent messages (pairs of user + assistant)
+    const trimmed = history.slice(-(maxPairs * 2));
+    return [...systemMsgs, ...trimmed];
+  }
+
+  /**
+   * Rough token estimator (~3.5 chars per token for English text).
+   * Used as a safety check, not a precise tokenizer.
+   */
+  private static estimateTokens(text: string): number {
+    return Math.ceil(text.length / 3.5);
+  }
+
+  /**
+   * Token-aware trimming: walks backward from the newest messages,
+   * keeping as many as fit within the token budget.
+   * Always preserves system messages.
+   */
+  private trimToTokenBudget(messages: Message[], ctxSize: number = 4096): Message[] {
+    const systemMsgs  = messages.filter(m => m.role === 'system');
+    const history      = messages.filter(m => m.role !== 'system');
+
+    const systemTokens = systemMsgs.reduce(
+      (sum, m) => sum + InterviewService.estimateTokens(m.content), 0,
+    );
+    const outputReserve = this.settings.maxTokens || 2000;
+    let budget = ctxSize - systemTokens - outputReserve;
+
+    const kept: Message[] = [];
+    for (let i = history.length - 1; i >= 0 && budget > 0; i--) {
+      const cost = InterviewService.estimateTokens(history[i].content);
+      if (cost <= budget) {
+        kept.unshift(history[i]);
+        budget -= cost;
+      } else {
+        break;
+      }
+    }
+
+    return [...systemMsgs, ...kept];
   }
 
   /**
@@ -157,9 +233,9 @@ export class InterviewService {
           timestamp: new Date().toISOString()
         }
       ],
-      // Use maximum available context (approx 14k tokens) for high-fidelity feedback
+      // Use maximum available context (approx 3k tokens) for high-fidelity feedback
       // This ensures the model sees as much of the interview history as possible.
-      { maxInputTokens: 14336 }
+      { maxInputTokens: 3072 }
     );
 
     // Parse feedback

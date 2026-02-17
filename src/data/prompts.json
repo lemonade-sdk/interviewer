@@ -133,11 +133,12 @@
   "document": {
     "extraction": {
       "userPrompt": [
-        "Analyze the following job posting and provide a thorough analysis.",
+        "You are a job analyst. Analyze the job posting text provided below immediately.",
         "",
-        "<JOB_POSTING>",
+        "JOB POSTING:",
+        "\"\"\"",
         "${jobText}",
-        "</JOB_POSTING>",
+        "\"\"\"",
         "",
         "Provide a natural language analysis covering:",
         "- What the interview title should be",
@@ -145,7 +146,7 @@
         "- The position/job title",
         "- What type of interview this would be (general, technical, behavioral, system-design, coding, or mixed)",
         "",
-        "Write clearly and concisely. This analysis will be used to set up the interview."
+        "Write clearly and concisely. Do not ask for more information. Start your analysis now."
       ],
       "systemPrompt": "You are a job posting analysis assistant. Analyze job descriptions and identify key details about the role and company."
     }
@@ -241,15 +242,17 @@
     "jobDetails": {
       "systemPrompt": "You are a structured data extraction assistant. Extract job details and output ONLY valid JSON.",
       "userPrompt": [
-        "Extract structured job details from the following job posting analysis.",
+        "Extract structured job details from the following job posting and analysis.",
         "",
-        "<JOB_POSTING>",
+        "JOB POSTING:",
+        "\"\"\"",
         "${jobText}",
-        "</JOB_POSTING>",
+        "\"\"\"",
         "",
-        "<ANALYSIS>",
+        "ANALYSIS:",
+        "\"\"\"",
         "${analysisText}",
-        "</ANALYSIS>",
+        "\"\"\"",
         "",
         "Return ONLY a JSON object:",
         "{",

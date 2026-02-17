@@ -957,6 +957,8 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     const lemonadeClient = interviewService.getLemonadeClient();
     // Truncate to ~4000 chars to keep prompt compact for small-context models
     const jobText = doc.extractedText.substring(0, 4000);
+    console.log(`[document:extractJobDetails] Preparing to analyze job text. Length: ${jobText.length} chars. Preview: ${jobText.substring(0, 100)}...`);
+
     const prompt = PromptManager.getInstance().getDocumentExtractionUserPrompt({
       jobText
     });
@@ -976,6 +978,8 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
         timestamp: new Date().toISOString(),
       },
     ], { maxTokens: 4096 });
+
+    console.log(`[document:extractJobDetails] Stage 1 Analysis Result (first 200 chars): ${analysisText.substring(0, 200)}...`);
 
     // Stage 2: Extract structured fields from the analysis
     const extracted = await extractionService.extractJobDetails(jobText, analysisText);

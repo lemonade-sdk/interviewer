@@ -322,14 +322,14 @@ const Interview: React.FC = () => {
       });
       manager.on('transcription-complete', async (text: string) => {
         setIsTranscribing(false);
-        setTranscriptionDelta('');
+        // Don't clear transcriptionDelta here - keep it visible until message appears
         if (!manager.isHandsFreeMode && text.trim() && id) {
           await sendVoiceMessage(text);
         }
       });
 
       manager.on('utterance-complete', async (text: string) => {
-        setTranscriptionDelta('');
+        // Don't clear transcriptionDelta here - keep it visible until message appears
         if (text.trim() && id) {
           await sendVoiceMessage(text);
         }
@@ -340,7 +340,7 @@ const Interview: React.FC = () => {
       });
       manager.on('listening-stopped', () => {
         setIsListening(false);
-        setTranscriptionDelta('');
+        // Don't clear transcriptionDelta here - it will be cleared when message is added
       });
 
       manager.on('speaking-started', () => setIsSpeaking(true));
@@ -382,6 +382,9 @@ const Interview: React.FC = () => {
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
+    
+    // Clear transcription delta now that the message is in the UI
+    setTranscriptionDelta('');
 
     const useStreaming = voiceMode && manager && !isMuted;
 

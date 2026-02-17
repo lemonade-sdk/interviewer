@@ -4,6 +4,7 @@ import https from 'https';
 import net from 'net';
 import { InterviewerSettings, Message, ModelConfig } from '../types';
 import axios from 'axios';
+import { truncateConversationHistory } from '../utils/tokenUtils';
 
 /**
  * LemonadeClient - Integration with Lemonade Server
@@ -108,8 +109,16 @@ export class LemonadeClient {
       }
 
       // Convert conversation history to OpenAI format
-      const messages = conversationHistory
-        .filter(msg => msg.role !== 'system' || conversationHistory.indexOf(msg) === 0)
+      // Truncate history to fit within context window
+      // Assuming 8192 total context window for now (standard for Lemonade Server models)
+      const totalContextWindow = 8192;
+      const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
+      const maxInputTokens = totalContextWindow - maxOutputTokens;
+
+      const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
+
+      const messages = truncatedHistory
+        .filter(msg => msg.role !== 'system' || truncatedHistory.indexOf(msg) === 0)
         .map(msg => ({
           role: msg.role as 'system' | 'user' | 'assistant',
           content: msg.content,
@@ -259,9 +268,16 @@ export class LemonadeClient {
         }
       }
 
-      const messages = conversationHistory
+      // Assuming 8192 total context window for now
+      const totalContextWindow = 8192;
+      const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
+      const maxInputTokens = totalContextWindow - maxOutputTokens;
+
+      const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
+
+      const messages = truncatedHistory
         .filter(
-          (msg) => msg.role !== 'system' || conversationHistory.indexOf(msg) === 0,
+          (msg) => msg.role !== 'system' || truncatedHistory.indexOf(msg) === 0,
         )
         .map((msg) => ({
           role: msg.role as 'system' | 'user' | 'assistant',

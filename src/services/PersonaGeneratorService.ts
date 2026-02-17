@@ -1,5 +1,6 @@
-import { AgentPersona, InterviewStyle, InterviewType } from '../types';
+import { AgentPersona, InterviewType } from '../types';
 import { LemonadeClient } from './LemonadeClient';
+import { StructuredExtractionService } from './StructuredExtractionService';
 import { v4 as uuidv4 } from 'uuid';
 import { PromptManager } from './PromptManager';
 
@@ -7,11 +8,10 @@ import { PromptManager } from './PromptManager';
  * PersonaGeneratorService
  * 
  * Analyzes uploaded documents (Job Description + Resume) and auto-generates
- * a tailored interviewer persona. The flow:
+ * a tailored interviewer persona using a two-stage approach:
  * 
- *   1. Read & deeply comprehend the Job Description
- *   2. Read & deeply comprehend the Candidate's Resume
- *   3. Synthesize both to produce a calibrated interviewer persona
+ * Stage 1: Generate natural language persona description and analysis
+ * Stage 2: Extract structured persona fields from the natural text
  * 
  * The generated persona includes a rich system prompt that encapsulates all
  * document knowledge so the interview AI doesn't need to re-read documents.
@@ -29,13 +29,16 @@ export interface GeneratedPersonaResult {
   persona: AgentPersona;
   jobAnalysis: string;
   resumeAnalysis: string;
+  rawText?: string; // Natural language output from Stage 1
 }
 
 export class PersonaGeneratorService {
   private lemonadeClient: LemonadeClient;
+  private extractionService: StructuredExtractionService;
 
   constructor(lemonadeClient: LemonadeClient) {
     this.lemonadeClient = lemonadeClient;
+    this.extractionService = new StructuredExtractionService(lemonadeClient);
   }
 
   /* ── Token-budget safety ──
@@ -79,12 +82,13 @@ export class PersonaGeneratorService {
 
   /**
    * Generate an interviewer persona from job description and resume.
+   * Uses two-stage approach: natural language generation → structured extraction.
    */
   async generatePersona(input: PersonaGenerationInput): Promise<GeneratedPersonaResult> {
     const prompt = this.buildPersonaGenerationPrompt(input);
 
-    // Send to the LLM
-    const response = await this.lemonadeClient.sendMessage([
+    // Stage 1: Generate natural language persona description
+    const personaText = await this.lemonadeClient.sendMessage([
       {
         id: 'persona-gen-system',
         role: 'system',
@@ -99,70 +103,23 @@ export class PersonaGeneratorService {
       },
     ], { maxTokens: 8192 });
 
-    // Parse the response
-    const parsed = this.parsePersonaResponse(response, input);
-    return parsed;
-  }
+    // Stage 2: Extract structured persona fields
+    const extracted = await this.extractionService.extractPersonaData(personaText);
 
-  /**
-   * Parse the LLM response into a structured persona result.
-   * Includes robust fallback handling for malformed JSON.
-   */
-  private parsePersonaResponse(
-    response: string,
-    input: PersonaGenerationInput,
-  ): GeneratedPersonaResult {
-    let parsed: any;
-
-    try {
-      // Try direct JSON parse first
-      parsed = JSON.parse(response);
-    } catch {
-      // Try to extract JSON from markdown code fences
-      const jsonMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[1]);
-        } catch {
-          // Last resort: try to find JSON object boundaries
-          const startIdx = response.indexOf('{');
-          const endIdx = response.lastIndexOf('}');
-          if (startIdx !== -1 && endIdx > startIdx) {
-            try {
-              parsed = JSON.parse(response.slice(startIdx, endIdx + 1));
-            } catch {
-              parsed = null;
-            }
-          }
-        }
-      }
+    // If extraction failed, use fallback with natural text
+    if (!extracted) {
+      return this.buildFallbackPersona(input, personaText);
     }
 
-    // If parsing completely failed, generate a fallback persona
-    if (!parsed) {
-      return this.buildFallbackPersona(input, response);
-    }
-
-    // Validate and normalize fields
-    const validStyles: InterviewStyle[] = ['conversational', 'formal', 'challenging', 'supportive'];
-    const validDifficulties = ['easy', 'medium', 'hard'] as const;
-
+    // Build the persona from extracted data
     const now = new Date().toISOString();
     const persona: AgentPersona = {
       id: uuidv4(),
-      name: typeof parsed.name === 'string' ? parsed.name : `${input.company} Interviewer`,
-      description: typeof parsed.description === 'string'
-        ? parsed.description
-        : `Interviewer for the ${input.position} role at ${input.company}`,
-      systemPrompt: typeof parsed.systemPrompt === 'string'
-        ? parsed.systemPrompt
-        : this.buildFallbackSystemPrompt(input),
-      interviewStyle: validStyles.includes(parsed.interviewStyle)
-        ? parsed.interviewStyle
-        : 'conversational',
-      questionDifficulty: validDifficulties.includes(parsed.questionDifficulty)
-        ? parsed.questionDifficulty
-        : 'medium',
+      name: extracted.name,
+      description: extracted.description,
+      systemPrompt: extracted.systemPrompt,
+      interviewStyle: extracted.interviewStyle,
+      questionDifficulty: extracted.questionDifficulty,
       isDefault: false,
       createdAt: now,
       updatedAt: now,
@@ -170,21 +127,19 @@ export class PersonaGeneratorService {
 
     return {
       persona,
-      jobAnalysis: typeof parsed.jobAnalysis === 'string'
-        ? parsed.jobAnalysis
-        : 'Job description analyzed successfully.',
-      resumeAnalysis: typeof parsed.resumeAnalysis === 'string'
-        ? parsed.resumeAnalysis
-        : 'Resume analyzed successfully.',
+      jobAnalysis: extracted.jobAnalysis,
+      resumeAnalysis: extracted.resumeAnalysis,
+      rawText: personaText, // Store the natural language output
     };
   }
 
   /**
-   * Build a fallback persona when LLM response parsing fails entirely.
+   * Build a fallback persona when extraction fails entirely.
+   * Uses the natural text from Stage 1 to create a basic persona.
    */
   private buildFallbackPersona(
     input: PersonaGenerationInput,
-    _rawResponse: string,
+    rawResponse: string,
   ): GeneratedPersonaResult {
     const now = new Date().toISOString();
     return {
@@ -201,6 +156,7 @@ export class PersonaGeneratorService {
       },
       jobAnalysis: 'The job description was processed but structured analysis could not be extracted.',
       resumeAnalysis: 'The resume was processed but structured analysis could not be extracted.',
+      rawText: rawResponse, // Keep the natural text for reference
     };
   }
 

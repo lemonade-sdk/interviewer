@@ -5,6 +5,7 @@ import net from 'net';
 import { InterviewerSettings, Message, ModelConfig } from '../types';
 import axios from 'axios';
 import { truncateConversationHistory } from '../utils/tokenUtils';
+import { TextProcessingService } from './TextProcessingService';
 
 /**
  * LemonadeClient - Integration with Lemonade Server
@@ -855,58 +856,11 @@ export class LemonadeClient {
   }
 
   /**
-   * Clean model response content.
-   * 1. Strips tool-call artifacts (DeepSeek/Qwen3 tokens)
-   * 2. Strips markdown formatting (bold, headers, horizontal rules) to ensure
-   *    clean text for TTS and transcript display.
+   * Clean model response content using the unified TextProcessingService.
+   * Delegates to TextProcessingService for consistent text cleaning across the app.
    */
   private cleanResponseContent(content: string): string {
-    if (!content) return content;
-
-    // 1. Remove tool-call blocks (outermost wrapper):
-    //   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
-    let cleaned = content.replace(
-      /<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g,
-      '',
-    );
-
-    // Fallback: if only partial markers exist (e.g. model was cut off before
-    // emitting the closing tag), strip from the opening tag to end of string
-    // or to the first blank line after a JSON block.
-    cleaned = cleaned.replace(
-      /<｜tool▁call[s]?▁(?:begin|end)｜>/g,
-      '',
-    );
-    cleaned = cleaned.replace(/<｜tool▁sep｜>/g, '');
-
-    // Remove any remaining orphan ``` json fences left by tool call blocks
-    cleaned = cleaned.replace(/```json\s*\{[\s\S]*?\}\s*```/g, '');
-
-    // 2. Remove Markdown artifacts for cleaner TTS/Transcript
-    
-    // Remove bold/italic markers (**text**, *text*, __text__, _text_)
-    // We replace with the captured text content
-    cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold** -> bold
-    cleaned = cleaned.replace(/__([^_]+)__/g, '$1');     // __bold__ -> bold
-    cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');     // *italic* -> italic
-    cleaned = cleaned.replace(/_([^_]+)_/g, '$1');       // _italic_ -> italic
-
-    // Remove headers (### Header -> Header)
-    cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
-
-    // Remove horizontal rules (---, ***, ___)
-    cleaned = cleaned.replace(/^[-*_]{3,}\s*$/gm, '');
-
-    // Remove blockquotes (> text -> text)
-    cleaned = cleaned.replace(/^>\s+/gm, '');
-    
-    // Remove links ([text](url) -> text)
-    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-
-    // Collapse excessive whitespace left by the removal
-    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
-
-    return cleaned;
+    return TextProcessingService.cleanForTTS(content);
   }
 
   /**

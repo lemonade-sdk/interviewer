@@ -12,6 +12,7 @@ import { DocumentRepository } from '../database/repositories/DocumentRepository'
 import { InterviewService } from '../services/InterviewService';
 import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
 import { PromptManager } from '../services/PromptManager';
+import { StructuredExtractionService } from '../services/StructuredExtractionService';
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -26,6 +27,7 @@ let documentRepo: DocumentRepository;
 
 // Services
 let interviewService: InterviewService;
+let extractionService: StructuredExtractionService;
 
 // Audio recordings directory
 let audioRecordingsPath: string;
@@ -131,6 +133,10 @@ async function initializeApp(): Promise<void> {
     const interviewerSettings = await settingsRepo.getInterviewerSettings();
     interviewService = new InterviewService(interviewerSettings, interviewRepo);
     console.log('Interview Service initialized');
+    
+    // Initialize extraction service for document processing
+    extractionService = new StructuredExtractionService(interviewService.getLemonadeClient());
+    console.log('Extraction Service initialized');
     
     // Initialize MCP Manager
     mcpManager = new MCPManager();
@@ -455,6 +461,8 @@ ipcMain.handle('settings:updateInterviewer', async (_event: IpcMainInvokeEvent, 
     const updated = await settingsRepo.updateInterviewerSettings(updates);
     // Reinitialize interview service with new settings
     interviewService = new InterviewService(updated, interviewRepo);
+    // Reinitialize extraction service with updated client
+    extractionService = new StructuredExtractionService(interviewService.getLemonadeClient());
     return updated;
   } catch (error) {
     console.error('Failed to update interviewer settings:', error);
@@ -953,10 +961,8 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
       jobText
     });
 
-    // DeepSeek-R1 and similar reasoning models consume a large number of tokens
-    // on internal chain-of-thought (reasoning_content) *before* producing visible
-    // output (content).  8192 gives ample room for reasoning + a small JSON object.
-    const response = await lemonadeClient.sendMessage([
+    // Stage 1: Generate natural language analysis of the job posting
+    const analysisText = await lemonadeClient.sendMessage([
       {
         id: 'extract-system',
         role: 'system',
@@ -969,47 +975,21 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
         content: prompt,
         timestamp: new Date().toISOString(),
       },
-    ], { maxTokens: 8192 });
+    ], { maxTokens: 4096 });
 
-    // Robust multi-layered JSON extraction (matches PersonaGeneratorService pattern)
-    // Reasoning models may wrap output in thinking text or markdown fences.
-    let parsed: any = null;
-    const cleaned = response.trim();
+    // Stage 2: Extract structured fields from the analysis
+    const extracted = await extractionService.extractJobDetails(jobText, analysisText);
 
-    // Layer 1: Direct JSON parse
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // Layer 2: Strip markdown code fences
-      const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-      if (fenceMatch) {
-        try {
-          parsed = JSON.parse(fenceMatch[1]);
-        } catch { /* fall through */ }
-      }
-
-      // Layer 3: Find JSON object boundaries in the text
-      if (!parsed) {
-        const startIdx = cleaned.indexOf('{');
-        const endIdx = cleaned.lastIndexOf('}');
-        if (startIdx !== -1 && endIdx > startIdx) {
-          try {
-            parsed = JSON.parse(cleaned.slice(startIdx, endIdx + 1));
-          } catch { /* fall through */ }
-        }
-      }
-    }
-
-    if (!parsed) {
-      console.error('Could not extract JSON from LLM response. Raw (first 500 chars):', cleaned.slice(0, 500));
-      throw new Error('LLM response did not contain valid JSON.');
+    if (!extracted) {
+      console.error('Could not extract structured data from job analysis. Raw analysis (first 500 chars):', analysisText.slice(0, 500));
+      throw new Error('Failed to extract structured job details from the analysis.');
     }
 
     return {
-      title: typeof parsed.title === 'string' ? parsed.title : '',
-      company: typeof parsed.company === 'string' ? parsed.company : '',
-      position: typeof parsed.position === 'string' ? parsed.position : '',
-      interviewType: typeof parsed.interviewType === 'string' ? parsed.interviewType : 'general',
+      title: extracted.title,
+      company: extracted.company,
+      position: extracted.position,
+      interviewType: extracted.interviewType,
     };
   } catch (error) {
     console.error('Failed to extract job details:', error);

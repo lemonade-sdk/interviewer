@@ -2,9 +2,11 @@ import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, Mode
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 import { PromptManager } from './PromptManager';
+import { StructuredExtractionService } from './StructuredExtractionService';
 
 export class InterviewService {
   private lemonadeClient: LemonadeClient;
+  private extractionService: StructuredExtractionService;
   private activeInterviews: Map<string, InterviewSession> = new Map();
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
@@ -13,6 +15,7 @@ export class InterviewService {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
+    this.extractionService = new StructuredExtractionService(this.lemonadeClient);
   }
 
   /**
@@ -144,10 +147,10 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
 
-    // Generate feedback
+    // Stage 1: Generate natural language feedback
     const feedbackPrompt = PromptManager.getInstance().getFeedbackComprehensivePrompt();
 
-    const feedbackResponse = await this.lemonadeClient.sendMessage(
+    const feedbackText = await this.lemonadeClient.sendMessage(
       [
         ...session.messages,
         {
@@ -162,22 +165,17 @@ export class InterviewService {
       { maxInputTokens: 3072 }
     );
 
-    // Parse feedback
-    let feedback: InterviewFeedback;
-    try {
-      const parsed = JSON.parse(feedbackResponse);
-      feedback = { ...parsed, questionFeedbacks: parsed.questionFeedbacks ?? [] };
-    } catch (error) {
-      // Fallback if parsing fails
-      feedback = {
-        overallScore: 70,
-        questionFeedbacks: [],
-        strengths: ['Completed the interview'],
-        weaknesses: ['Unable to parse detailed feedback'],
-        suggestions: ['Practice more interviews'],
-        detailedFeedback: feedbackResponse,
-      };
-    }
+    // Stage 2: Extract structured data from natural language feedback
+    const extracted = await this.extractionService.extractFeedbackData(feedbackText);
+
+    const feedback: InterviewFeedback = {
+      overallScore: extracted?.overallScore ?? 70,
+      questionFeedbacks: [],
+      strengths: extracted?.strengths ?? ['Completed the interview'],
+      weaknesses: extracted?.weaknesses ?? ['Unable to extract detailed feedback'],
+      suggestions: extracted?.suggestions ?? ['Practice more interviews'],
+      detailedFeedback: feedbackText, // Natural text from Stage 1
+    };
 
     // Clean up session
     this.activeInterviews.delete(interviewId);
@@ -224,27 +222,42 @@ export class InterviewService {
       });
 
       try {
-        const response = await this.lemonadeClient.sendMessage([
+        // Stage 1: Generate natural language feedback for this Q/A pair
+        const feedbackText = await this.lemonadeClient.sendMessage([
           { id: `grade-${idx}`, role: 'user', content: gradingPrompt, timestamp: new Date().toISOString() },
         ]);
 
-        // Parse JSON from response (handle potential markdown wrapping)
-        let cleaned = response.trim();
-        if (cleaned.startsWith('```')) {
-          cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const parsed = JSON.parse(cleaned);
-        questionFeedbacks.push({
-          questionIndex: idx,
+        // Stage 2: Extract structured grade data
+        const extracted = await this.extractionService.extractQuestionGrade(
           question,
           answer,
-          score: Math.max(0, Math.min(100, parsed.score ?? 50)),
-          rating: parsed.rating ?? 'good',
-          strengths: parsed.strengths ?? [],
-          improvements: parsed.improvements ?? [],
-          suggestedAnswer: parsed.suggestedAnswer ?? '',
-        });
+          feedbackText
+        );
+
+        if (extracted) {
+          questionFeedbacks.push({
+            questionIndex: idx,
+            question,
+            answer,
+            score: extracted.score,
+            rating: extracted.rating,
+            strengths: extracted.strengths,
+            improvements: extracted.improvements,
+            suggestedAnswer: extracted.suggestedAnswer,
+          });
+        } else {
+          // Extraction failed, use fallback with natural text
+          questionFeedbacks.push({
+            questionIndex: idx,
+            question,
+            answer,
+            score: 50,
+            rating: 'good',
+            strengths: ['Response provided'],
+            improvements: [`Feedback: ${feedbackText.substring(0, 200)}`],
+            suggestedAnswer: '',
+          });
+        }
       } catch (error) {
         console.error(`Failed to grade Q${idx + 1}:`, error);
         questionFeedbacks.push({

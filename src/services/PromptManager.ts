@@ -98,4 +98,53 @@ export class PromptManager {
     const p = prompts.document.extraction.systemPrompt as string | string[];
     return Array.isArray(p) ? p.join('\n') : p;
   }
+
+  // === Extraction Prompt Methods (Stage 2) ===
+
+  getFeedbackExtractionSystemPrompt(): string {
+    const p = prompts.extraction.feedback.systemPrompt as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
+  }
+
+  getFeedbackExtractionUserPrompt(variables: {
+    feedbackText: string;
+  }): string {
+    return this.interpolate(prompts.extraction.feedback.userPrompt as string | string[], variables);
+  }
+
+  getQuestionGradeExtractionSystemPrompt(): string {
+    const p = prompts.extraction.questionGrade.systemPrompt as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
+  }
+
+  getQuestionGradeExtractionUserPrompt(variables: {
+    question: string;
+    answer: string;
+    feedbackText: string;
+  }): string {
+    return this.interpolate(prompts.extraction.questionGrade.userPrompt as string | string[], variables);
+  }
+
+  getPersonaExtractionSystemPrompt(): string {
+    const p = prompts.extraction.persona.systemPrompt as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
+  }
+
+  getPersonaExtractionUserPrompt(variables: {
+    personaText: string;
+  }): string {
+    return this.interpolate(prompts.extraction.persona.userPrompt as string | string[], variables);
+  }
+
+  getJobDetailsExtractionSystemPrompt(): string {
+    const p = prompts.extraction.jobDetails.systemPrompt as string | string[];
+    return Array.isArray(p) ? p.join('\n') : p;
+  }
+
+  getJobDetailsExtractionUserPrompt(variables: {
+    jobText: string;
+    analysisText: string;
+  }): string {
+    return this.interpolate(prompts.extraction.jobDetails.userPrompt as string | string[], variables);
+  }
 }

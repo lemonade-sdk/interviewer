@@ -57,7 +57,6 @@ export class StructuredExtractionService {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 2048,
-        temperature: 0.1, // Low temperature for consistent extraction
       });
 
       // Parse the JSON response
@@ -121,7 +120,6 @@ export class StructuredExtractionService {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 1024,
-        temperature: 0.1,
       });
 
       const parsed = this.parseJSON(response);
@@ -186,7 +184,6 @@ export class StructuredExtractionService {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 4096,
-        temperature: 0.1,
       });
 
       const parsed = this.parseJSON(response);
@@ -258,7 +255,6 @@ export class StructuredExtractionService {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 512,
-        temperature: 0.1,
       });
 
       const parsed = this.parseJSON(response);

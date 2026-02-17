@@ -313,6 +313,32 @@ ipcMain.handle(
   },
 );
 
+// ─── Detailed feedback generation: grades each Q/A pair individually ───
+ipcMain.handle('feedback:generate', async (event: IpcMainInvokeEvent, interviewId: string) => {
+  try {
+    const interview = await interviewRepo.findById(interviewId);
+    if (!interview) {
+      throw new Error(`Interview ${interviewId} not found`);
+    }
+
+    const feedback = await interviewService.generateDetailedFeedback(
+      interviewId,
+      interview.transcript,
+      (progressData) => {
+        event.sender.send('feedback:progress', progressData);
+      },
+    );
+
+    // Persist feedback to DB
+    await interviewRepo.update(interviewId, { feedback });
+
+    return feedback;
+  } catch (error) {
+    console.error('Failed to generate feedback:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('interview:get', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     return await interviewRepo.findById(interviewId);
@@ -908,6 +934,93 @@ ipcMain.handle('document:delete', async (_event: IpcMainInvokeEvent, id: string)
     return await documentRepo.delete(id);
   } catch (error) {
     console.error('Failed to delete document:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, jobPostDocId: string) => {
+  try {
+    const doc = await documentRepo.findById(jobPostDocId);
+    if (!doc || !doc.extractedText) {
+      throw new Error('Job post document not found or has no extracted text.');
+    }
+
+    const lemonadeClient = interviewService.getLemonadeClient();
+    // Truncate to ~4000 chars to keep prompt compact for small-context models
+    const jobText = doc.extractedText.substring(0, 4000);
+    const prompt = `/no_think
+Analyze the following job posting and extract the key details. Return ONLY a valid JSON object with these exact fields:
+- "title": A concise interview title (e.g. "Senior Software Engineer Interview")
+- "company": The company name
+- "position": The job title/position
+- "interviewType": One of: "general", "technical", "behavioral", "system-design", "coding", "mixed"
+
+<JOB_POSTING>
+${jobText}
+</JOB_POSTING>
+
+Respond with ONLY the JSON object. No thinking, no explanation, no markdown fences.`;
+
+    // DeepSeek-R1 and similar reasoning models consume a large number of tokens
+    // on internal chain-of-thought (reasoning_content) *before* producing visible
+    // output (content).  8192 gives ample room for reasoning + a small JSON object.
+    const response = await lemonadeClient.sendMessage([
+      {
+        id: 'extract-system',
+        role: 'system',
+        content: 'You are a JSON extraction assistant. You ONLY output valid JSON objects. No markdown, no code fences, no explanations. No thinking or reasoning — output ONLY JSON.',
+        timestamp: new Date().toISOString(),
+      },
+      {
+        id: 'extract-user',
+        role: 'user',
+        content: prompt,
+        timestamp: new Date().toISOString(),
+      },
+    ], { maxTokens: 8192 });
+
+    // Robust multi-layered JSON extraction (matches PersonaGeneratorService pattern)
+    // Reasoning models may wrap output in thinking text or markdown fences.
+    let parsed: any = null;
+    const cleaned = response.trim();
+
+    // Layer 1: Direct JSON parse
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      // Layer 2: Strip markdown code fences
+      const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+      if (fenceMatch) {
+        try {
+          parsed = JSON.parse(fenceMatch[1]);
+        } catch { /* fall through */ }
+      }
+
+      // Layer 3: Find JSON object boundaries in the text
+      if (!parsed) {
+        const startIdx = cleaned.indexOf('{');
+        const endIdx = cleaned.lastIndexOf('}');
+        if (startIdx !== -1 && endIdx > startIdx) {
+          try {
+            parsed = JSON.parse(cleaned.slice(startIdx, endIdx + 1));
+          } catch { /* fall through */ }
+        }
+      }
+    }
+
+    if (!parsed) {
+      console.error('Could not extract JSON from LLM response. Raw (first 500 chars):', cleaned.slice(0, 500));
+      throw new Error('LLM response did not contain valid JSON.');
+    }
+
+    return {
+      title: typeof parsed.title === 'string' ? parsed.title : '',
+      company: typeof parsed.company === 'string' ? parsed.company : '',
+      position: typeof parsed.position === 'string' ? parsed.position : '',
+      interviewType: typeof parsed.interviewType === 'string' ? parsed.interviewType : 'general',
+    };
+  } catch (error) {
+    console.error('Failed to extract job details:', error);
     throw error;
   }
 });

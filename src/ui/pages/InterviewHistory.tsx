@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Trash2, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Trash2, Eye, Clock, MessageSquare } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Interview } from '../../types';
 import { format } from 'date-fns';
+import { LemonTabs } from '../components/lemon/LemonTabs';
+import { LemonDialog } from '../components/lemon/LemonDialog';
+import { LemonSelect } from '../components/lemon/LemonSelect';
 
 const InterviewHistory: React.FC = () => {
+  const navigate = useNavigate();
   const { interviews, loadInterviews } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -19,18 +24,12 @@ const InterviewHistory: React.FC = () => {
       interview.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.position.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter =
-      filterType === 'all' || interview.interviewType === filterType;
-
+    const matchesFilter = filterType === 'all' || interview.interviewType === filterType;
     return matchesSearch && matchesFilter;
   });
 
   const handleDelete = async (interviewId: string) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this interview? This action cannot be undone.'
-    );
-
+    const confirmed = window.confirm('Delete this interview? This action cannot be undone.');
     if (confirmed) {
       try {
         await window.electronAPI.deleteInterview(interviewId);
@@ -41,109 +40,101 @@ const InterviewHistory: React.FC = () => {
     }
   };
 
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 dark:text-green-400';
+    if (score >= 60) return 'text-lemonade-accent-hover';
+    return 'text-red-600 dark:text-red-400';
+  };
+
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Interview History</h1>
+    <div className="h-full overflow-y-auto bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
+      <div className="p-8 max-w-5xl mx-auto space-y-6 pb-16">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">History</h1>
+          <p className="text-sm text-gray-500 dark:text-white/40 mt-1">Review your past interviews</p>
+        </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Search interviews..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter size={20} className="text-gray-500" />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Types</option>
-                <option value="technical">Technical</option>
-                <option value="behavioral">Behavioral</option>
-                <option value="system-design">System Design</option>
-                <option value="coding">Coding</option>
-                <option value="general">General</option>
-                <option value="mixed">Mixed</option>
-              </select>
-            </div>
+        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={15} />
+            <input
+              type="text"
+              placeholder="Search interviews..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none"
+            />
           </div>
+          <LemonSelect
+            value={filterType}
+            onChange={setFilterType}
+            className="w-44"
+            options={[
+              { value: 'all', label: 'All Types' },
+              { value: 'technical', label: 'Technical' },
+              { value: 'behavioral', label: 'Behavioral' },
+              { value: 'system-design', label: 'System Design' },
+              { value: 'coding', label: 'Coding' },
+              { value: 'general', label: 'General' },
+              { value: 'mixed', label: 'Mixed' },
+            ]}
+          />
         </div>
 
         {/* Interviews List */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           {filteredInterviews.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <p className="text-gray-600">No interviews found matching your criteria.</p>
+            <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-12 text-center transition-colors duration-300">
+              <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
+              <p className="text-sm text-gray-500 dark:text-white/40">No interviews found matching your criteria.</p>
             </div>
           ) : (
             filteredInterviews.map((interview) => (
-              <div
-                key={interview.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-              >
+              <div key={interview.id} className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-5 hover:border-gray-300/60 dark:hover:border-white/10 transition-all duration-200">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {interview.title}
-                    </h3>
-                    <p className="text-gray-600 mt-1">
-                      {interview.company} • {interview.position}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold truncate text-gray-900 dark:text-white/90">{interview.title}</h3>
+                    <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">
+                      {interview.company} &middot; {interview.position}
                     </p>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                      <span className="capitalize">{interview.interviewType}</span>
-                      <span>•</span>
-                      <span>{format(new Date(interview.startedAt), 'MMM d, yyyy')}</span>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-white/30">
+                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/5 rounded-full">
+                        {interview.interviewType}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} />
+                        {format(new Date(interview.startedAt), 'MMM d, yyyy')}
+                      </span>
                       {interview.duration && (
-                        <>
-                          <span>•</span>
-                          <span>{Math.round(interview.duration / 60)} minutes</span>
-                        </>
+                        <span>{Math.round(interview.duration / 60)} min</span>
                       )}
                     </div>
                     {interview.feedback && (
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-6">
-                          <div>
-                            <div className="text-2xl font-bold text-primary-600">
-                              {interview.feedback.overallScore}%
-                            </div>
-                            <div className="text-xs text-gray-500">Overall Score</div>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-700 line-clamp-2">
-                              {interview.feedback.detailedFeedback}
-                            </p>
-                          </div>
-                        </div>
+                      <div className="mt-3 flex items-center gap-4">
+                        <span className={`text-xl font-bold ${getScoreColor(interview.feedback.overallScore)}`}>
+                          {interview.feedback.overallScore}%
+                        </span>
+                        <p className="text-xs text-gray-500 dark:text-white/40 line-clamp-1 flex-1">
+                          {interview.feedback.detailedFeedback}
+                        </p>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex gap-1 ml-4">
                     <button
                       onClick={() => setSelectedInterview(interview)}
-                      className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                       title="View Details"
+                      className="p-2 rounded-xl text-gray-400 dark:text-white/30 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
                     >
-                      <Eye size={20} />
+                      <Eye size={15} />
                     </button>
                     <button
                       onClick={() => handleDelete(interview.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"
+                      className="p-2 rounded-xl text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                     >
-                      <Trash2 size={20} />
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
@@ -153,126 +144,143 @@ const InterviewHistory: React.FC = () => {
         </div>
       </div>
 
-      {selectedInterview && (
-        <InterviewDetailModal
-          interview={selectedInterview}
-          onClose={() => setSelectedInterview(null)}
-        />
-      )}
-    </div>
-  );
-};
-
-interface InterviewDetailModalProps {
-  interview: Interview;
-  onClose: () => void;
-}
-
-const InterviewDetailModal: React.FC<InterviewDetailModalProps> = ({
-  interview,
-  onClose,
-}) => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-2xl font-bold text-gray-900">{interview.title}</h2>
-          <p className="text-gray-600 mt-1">
-            {interview.company} • {interview.position}
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Feedback */}
-          {interview.feedback && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Feedback</h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                <div>
-                  <div className="text-3xl font-bold text-primary-600 mb-1">
-                    {interview.feedback.overallScore}%
-                  </div>
-                  <p className="text-sm text-gray-600">Overall Score</p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Strengths</h4>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                    {interview.feedback.strengths.map((strength, idx) => (
-                      <li key={idx}>{strength}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Areas for Improvement</h4>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                    {interview.feedback.weaknesses.map((weakness, idx) => (
-                      <li key={idx}>{weakness}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Suggestions</h4>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                    {interview.feedback.suggestions.map((suggestion, idx) => (
-                      <li key={idx}>{suggestion}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Detailed Feedback</h4>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {interview.feedback.detailedFeedback}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Transcript */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Transcript</h3>
-            <div className="space-y-3">
-              {interview.transcript
-                .filter((msg) => msg.role !== 'system')
-                .map((message) => (
-                  <div
-                    key={message.id}
-                    className={`p-3 rounded-lg ${
-                      message.role === 'user'
-                        ? 'bg-primary-50 ml-12'
-                        : 'bg-gray-100 mr-12'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-600">
-                        {message.role === 'user' ? 'You' : 'Interviewer'}
+      {/* Detail Dialog */}
+      <LemonDialog
+        open={!!selectedInterview}
+        onClose={() => setSelectedInterview(null)}
+        title={selectedInterview?.title}
+        subtitle={
+          selectedInterview && (
+            <p className="text-sm text-gray-500 dark:text-white/40">
+              {selectedInterview.company} &middot; {selectedInterview.position}
+            </p>
+          )
+        }
+        className="max-w-4xl max-h-[85vh] flex flex-col"
+      >
+        {selectedInterview && (
+          <LemonTabs
+            defaultValue="feedback"
+            className="flex-1 overflow-hidden flex flex-col"
+            listClassName="px-6 pt-2"
+            contentClassName="flex-1 overflow-y-auto mt-4 px-6 pb-6"
+            tabs={[
+              {
+                value: 'feedback',
+                label: 'Feedback',
+                content: selectedInterview.feedback ? (
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-4">
+                      <span className={`text-3xl font-bold ${getScoreColor(selectedInterview.feedback.overallScore)}`}>
+                        {selectedInterview.feedback.overallScore}%
                       </span>
-                      <span className="text-xs text-gray-500">
-                        {format(new Date(message.timestamp), 'h:mm a')}
-                      </span>
+                      <span className="text-sm text-gray-500 dark:text-white/40">Overall Score</span>
                     </div>
-                    <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                      {message.content}
-                    </p>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
 
-        <div className="border-t border-gray-200 px-6 py-4">
-          <button
-            onClick={onClose}
-            className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
+                    {selectedInterview.feedback.strengths.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Strengths</h4>
+                        <ul className="space-y-1">
+                          {selectedInterview.feedback.strengths.map((s, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedInterview.feedback.weaknesses.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Areas for Improvement</h4>
+                        <ul className="space-y-1">
+                          {selectedInterview.feedback.weaknesses.map((w, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-yellow-500 dark:text-yellow-400 mt-0.5">!</span>
+                              <span>{w}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedInterview.feedback.suggestions.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Suggestions</h4>
+                        <ul className="space-y-1">
+                          {selectedInterview.feedback.suggestions.map((s, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-lemonade-accent-hover mt-0.5">&rarr;</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
+
+                    <div>
+                      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Detailed Feedback</h4>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                        {selectedInterview.feedback.detailedFeedback}
+                      </p>
+                    </div>
+
+                    {selectedInterview.feedback.questionFeedbacks &&
+                     selectedInterview.feedback.questionFeedbacks.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setSelectedInterview(null);
+                          navigate(`/feedback/${selectedInterview.id}`);
+                        }}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                      >
+                        View Detailed Question Feedback
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-white/40 text-center py-8">
+                    No feedback available for this interview.
+                  </p>
+                ),
+              },
+              {
+                value: 'transcript',
+                label: 'Transcript',
+                content: (
+                  <div className="space-y-3">
+                    {selectedInterview.transcript
+                      .filter((msg) => msg.role !== 'system')
+                      .map((message) => (
+                        <div
+                          key={message.id}
+                          className={`p-3 rounded-xl text-sm ${
+                            message.role === 'user'
+                              ? 'bg-lemonade-accent/10 ml-12'
+                              : 'bg-lemonade-bg dark:bg-white/[0.03] mr-12'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-gray-500 dark:text-white/40">
+                              {message.role === 'user' ? 'You' : 'Interviewer'}
+                            </span>
+                            <span className="text-[11px] text-gray-400 dark:text-white/30">
+                              {format(new Date(message.timestamp), 'h:mm a')}
+                            </span>
+                          </div>
+                          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                        </div>
+                      ))}
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+      </LemonDialog>
     </div>
   );
 };

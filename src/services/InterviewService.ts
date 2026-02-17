@@ -1,4 +1,4 @@
-import { InterviewerSettings, Message, InterviewFeedback, ModelConfig, Interview, AgentPersona } from '../types';
+import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, ModelConfig, Interview, AgentPersona } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 
@@ -170,11 +170,13 @@ Format your response as JSON with the following structure:
     // Parse feedback
     let feedback: InterviewFeedback;
     try {
-      feedback = JSON.parse(feedbackResponse);
+      const parsed = JSON.parse(feedbackResponse);
+      feedback = { ...parsed, questionFeedbacks: parsed.questionFeedbacks ?? [] };
     } catch (error) {
       // Fallback if parsing fails
       feedback = {
         overallScore: 70,
+        questionFeedbacks: [],
         strengths: ['Completed the interview'],
         weaknesses: ['Unable to parse detailed feedback'],
         suggestions: ['Practice more interviews'],
@@ -184,6 +186,129 @@ Format your response as JSON with the following structure:
 
     // Clean up session
     this.activeInterviews.delete(interviewId);
+
+    return feedback;
+  }
+
+  /**
+   * Generate detailed per-question feedback by grading each Q/A pair individually.
+   * Emits progress events via onProgress callback for real-time UI updates.
+   */
+  async generateDetailedFeedback(
+    _interviewId: string,
+    transcript: Message[],
+    onProgress: (data: { questionIndex: number; totalQuestions: number; status: string }) => void,
+  ): Promise<InterviewFeedback> {
+    // Extract Q/A pairs from transcript (assistant asks, user answers)
+    const qaPairs: { question: string; answer: string }[] = [];
+    for (let i = 0; i < transcript.length; i++) {
+      const msg = transcript[i];
+      if (msg.role === 'assistant' && msg.content.trim()) {
+        // Look for the next user message as the answer
+        const nextUser = transcript.slice(i + 1).find(m => m.role === 'user');
+        if (nextUser) {
+          qaPairs.push({
+            question: msg.content,
+            answer: nextUser.content,
+          });
+        }
+      }
+    }
+
+    const totalQuestions = qaPairs.length;
+    const questionFeedbacks: QuestionFeedback[] = [];
+
+    // Grade each Q/A pair individually via the LLM
+    for (let idx = 0; idx < qaPairs.length; idx++) {
+      const { question, answer } = qaPairs[idx];
+      onProgress({ questionIndex: idx, totalQuestions, status: `Grading question ${idx + 1} of ${totalQuestions}` });
+
+      const gradingPrompt = `You are an expert interview evaluator. Grade the following interview question and the candidate's answer.
+
+QUESTION: ${question}
+
+CANDIDATE'S ANSWER: ${answer}
+
+Provide your evaluation as JSON with this exact structure (no markdown, no code fences, just valid JSON):
+{
+  "score": <number 0-100>,
+  "rating": "<one of: excellent, good, needs-improvement>",
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>"],
+  "suggestedAnswer": "<a brief ideal answer or key points the candidate should have mentioned>"
+}
+
+Rules:
+- score 80-100 = "excellent", 50-79 = "good", 0-49 = "needs-improvement"
+- Be specific and constructive in strengths and improvements
+- suggestedAnswer should be concise (2-3 sentences)`;
+
+      try {
+        const response = await this.lemonadeClient.sendMessage([
+          { id: `grade-${idx}`, role: 'user', content: gradingPrompt, timestamp: new Date().toISOString() },
+        ]);
+
+        // Parse JSON from response (handle potential markdown wrapping)
+        let cleaned = response.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        }
+
+        const parsed = JSON.parse(cleaned);
+        questionFeedbacks.push({
+          questionIndex: idx,
+          question,
+          answer,
+          score: Math.max(0, Math.min(100, parsed.score ?? 50)),
+          rating: parsed.rating ?? 'good',
+          strengths: parsed.strengths ?? [],
+          improvements: parsed.improvements ?? [],
+          suggestedAnswer: parsed.suggestedAnswer ?? '',
+        });
+      } catch (error) {
+        console.error(`Failed to grade Q${idx + 1}:`, error);
+        questionFeedbacks.push({
+          questionIndex: idx,
+          question,
+          answer,
+          score: 50,
+          rating: 'good',
+          strengths: ['Completed the question'],
+          improvements: ['Unable to generate detailed feedback for this question'],
+          suggestedAnswer: '',
+        });
+      }
+    }
+
+    onProgress({ questionIndex: totalQuestions, totalQuestions, status: 'Calculating final score...' });
+
+    // Calculate overall score as weighted average
+    const overallScore = totalQuestions > 0
+      ? Math.round(questionFeedbacks.reduce((sum, qf) => sum + qf.score, 0) / totalQuestions)
+      : 0;
+
+    // Aggregate strengths and weaknesses
+    const allStrengths = [...new Set(questionFeedbacks.flatMap(qf => qf.strengths))].slice(0, 5);
+    const allWeaknesses = [...new Set(questionFeedbacks.flatMap(qf => qf.improvements))].slice(0, 5);
+    const suggestions = questionFeedbacks
+      .filter(qf => qf.suggestedAnswer)
+      .map((qf, i) => `Q${i + 1}: ${qf.suggestedAnswer}`)
+      .slice(0, 5);
+
+    const feedback: InterviewFeedback = {
+      overallScore,
+      questionFeedbacks,
+      strengths: allStrengths,
+      weaknesses: allWeaknesses,
+      suggestions,
+      detailedFeedback: `Interview scored ${overallScore}% across ${totalQuestions} questions. ${
+        overallScore >= 80
+          ? 'Excellent performance overall.'
+          : overallScore >= 60
+            ? 'Good performance with room for improvement.'
+            : 'Needs significant improvement in several areas.'
+      }`,
+    };
 
     return feedback;
   }

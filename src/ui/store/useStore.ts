@@ -19,6 +19,7 @@ interface AppStore {
   setInterviewerSettings: (settings: InterviewerSettings) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>;
 
   // Async actions
   loadInterviews: () => Promise<void>;
@@ -45,6 +46,30 @@ export const useStore = create<AppStore>((set) => ({
   setInterviewerSettings: (settings) => set({ interviewerSettings: settings }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
+  setTheme: async (theme) => {
+    try {
+      if (window.electronAPI) {
+        const updated = await window.electronAPI.updateSettings({ theme });
+        set({ settings: updated });
+      } else {
+        set((state) => ({
+          settings: state.settings ? { ...state.settings, theme } : null,
+        }));
+      }
+      // Apply to DOM immediately
+      const root = document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+      } else if (theme === 'light') {
+        root.classList.remove('dark');
+      } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        root.classList.toggle('dark', prefersDark);
+      }
+    } catch (error) {
+      console.error('Failed to update theme:', error);
+    }
+  },
 
   // Async actions
   loadInterviews: async () => {

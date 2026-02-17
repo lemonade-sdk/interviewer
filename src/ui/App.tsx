@@ -6,6 +6,7 @@ import InterviewHistory from './pages/InterviewHistory';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
 import Preparing from './pages/Preparing';
+import Feedback from './pages/Feedback';
 
 function App() {
   return (
@@ -15,6 +16,9 @@ function App() {
 
       {/* Preparing: transitional phase between Landing and Interview */}
       <Route path="/preparing" element={<Preparing />} />
+
+      {/* Feedback: post-interview scoring and review */}
+      <Route path="/feedback/:id" element={<Feedback />} />
 
       {/* Main App Routes wrapped in Layout */}
       <Route element={<Layout />}>

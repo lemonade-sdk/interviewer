@@ -69,12 +69,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServerHealth: () => ipcRenderer.invoke('server:getHealth'),
   checkLemonadeInstallation: () => ipcRenderer.invoke('server:checkInstallation'),
   
+  // Feedback operations
+  generateFeedback: (interviewId: string) => ipcRenderer.invoke('feedback:generate', interviewId),
+  onFeedbackProgress: (callback: (data: { questionIndex: number; totalQuestions: number; status: string }) => void) => {
+    ipcRenderer.on('feedback:progress', (_event: any, data: any) => callback(data));
+  },
+  offFeedbackProgress: () => {
+    ipcRenderer.removeAllListeners('feedback:progress');
+  },
+
   // Document operations
   uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => ipcRenderer.invoke('document:upload', data),
   getDocuments: (type?: string) => ipcRenderer.invoke('document:getAll', type),
   getDocument: (id: string) => ipcRenderer.invoke('document:get', id),
   getDocumentFileData: (id: string) => ipcRenderer.invoke('document:getFileData', id),
   deleteDocument: (id: string) => ipcRenderer.invoke('document:delete', id),
+  extractJobDetails: (jobPostDocId: string) => ipcRenderer.invoke('document:extractJobDetails', jobPostDocId),
   
   // MCP operations
   getMCPServers: () => ipcRenderer.invoke('mcp:getServers'),

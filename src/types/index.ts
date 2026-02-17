@@ -52,8 +52,20 @@ export interface VADMetadata {
   vadEngine: string; // e.g., 'webrtc-vad', 'silero-vad'
 }
 
+export interface QuestionFeedback {
+  questionIndex: number;
+  question: string;
+  answer: string;
+  score: number;           // 0-100
+  rating: 'excellent' | 'good' | 'needs-improvement';
+  strengths: string[];
+  improvements: string[];
+  suggestedAnswer: string;
+}
+
 export interface InterviewFeedback {
   overallScore: number;
+  questionFeedbacks: QuestionFeedback[];
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
@@ -410,12 +422,23 @@ export interface IPC {
   getAudioRecordingsPath: () => Promise<string>;
   deleteAudioRecording: (filepath: string) => Promise<{ success: boolean; error?: string }>;
 
+  // Feedback operations
+  generateFeedback: (interviewId: string) => Promise<InterviewFeedback>;
+  onFeedbackProgress: (callback: (data: { questionIndex: number; totalQuestions: number; status: string }) => void) => void;
+  offFeedbackProgress: () => void;
+
   // Document operations
   uploadDocument: (data: { type: 'resume' | 'job_post'; fileName: string; fileData: string }) => Promise<UploadedDocument>;
   getDocuments: (type?: 'resume' | 'job_post') => Promise<UploadedDocument[]>;
   getDocument: (id: string) => Promise<UploadedDocument | null>;
   getDocumentFileData: (id: string) => Promise<{ base64: string; mimeType: string; fileName: string } | null>;
   deleteDocument: (id: string) => Promise<boolean>;
+  extractJobDetails: (jobPostDocId: string) => Promise<{
+    title: string;
+    company: string;
+    position: string;
+    interviewType: string;
+  }>;
 
   // MCP operations
   getMCPServers: () => Promise<MCPServer[]>;

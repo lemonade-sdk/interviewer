@@ -1,17 +1,8 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-50: #f0f9ff;
-  --color-primary-100: #e0f2fe;
-  --color-primary-200: #bae6fd;
-  --color-primary-300: #7dd3fc;
-  --color-primary-400: #38bdf8;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-700: #0369a1;
-  --color-primary-800: #075985;
-  --color-primary-900: #0c4a6e;
+@custom-variant dark (&:is(.dark *));
 
+@theme {
   /* Lemonade Brand Colors */
   --color-lemonade-bg: #FFFBE9;
   --color-lemonade-fg: #000000;
@@ -19,6 +10,13 @@
   --color-lemonade-accent-hover: #E59800;
   --color-lemonade-dark-bg: #141413;
   --color-lemonade-dark-fg: #FFD500;
+  --color-lemonade-dark-accent: #E59800;
+  --color-lemonade-code-bg: #ffefb5;
+  --color-lemonade-dark-code-bg: #1f1503;
+
+  /* Dark surface layers */
+  --color-lemonade-dark-surface: #1c1c1a;
+  --color-lemonade-dark-surface-2: #242422;
 }
 
 * {
@@ -44,6 +42,71 @@ code {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+}
+
+/* ─── Lemon Slider: Custom range input styling ─── */
+.lemon-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  height: 6px;
+}
+
+.dark .lemon-slider {
+  background: #333330;
+}
+
+.lemon-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFD744;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.dark .lemon-slider::-webkit-slider-thumb {
+  border-color: #141413;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.lemon-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.lemon-slider::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+  background: #E59800;
+}
+
+.lemon-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFD744;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.dark .lemon-slider::-moz-range-thumb {
+  border-color: #141413;
+}
+
+.lemon-slider::-moz-range-track {
+  background: #e5e7eb;
+  border-radius: 9999px;
+  height: 6px;
+}
+
+.dark .lemon-slider::-moz-range-track {
+  background: #333330;
 }
 
 /* Voice Orb animations */

@@ -209,14 +209,9 @@ const Preparing: React.FC = () => {
 
     try {
       let loadedModels: LoadedModel[] = [];
-      let serverSupportsAudio = false;
       try {
         const health = await window.electronAPI.getServerHealth();
         loadedModels = health?.all_models_loaded ?? [];
-        const maxModels = health?.max_models;
-        const hasAudioSlot = maxModels?.audio != null ? maxModels.audio > 0 : true;
-        const hasLoadedAudio = loadedModels.some(m => m.type === 'audio');
-        serverSupportsAudio = hasAudioSlot || hasLoadedAudio;
       } catch {
         console.warn('Could not query server health, will proceed with fresh loads');
       }

@@ -170,7 +170,7 @@ const Interview: React.FC = () => {
         const assistantMsgId = (Date.now() + 1).toString();
         let accumulatedText = '';
 
-        manager.startStreamingPipeline();
+        await manager.startStreamingPipeline();
 
         window.electronAPI.onLLMToken((token: string) => {
           accumulatedText += token;
@@ -391,7 +391,7 @@ const Interview: React.FC = () => {
 
       try {
         setIsThinking(true);
-        manager.startStreamingPipeline();
+        await manager.startStreamingPipeline();
 
         window.electronAPI.onLLMToken((token: string) => {
           accumulatedText += token;

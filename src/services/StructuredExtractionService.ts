@@ -62,9 +62,24 @@ export class StructuredExtractionService {
         maxTokens: 2048,
       });
 
+      console.log('[StructuredExtractionService] Persona extraction raw response:', response.substring(0, 500));
+
       // Parse the JSON response
       const parsed = this.parseJSON(response);
-      if (!parsed) return null;
+      if (!parsed) {
+        console.error('[StructuredExtractionService] Failed to parse persona JSON from response');
+        return null;
+      }
+
+      console.log('[StructuredExtractionService] Parsed persona data:', {
+        name: parsed.name,
+        hasDescription: !!parsed.description,
+        interviewStyle: parsed.interviewStyle,
+        questionDifficulty: parsed.questionDifficulty,
+        hasSystemPrompt: !!parsed.systemPrompt,
+        hasJobAnalysis: !!parsed.jobAnalysis,
+        hasResumeAnalysis: !!parsed.resumeAnalysis,
+      });
 
       return {
         overallScore: typeof parsed.overallScore === 'number' 

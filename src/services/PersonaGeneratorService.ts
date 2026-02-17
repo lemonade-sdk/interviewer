@@ -103,13 +103,19 @@ export class PersonaGeneratorService {
       },
     ], { maxTokens: 8192 });
 
+    console.log('[PersonaGeneratorService] Stage 1 natural language output length:', personaText.length);
+    console.log('[PersonaGeneratorService] Stage 1 first 500 chars:', personaText.substring(0, 500));
+
     // Stage 2: Extract structured persona fields
     const extracted = await this.extractionService.extractPersonaData(personaText);
 
     // If extraction failed, use fallback with natural text
     if (!extracted) {
+      console.warn('[PersonaGeneratorService] Extraction failed, using fallback persona');
       return this.buildFallbackPersona(input, personaText);
     }
+
+    console.log('[PersonaGeneratorService] Successfully extracted structured persona data');
 
     // Build the persona from extracted data
     const now = new Date().toISOString();

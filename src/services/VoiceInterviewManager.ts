@@ -887,14 +887,14 @@ export class VoiceInterviewManager extends EventEmitter {
    * Prepare the streaming pipeline for a new response.
    * Call BEFORE starting to feed tokens.
    */
-  startStreamingPipeline(): void {
+  async startStreamingPipeline(): Promise<void> {
     this.sentenceBuffer = '';
     this.ttsQueue = [];
     this.isTTSQueueRunning = false;
     this.streamingCancelled = false;
     this.isSpeaking = true;
     // Open a shared AudioContext so sentences chain with zero gap
-    this.ttsService.openPipeline();
+    await this.ttsService.openPipeline();
     this.emit('speaking-started');
   }
 

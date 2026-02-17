@@ -96,7 +96,7 @@ export class LemonadeClient {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number }): Promise<string> {
+  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number; maxInputTokens?: number }): Promise<string> {
     try {
       // Check server connection first
       if (!this.isConnected) {
@@ -108,12 +108,27 @@ export class LemonadeClient {
         }
       }
 
-      // Convert conversation history to OpenAI format
-      // Truncate history to fit within context window
-      // Assuming 8192 total context window for now (standard for Lemonade Server models)
-      const totalContextWindow = 8192;
+      // -----------------------------------------------------------------------
+      // CONTEXT MANAGEMENT STRATEGY
+      // -----------------------------------------------------------------------
+      // LLMs are stateless. We must send the "State" (Transcript) + "Identity" (System Prompt)
+      // with every request.
+      //
+      // 1. Chat Mode: Uses a small sliding window (e.g. ~3k tokens) for snappy "Time to First Token".
+      // 2. Feedback Mode: Uses the maximum available context (e.g. ~16k) for high-fidelity review.
+      //
+      // We guarantee zero crashes by mathematically capping the input tokens before sending.
+      // -----------------------------------------------------------------------
+
+      // Default to 16k context window if not specified (standard for modern small models like Llama 3.1/Phi 3.5)
+      const totalContextWindow = 16384;
+      
       const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
-      const maxInputTokens = totalContextWindow - maxOutputTokens;
+      
+      // Determine how much space we have for input (History + System Prompt)
+      // If caller specified a tighter input limit (e.g. for speed), use that.
+      // Otherwise, fill the remaining context window.
+      const maxInputTokens = options?.maxInputTokens ?? (totalContextWindow - maxOutputTokens);
 
       const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
 
@@ -256,7 +271,7 @@ export class LemonadeClient {
   async sendMessageStreaming(
     conversationHistory: Message[],
     onToken: (token: string) => void,
-    options?: { maxTokens?: number },
+    options?: { maxTokens?: number; maxInputTokens?: number },
   ): Promise<string> {
     try {
       if (!this.isConnected) {
@@ -268,10 +283,12 @@ export class LemonadeClient {
         }
       }
 
-      // Assuming 8192 total context window for now
-      const totalContextWindow = 8192;
+      // Default to 16k context window if not specified
+      const totalContextWindow = 16384;
       const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
-      const maxInputTokens = totalContextWindow - maxOutputTokens;
+      
+      // Determine how much space we have for input (History + System Prompt)
+      const maxInputTokens = options?.maxInputTokens ?? (totalContextWindow - maxOutputTokens);
 
       const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
 

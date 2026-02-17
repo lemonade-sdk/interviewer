@@ -1,6 +1,7 @@
 import { AgentPersona, InterviewStyle, InterviewType } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { v4 as uuidv4 } from 'uuid';
+import { PromptManager } from './PromptManager';
 
 /**
  * PersonaGeneratorService
@@ -63,32 +64,17 @@ export class PersonaGeneratorService {
   private buildPersonaGenerationPrompt(input: PersonaGenerationInput): string {
     const jd = this.truncate(input.jobDescriptionText);
     const resume = this.truncate(input.resumeText);
+    
+    const styleInstruction = input.interviewType === 'behavioral' ? 'warm and encouraging' : 'professionally rigorous';
 
-    return `You are an expert interview preparation system. Analyze the job description and resume below, then generate a tailored interviewer persona as a JSON object.
-
-<JOB_DESCRIPTION>
-${jd}
-</JOB_DESCRIPTION>
-
-<RESUME>
-${resume}
-</RESUME>
-
-Interview type: ${input.interviewType}
-Company: ${input.company}
-Position: ${input.position}
-
-Respond with ONLY a valid JSON object (no markdown, no explanation) with these fields:
-
-{
-  "name": "Realistic interviewer name",
-  "description": "1-2 sentence description of the interviewer",
-  "interviewStyle": "conversational | formal | challenging | supportive",
-  "questionDifficulty": "easy | medium | hard",
-  "systemPrompt": "200-400 word instruction prompt for the interviewer (include: interviewer identity, role context, candidate strengths & gaps from resume, key questions to ask, evaluation criteria, behavioral guidelines — ask one question at a time, be ${input.interviewType === 'behavioral' ? 'warm and encouraging' : 'professionally rigorous'})",
-  "jobAnalysis": "3-5 sentence summary of the job requirements",
-  "resumeAnalysis": "3-5 sentence summary of the candidate's fit"
-}`;
+    return PromptManager.getInstance().getPersonaGenerationUserPrompt({
+      jobDescription: jd,
+      resume: resume,
+      interviewType: input.interviewType,
+      company: input.company,
+      position: input.position,
+      styleInstruction
+    });
   }
 
   /**
@@ -102,7 +88,7 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
       {
         id: 'persona-gen-system',
         role: 'system',
-        content: 'You are a JSON generation assistant. You ONLY output valid JSON objects. No markdown, no code fences, no explanations.',
+        content: PromptManager.getInstance().getPersonaGenerationSystemPrompt(),
         timestamp: new Date().toISOString(),
       },
       {
@@ -222,25 +208,15 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
    * Build a fallback system prompt that still incorporates the documents.
    */
   private buildFallbackSystemPrompt(input: PersonaGenerationInput): string {
-    return `You are an experienced interviewer conducting a ${input.interviewType} interview for the position of ${input.position} at ${input.company}.
+    const toneInstruction = input.interviewType === 'behavioral' ? 'supportive' : 'balanced';
 
-You have thoroughly reviewed the job description and the candidate's resume.
-
-JOB DESCRIPTION CONTEXT:
-${input.jobDescriptionText.slice(0, 2000)}
-
-CANDIDATE RESUME CONTEXT:
-${input.resumeText.slice(0, 2000)}
-
-INTERVIEW GUIDELINES:
-1. Begin with a warm, professional greeting. Introduce yourself and the interview format.
-2. Ask questions that are specifically tailored to this role and this candidate's background.
-3. Probe areas where the candidate's experience aligns with the job requirements to validate depth.
-4. Explore potential gaps between the candidate's experience and the role's requirements.
-5. Ask one question at a time and listen carefully to responses.
-6. Provide natural follow-up questions based on the candidate's answers.
-7. Maintain a professional, ${input.interviewType === 'behavioral' ? 'supportive' : 'balanced'} tone throughout.
-8. Wrap up the interview naturally after covering the key areas.
-9. Give the candidate an opportunity to ask questions at the end.`;
+    return PromptManager.getInstance().getPersonaGenerationFallbackPrompt({
+      interviewType: input.interviewType,
+      position: input.position,
+      company: input.company,
+      jobDescription: input.jobDescriptionText.slice(0, 2000),
+      resume: input.resumeText.slice(0, 2000),
+      toneInstruction
+    });
   }
 }

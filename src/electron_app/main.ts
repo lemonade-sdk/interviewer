@@ -11,6 +11,7 @@ import { MCPManager } from '../mcp/MCPManager';
 import { DocumentRepository } from '../database/repositories/DocumentRepository';
 import { InterviewService } from '../services/InterviewService';
 import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
+import { PromptManager } from '../services/PromptManager';
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -948,18 +949,9 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     const lemonadeClient = interviewService.getLemonadeClient();
     // Truncate to ~4000 chars to keep prompt compact for small-context models
     const jobText = doc.extractedText.substring(0, 4000);
-    const prompt = `/no_think
-Analyze the following job posting and extract the key details. Return ONLY a valid JSON object with these exact fields:
-- "title": A concise interview title (e.g. "Senior Software Engineer Interview")
-- "company": The company name
-- "position": The job title/position
-- "interviewType": One of: "general", "technical", "behavioral", "system-design", "coding", "mixed"
-
-<JOB_POSTING>
-${jobText}
-</JOB_POSTING>
-
-Respond with ONLY the JSON object. No thinking, no explanation, no markdown fences.`;
+    const prompt = PromptManager.getInstance().getDocumentExtractionUserPrompt({
+      jobText
+    });
 
     // DeepSeek-R1 and similar reasoning models consume a large number of tokens
     // on internal chain-of-thought (reasoning_content) *before* producing visible
@@ -968,7 +960,7 @@ Respond with ONLY the JSON object. No thinking, no explanation, no markdown fenc
       {
         id: 'extract-system',
         role: 'system',
-        content: 'You are a JSON extraction assistant. You ONLY output valid JSON objects. No markdown, no code fences, no explanations. No thinking or reasoning — output ONLY JSON.',
+        content: PromptManager.getInstance().getDocumentExtractionSystemPrompt(),
         timestamp: new Date().toISOString(),
       },
       {

@@ -1,6 +1,7 @@
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewStyle, InterviewType } from '../types';
 import { Message } from '../types';
+import { PromptManager } from './PromptManager';
 
 /**
  * StructuredExtractionService - Stage 2 extraction service
@@ -38,13 +39,15 @@ export class StructuredExtractionService {
     suggestions: string[];
   } | null> {
     try {
-      const extractionPrompt = this.buildFeedbackExtractionPrompt(feedbackText);
+      const extractionPrompt = PromptManager.getInstance().getFeedbackExtractionUserPrompt({
+        feedbackText
+      });
       
       const messages: Message[] = [
         {
           id: 'extract-system',
           role: 'system',
-          content: 'You are a structured data extraction assistant. Extract specific fields from text and output ONLY valid JSON. No markdown, no explanation.',
+          content: PromptManager.getInstance().getFeedbackExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {
@@ -97,17 +100,17 @@ export class StructuredExtractionService {
     suggestedAnswer: string;
   } | null> {
     try {
-      const extractionPrompt = this.buildQuestionGradeExtractionPrompt(
-        questionText,
-        answerText,
+      const extractionPrompt = PromptManager.getInstance().getQuestionGradeExtractionUserPrompt({
+        question: questionText,
+        answer: answerText,
         feedbackText
-      );
+      });
 
       const messages: Message[] = [
         {
           id: 'extract-system',
           role: 'system',
-          content: 'You are a structured data extraction assistant. Extract grading data from feedback and output ONLY valid JSON.',
+          content: PromptManager.getInstance().getQuestionGradeExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {
@@ -165,13 +168,15 @@ export class StructuredExtractionService {
     resumeAnalysis: string;
   } | null> {
     try {
-      const extractionPrompt = this.buildPersonaExtractionPrompt(personaText);
+      const extractionPrompt = PromptManager.getInstance().getPersonaExtractionUserPrompt({
+        personaText
+      });
 
       const messages: Message[] = [
         {
           id: 'extract-system',
           role: 'system',
-          content: 'You are a structured data extraction assistant. Extract persona fields from text and output ONLY valid JSON.',
+          content: PromptManager.getInstance().getPersonaExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {
@@ -233,16 +238,16 @@ export class StructuredExtractionService {
     interviewType: InterviewType;
   } | null> {
     try {
-      const extractionPrompt = this.buildJobDetailsExtractionPrompt(
-        jobPostingText,
+      const extractionPrompt = PromptManager.getInstance().getJobDetailsExtractionUserPrompt({
+        jobText: jobPostingText.substring(0, 2000), // Truncate for efficiency
         analysisText
-      );
+      });
 
       const messages: Message[] = [
         {
           id: 'extract-system',
           role: 'system',
-          content: 'You are a structured data extraction assistant. Extract job details and output ONLY valid JSON.',
+          content: PromptManager.getInstance().getJobDetailsExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {
@@ -326,140 +331,6 @@ export class StructuredExtractionService {
     }
 
     return null;
-  }
-
-  /**
-   * Build extraction prompt for feedback data.
-   */
-  private buildFeedbackExtractionPrompt(feedbackText: string): string {
-    return [
-      'Extract structured data from the following interview feedback.',
-      '',
-      '<FEEDBACK>',
-      feedbackText,
-      '</FEEDBACK>',
-      '',
-      'Return ONLY a JSON object with these exact fields:',
-      '{',
-      '  "overallScore": <number 0-100 or null>,',
-      '  "strengths": [<string>, ...],',
-      '  "weaknesses": [<string>, ...],',
-      '  "suggestions": [<string>, ...]',
-      '}',
-      '',
-      'Rules:',
-      '- Extract the overall score if mentioned (0-100)',
-      '- List distinct strengths as separate array items',
-      '- List distinct weaknesses/areas for improvement as separate items',
-      '- List actionable suggestions as separate items',
-      '- If a field cannot be determined, use null for score or empty array',
-    ].join('\n');
-  }
-
-  /**
-   * Build extraction prompt for question grade.
-   */
-  private buildQuestionGradeExtractionPrompt(
-    questionText: string,
-    answerText: string,
-    feedbackText: string
-  ): string {
-    return [
-      'Extract grading data from the following interview question feedback.',
-      '',
-      '<QUESTION>',
-      questionText,
-      '</QUESTION>',
-      '',
-      '<ANSWER>',
-      answerText,
-      '</ANSWER>',
-      '',
-      '<FEEDBACK>',
-      feedbackText,
-      '</FEEDBACK>',
-      '',
-      'Return ONLY a JSON object:',
-      '{',
-      '  "score": <number 0-100>,',
-      '  "rating": "<excellent|good|needs-improvement>",',
-      '  "strengths": [<string>, ...],',
-      '  "improvements": [<string>, ...],',
-      '  "suggestedAnswer": "<string>"',
-      '}',
-      '',
-      'Rules:',
-      '- score: 80-100 = excellent, 50-79 = good, 0-49 = needs-improvement',
-      '- List specific strengths observed in the answer',
-      '- List specific areas for improvement',
-      '- Provide a brief suggested answer (2-3 sentences)',
-    ].join('\n');
-  }
-
-  /**
-   * Build extraction prompt for persona data.
-   */
-  private buildPersonaExtractionPrompt(personaText: string): string {
-    return [
-      'Extract structured persona information from the following text.',
-      '',
-      '<PERSONA_TEXT>',
-      personaText,
-      '</PERSONA_TEXT>',
-      '',
-      'Return ONLY a JSON object:',
-      '{',
-      '  "name": "<string>",',
-      '  "description": "<string>",',
-      '  "interviewStyle": "<conversational|formal|challenging|supportive>",',
-      '  "questionDifficulty": "<easy|medium|hard>",',
-      '  "systemPrompt": "<string>",',
-      '  "jobAnalysis": "<string>",',
-      '  "resumeAnalysis": "<string>"',
-      '}',
-      '',
-      'Rules:',
-      '- Extract interviewer name and description',
-      '- Identify interview style (one of: conversational, formal, challenging, supportive)',
-      '- Identify question difficulty (one of: easy, medium, hard)',
-      '- Extract or construct a comprehensive system prompt for the interviewer (200-400 words)',
-      '- Extract job requirements analysis',
-      '- Extract candidate fit analysis',
-    ].join('\n');
-  }
-
-  /**
-   * Build extraction prompt for job details.
-   */
-  private buildJobDetailsExtractionPrompt(
-    jobPostingText: string,
-    analysisText: string
-  ): string {
-    return [
-      'Extract structured job details from the following job posting and analysis.',
-      '',
-      '<JOB_POSTING>',
-      jobPostingText.substring(0, 2000), // Truncate for efficiency
-      '</JOB_POSTING>',
-      '',
-      '<ANALYSIS>',
-      analysisText,
-      '</ANALYSIS>',
-      '',
-      'Return ONLY a JSON object:',
-      '{',
-      '  "title": "<string>",',
-      '  "company": "<string>",',
-      '  "position": "<string>",',
-      '  "interviewType": "<general|technical|behavioral|system-design|coding|mixed>"',
-      '}',
-      '',
-      'Rules:',
-      '- title: A concise interview title (e.g., "Senior Software Engineer Interview")',
-      '- company: The company name',
-      '- position: The job title/position',
-      '- interviewType: Choose the most appropriate type based on the job description',
-    ].join('\n');
   }
 
   /**

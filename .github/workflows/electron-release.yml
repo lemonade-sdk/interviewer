@@ -29,7 +29,7 @@ jobs:
     runs-on: [self-hosted, Windows]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           clean: true
           fetch-depth: 0
@@ -107,7 +107,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4

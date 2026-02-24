@@ -29,7 +29,6 @@ interface PreparingState {
     position: string;
     interviewType: InterviewType;
   };
-  interviewMode: 'single' | 'multi';
   resumeDocId: string | null;
   resumeFileName: string | null;
   resumeBase64: string | null;
@@ -362,7 +361,7 @@ const Preparing: React.FC = () => {
           const result = await window.electronAPI.generatePersona({
             jobDescriptionText: jobText,
             resumeText: resumeDocText,
-            interviewType: state.interviewMode === 'single' ? state.formData.interviewType : 'behavioral',
+            interviewType: state.formData.interviewType,
             company: state.formData.company,
             position: state.formData.position,
           });
@@ -380,7 +379,7 @@ const Preparing: React.FC = () => {
           title: state.formData.title,
           company: state.formData.company,
           position: state.formData.position,
-          interviewType: state.interviewMode === 'single' ? state.formData.interviewType : ('behavioral' as InterviewType),
+          interviewType: state.formData.interviewType,
         },
         personaId,
       );

@@ -13,7 +13,7 @@ const INPUT_CLASS =
   'w-full px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none';
 const LABEL_CLASS = 'block text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5';
 
-type Step = 'initial' | 'setup' | 'selection';
+type Step = 'initial' | 'setup';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
@@ -188,14 +188,9 @@ const Landing: React.FC = () => {
 
   const handleSetupNext = () => {
     if (!isFormValid) return;
-    setStep('selection');
-  };
-
-  const handleSelectionClick = (type: 'single' | 'multi') => {
     navigate('/preparing', {
       state: {
         formData,
-        interviewMode: type,
         resumeDocId: resumeDoc?.id || null,
         resumeFileName: resumeDoc?.fileName || null,
         resumeBase64: resumeBase64Ref.current,
@@ -217,7 +212,7 @@ const Landing: React.FC = () => {
         <p className={`mt-2 text-sm text-gray-500 dark:text-white/40 transition-all duration-500 ${
           step !== 'initial' ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}>
-          {step === 'setup' ? 'Set up your interview' : step === 'selection' ? 'Choose your interview format' : ''}
+          {step === 'setup' ? 'Set up your interview' : ''}
         </p>
       </div>
 
@@ -432,40 +427,6 @@ const Landing: React.FC = () => {
         </div>
       )}
 
-      {/* ===== STEP: SELECTION ===== */}
-      {step === 'selection' && (
-        <div className="flex flex-col items-center">
-          <div className="mb-8 text-center">
-            <p className="text-base font-semibold">{formData.title}</p>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
-              {formData.company} &middot; {formData.position} &middot; {formData.interviewType}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => handleSelectionClick('single')}
-              className="w-48 py-3.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
-            >
-              One Stage Interview
-            </button>
-            <button
-              onClick={() => handleSelectionClick('multi')}
-              className="w-48 py-3.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
-            >
-              Multi Stage Interview
-            </button>
-          </div>
-
-          <button
-            onClick={() => setStep('setup')}
-            className="mt-5 flex items-center gap-1 text-sm text-gray-500 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
-          >
-            <ChevronLeft size={14} />
-            Back to details
-          </button>
-        </div>
-      )}
     </div>
   );
 };

@@ -62,23 +62,20 @@ export class StructuredExtractionService {
         maxTokens: 2048,
       });
 
-      console.log('[StructuredExtractionService] Persona extraction raw response:', response.substring(0, 500));
+      console.log('[StructuredExtractionService] Feedback extraction raw response:', response.substring(0, 500));
 
       // Parse the JSON response
       const parsed = this.parseJSON(response);
       if (!parsed) {
-        console.error('[StructuredExtractionService] Failed to parse persona JSON from response');
+        console.error('[StructuredExtractionService] Failed to parse feedback JSON from response');
         return null;
       }
 
-      console.log('[StructuredExtractionService] Parsed persona data:', {
-        name: parsed.name,
-        hasDescription: !!parsed.description,
-        interviewStyle: parsed.interviewStyle,
-        questionDifficulty: parsed.questionDifficulty,
-        hasSystemPrompt: !!parsed.systemPrompt,
-        hasJobAnalysis: !!parsed.jobAnalysis,
-        hasResumeAnalysis: !!parsed.resumeAnalysis,
+      console.log('[StructuredExtractionService] Parsed feedback data:', {
+        overallScore: parsed.overallScore,
+        strengthsCount: parsed.strengths?.length ?? 0,
+        weaknessesCount: parsed.weaknesses?.length ?? 0,
+        suggestionsCount: parsed.suggestions?.length ?? 0,
       });
 
       return {
@@ -203,11 +200,26 @@ export class StructuredExtractionService {
       ];
 
       const response = await this.lemonadeClient.sendMessage(messages, {
-        maxTokens: 4096,
+        maxTokens: 8192,
       });
 
+      console.log('[StructuredExtractionService] Persona extraction raw response:', response.substring(0, 500));
+
       const parsed = this.parseJSON(response);
-      if (!parsed) return null;
+      if (!parsed) {
+        console.error('[StructuredExtractionService] Failed to parse persona JSON from response');
+        return null;
+      }
+
+      console.log('[StructuredExtractionService] Parsed persona data:', {
+        name: parsed.name,
+        hasDescription: !!parsed.description,
+        interviewStyle: parsed.interviewStyle,
+        questionDifficulty: parsed.questionDifficulty,
+        hasSystemPrompt: !!parsed.systemPrompt,
+        hasJobAnalysis: !!parsed.jobAnalysis,
+        hasResumeAnalysis: !!parsed.resumeAnalysis,
+      });
 
       // Validate interview style
       const validStyles: InterviewStyle[] = ['conversational', 'formal', 'challenging', 'supportive'];

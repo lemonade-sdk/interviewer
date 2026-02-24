@@ -27,7 +27,7 @@ const Layout: React.FC = () => {
   return (
     <div className="flex h-screen bg-lemonade-bg dark:bg-lemonade-dark-bg text-lemonade-fg dark:text-white transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-60 bg-lemonade-bg dark:bg-lemonade-dark-surface border-r border-gray-200/50 dark:border-white/5 flex flex-col transition-colors duration-300">
+      <aside className="w-60 bg-lemonade-bg dark:bg-lemonade-dark-surface border-r border-gray-200/50 dark:border-white/[0.08] flex flex-col transition-colors duration-300">
         {/* Brand */}
         <div className="px-5 py-5 flex items-center gap-3">
           <img src="/logo.png" alt="lemonade" className="w-8 h-8" />
@@ -50,7 +50,7 @@ const Layout: React.FC = () => {
 
         {/* Footer */}
         <div className="px-4 pb-5 pt-3">
-          <div className="px-4 py-3 rounded-xl bg-lemonade-accent/5 dark:bg-white/[0.03] border border-lemonade-accent/10 dark:border-white/5">
+          <div className="px-4 py-3 rounded-xl bg-lemonade-accent/5 dark:bg-white/[0.03] border border-lemonade-accent/10 dark:border-white/[0.08]">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-[11px] font-semibold text-gray-600 dark:text-white/50">

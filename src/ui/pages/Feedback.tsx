@@ -76,7 +76,7 @@ const Feedback: React.FC = () => {
       case 'excellent': return 'bg-green-50 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/15';
       case 'good': return 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15';
       case 'needs-improvement': return 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15';
-      default: return 'bg-gray-50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/5';
+      default: return 'bg-gray-50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/[0.08]';
     }
   };
 
@@ -143,7 +143,7 @@ const Feedback: React.FC = () => {
   return (
     <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
@@ -175,7 +175,7 @@ const Feedback: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Q/A */}
-        <div className="flex-1 border-r border-gray-200/50 dark:border-white/5 flex flex-col">
+        <div className="flex-1 border-r border-gray-200/50 dark:border-white/[0.08] flex flex-col">
           <div className="px-6 py-2.5 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
             <div className="flex items-center gap-2">
               {getRatingIcon(currentQF.rating)}
@@ -197,7 +197,7 @@ const Feedback: React.FC = () => {
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Question {currentQuestionIndex + 1}
                 </p>
-                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/5">
+                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
                   <p className="text-sm leading-relaxed">{currentQF.question}</p>
                 </div>
               </div>
@@ -207,7 +207,7 @@ const Feedback: React.FC = () => {
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Your Answer
                 </p>
-                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/5">
+                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
                   <p className="text-sm leading-relaxed">{currentQF.answer}</p>
                 </div>
               </div>
@@ -321,11 +321,11 @@ const Feedback: React.FC = () => {
       </div>
 
       {/* Footer Navigation */}
-      <footer className="flex items-center justify-between px-6 py-3 border-t border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <footer className="flex items-center justify-between px-6 py-3 border-t border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <button
           onClick={() => goToQuestion(currentQuestionIndex - 1)}
           disabled={currentQuestionIndex === 0}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" />
           Previous
@@ -348,7 +348,7 @@ const Feedback: React.FC = () => {
         {currentQuestionIndex < totalQuestions - 1 ? (
           <button
             onClick={() => goToQuestion(currentQuestionIndex + 1)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
           >
             Next
             <ChevronRight className="w-4 h-4" />

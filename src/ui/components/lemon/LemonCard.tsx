@@ -30,14 +30,14 @@ export const LemonCard: React.FC<LemonCardProps> = ({
     <div
       onClick={onClick}
       className={cn(
-        'bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl overflow-hidden transition-all duration-200',
+        'bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl overflow-hidden transition-all duration-200',
         hoverable && 'hover:shadow-lg hover:shadow-black/[0.03] dark:hover:shadow-none hover:-translate-y-0.5 cursor-pointer',
         onClick && 'cursor-pointer',
         className
       )}
     >
       {(title || subtitle || headerAction) && (
-        <div className="px-6 py-4 border-b border-gray-100/60 dark:border-white/[0.04] flex items-center justify-between">
+        <div className="px-8 py-5 border-b border-gray-100/60 dark:border-white/[0.04] flex items-center justify-between">
           <div>
             {title && (
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">
@@ -55,14 +55,14 @@ export const LemonCard: React.FC<LemonCardProps> = ({
       )}
 
       <div className={cn(
-        !noPadding && 'p-6',
+        !noPadding && 'p-8',
         contentClassName
       )}>
         {children}
       </div>
 
       {footer && (
-        <div className="px-6 py-4 border-t border-gray-100/60 dark:border-white/[0.04]">
+        <div className="px-8 py-5 border-t border-gray-100/60 dark:border-white/[0.04]">
           {footer}
         </div>
       )}

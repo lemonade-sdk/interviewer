@@ -57,7 +57,7 @@ export const LemonDialog: React.FC<LemonDialogProps> = ({
         ref={contentRef}
         tabIndex={-1}
         className={cn(
-          'relative z-10 w-full bg-white dark:bg-lemonade-dark-surface rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10',
+          'relative z-10 w-full bg-lemonade-bg dark:bg-lemonade-dark-surface rounded-2xl shadow-2xl border border-gray-200/50 dark:border-white/[0.08]',
           'mx-4 transition-all duration-200',
           'outline-none',
           className
@@ -65,7 +65,7 @@ export const LemonDialog: React.FC<LemonDialogProps> = ({
       >
         {/* Header */}
         {(title || subtitle) && (
-          <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b border-gray-100 dark:border-white/10">
+          <div className="flex items-start justify-between px-8 pt-6 pb-4 border-b border-gray-100/60 dark:border-white/[0.04]">
             <div>
               {title && (
                 <h2 className="text-lg font-semibold leading-tight dark:text-white">{title}</h2>
@@ -76,7 +76,7 @@ export const LemonDialog: React.FC<LemonDialogProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-gray-400 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors -mt-1 -mr-1"
+              className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors -mt-1 -mr-1"
             >
               <X size={18} />
             </button>
@@ -89,7 +89,7 @@ export const LemonDialog: React.FC<LemonDialogProps> = ({
           {!title && !subtitle && (
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors z-10"
+              className="absolute top-3 right-3 p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors z-10"
             >
               <X size={18} />
             </button>

@@ -177,7 +177,7 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
       </button>
 
       {/* Status label */}
-      <p className="mt-8 text-[13px] font-medium tracking-wide text-gray-400 dark:text-white/40 transition-colors duration-300">
+      <p className="mt-8 text-sm font-medium tracking-wide text-gray-400 dark:text-white/40 transition-colors duration-300">
         {statusLabel}
       </p>
     </div>

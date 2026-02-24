@@ -55,7 +55,7 @@ const InterviewHistory: React.FC = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
+        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={15} />
             <input
@@ -63,7 +63,7 @@ const InterviewHistory: React.FC = () => {
               placeholder="Search interviews..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none"
+              className="w-full pl-9 pr-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none"
             />
           </div>
           <LemonSelect
@@ -85,13 +85,13 @@ const InterviewHistory: React.FC = () => {
         {/* Interviews List */}
         <div className="space-y-2">
           {filteredInterviews.length === 0 ? (
-            <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-12 text-center transition-colors duration-300">
+            <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-12 text-center transition-colors duration-300">
               <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
               <p className="text-sm text-gray-500 dark:text-white/40">No interviews found matching your criteria.</p>
             </div>
           ) : (
             filteredInterviews.map((interview) => (
-              <div key={interview.id} className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-5 hover:border-gray-300/60 dark:hover:border-white/10 transition-all duration-200">
+              <div key={interview.id} className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-5 hover:border-gray-300/60 dark:hover:border-white/10 transition-all duration-200">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold truncate text-gray-900 dark:text-white/90">{interview.title}</h3>
@@ -99,7 +99,7 @@ const InterviewHistory: React.FC = () => {
                       {interview.company} &middot; {interview.position}
                     </p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-white/30">
-                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/5 rounded-full">
+                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
                         {interview.interviewType}
                       </span>
                       <span className="flex items-center gap-1">

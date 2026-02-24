@@ -616,7 +616,7 @@ const Interview: React.FC = () => {
       </LemonDialog>
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
@@ -708,7 +708,7 @@ const Interview: React.FC = () => {
 
       {/* Audio Settings Panel */}
       {showAudioSettings && (
-        <div className="border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface px-5 py-3 transition-colors duration-300">
+        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-5 py-3 transition-colors duration-300">
           <AudioSettings />
         </div>
       )}
@@ -769,7 +769,7 @@ const Interview: React.FC = () => {
         </div>
 
         {/* ── Transcript Area ── */}
-        <div className="h-[45%] min-h-[240px] flex flex-col border-t border-gray-200/50 dark:border-white/5">
+        <div className="h-[45%] min-h-[240px] flex flex-col border-t border-gray-200/50 dark:border-white/[0.08]">
           {/* Status bar */}
           <div className="px-6 py-2.5 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wider">

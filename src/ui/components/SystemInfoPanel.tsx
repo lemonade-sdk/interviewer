@@ -25,7 +25,7 @@ export const SystemInfoPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-5 w-5 border-2 border-lemonade-accent/30 border-t-lemonade-accent" />
@@ -36,7 +36,7 @@ export const SystemInfoPanel: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
         <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-4">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
@@ -50,7 +50,7 @@ export const SystemInfoPanel: React.FC = () => {
 
   if (!systemInfo) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
         <p className="text-gray-500 dark:text-white/40 text-sm">
           System information not available. Make sure Lemonade Server is running.
@@ -60,7 +60,7 @@ export const SystemInfoPanel: React.FC = () => {
   }
 
   return (
-    <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+    <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">System Information</h3>
         <button

@@ -90,12 +90,12 @@ const GeneralSettings: React.FC = () => {
                     "flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all duration-200",
                     formData.theme === value
                       ? "border-lemonade-accent bg-lemonade-accent/5"
-                      : "border-gray-200/60 dark:border-white/5 hover:border-lemonade-accent/40"
+                      : "border-gray-200/60 dark:border-white/[0.08] hover:border-lemonade-accent/40"
                   )}
                 >
                   <div className={cn(
-                    "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
-                    formData.theme === value ? "bg-lemonade-accent text-black" : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                    "w-9 h-9 rounded-xl flex items-center justify-center transition-colors",
+                    formData.theme === value ? "bg-lemonade-accent text-black" : "bg-gray-100 dark:bg-white/[0.06] text-gray-400"
                   )}>
                     <Icon size={18} />
                   </div>
@@ -162,7 +162,7 @@ const GeneralSettings: React.FC = () => {
         <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Bell size={18} />
               </div>
               <div>
@@ -177,7 +177,7 @@ const GeneralSettings: React.FC = () => {
           </div>
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
+              <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
                 <ShieldCheck size={18} />
               </div>
               <div>
@@ -329,7 +329,7 @@ const InterviewerSettingsPanel: React.FC = () => {
           <button
             onClick={refreshModels}
             disabled={loadingModels || !serverStatus.isRunning}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200/60 dark:border-white/10 rounded-lg hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200/60 dark:border-white/[0.08] rounded-xl hover:bg-lemonade-bg dark:hover:bg-white/[0.04] transition-colors disabled:opacity-40"
           >
             <RefreshCw size={12} className={cn(loadingModels && "animate-spin")} />
             Refresh

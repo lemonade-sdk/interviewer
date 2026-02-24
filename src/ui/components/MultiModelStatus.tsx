@@ -42,7 +42,7 @@ export const MultiModelStatus: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">Loaded Models</h3>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-5 w-5 border-2 border-lemonade-accent/30 border-t-lemonade-accent" />
@@ -53,7 +53,7 @@ export const MultiModelStatus: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">Loaded Models</h3>
         <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-4">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
@@ -67,7 +67,7 @@ export const MultiModelStatus: React.FC = () => {
 
   if (!health || !health.all_models_loaded || health.all_models_loaded.length === 0) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">Loaded Models</h3>
           <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export const MultiModelStatus: React.FC = () => {
   }
 
   return (
-    <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl p-6 transition-colors duration-300">
+    <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">Loaded Models</h3>
         <div className="flex items-center gap-2">
@@ -119,7 +119,7 @@ export const MultiModelStatus: React.FC = () => {
             Both Whisper (ASR) and Kokoro (TTS) need to be loaded simultaneously.
             Restart Lemonade Server with:
           </p>
-          <code className="block mt-1 text-xs font-mono bg-amber-100 dark:bg-amber-500/15 px-2 py-1 rounded-lg text-amber-900 dark:text-amber-200">
+          <code className="block mt-1 text-xs font-mono bg-amber-100 dark:bg-amber-500/15 px-2 py-1 rounded-xl text-amber-900 dark:text-amber-200">
             lemonade-server serve --max-loaded-models 2
           </code>
         </div>
@@ -130,7 +130,7 @@ export const MultiModelStatus: React.FC = () => {
         {health.all_models_loaded.map((model: LoadedModel, index: number) => (
           <div
             key={index}
-            className="border border-gray-200/50 dark:border-white/5 rounded-xl p-3 hover:border-lemonade-accent/40 transition-colors"
+            className="border border-gray-200/50 dark:border-white/[0.08] rounded-xl p-3 hover:border-lemonade-accent/40 transition-colors"
           >
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1 min-w-0">

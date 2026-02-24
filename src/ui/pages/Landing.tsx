@@ -304,7 +304,7 @@ const Landing: React.FC = () => {
       {/* ===== STEP: SETUP ===== */}
       {step === 'setup' && (
         <div className="w-full max-w-lg px-6">
-          <div className="bg-lemonade-bg dark:bg-white/[0.04] rounded-2xl border border-gray-200/50 dark:border-white/5 p-8">
+          <div className="bg-lemonade-bg dark:bg-white/[0.04] rounded-2xl border border-gray-200/50 dark:border-white/[0.08] p-8">
 
             {/* AI extraction progress */}
             {isExtracting && (
@@ -391,13 +391,13 @@ const Landing: React.FC = () => {
             {/* Attached files */}
             <div className="mt-7 pt-6 border-t border-gray-100/60 dark:border-white/[0.04] flex gap-3 flex-wrap text-xs text-gray-500 dark:text-white/40">
               {resumeDoc && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-xl">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl">
                   <FileText size={11} className="text-lemonade-accent-hover" />
                   <span className="truncate max-w-[120px]">{resumeDoc.fileName}</span>
                 </span>
               )}
               {jobPostDoc && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-xl">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl">
                   <Briefcase size={11} className="text-lemonade-accent-hover" />
                   <span className="truncate max-w-[120px]">{jobPostDoc.fileName}</span>
                 </span>
@@ -506,12 +506,12 @@ const UploadButton: React.FC<{
 
 const ExtractionStepRow: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; isDone: boolean }> = ({ icon, label, isActive, isDone }) => (
   <div className="flex items-center gap-3">
-    <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+    <div className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
       isActive ? 'bg-lemonade-accent/15' : isDone ? 'bg-green-100 dark:bg-green-500/15' : 'bg-gray-100 dark:bg-white/[0.04]'
     }`}>
       {isActive ? <Loader2 size={12} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={12} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
     </div>
-    <p className={`text-[13px] font-medium transition-colors ${isActive ? 'text-black dark:text-white' : isDone ? 'text-green-600 dark:text-green-400' : 'text-gray-300 dark:text-white/20'}`}>
+    <p className={`text-sm font-medium transition-colors ${isActive ? 'text-black dark:text-white' : isDone ? 'text-green-600 dark:text-green-400' : 'text-gray-300 dark:text-white/20'}`}>
       {label}
     </p>
   </div>

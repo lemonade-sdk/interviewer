@@ -140,7 +140,7 @@ export const AudioSettings: React.FC<Props> = ({
       <div className="flex gap-2">
         <button
           onClick={loadDevices}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
         >
           <RefreshCw size={11} />
           Refresh
@@ -151,7 +151,7 @@ export const AudioSettings: React.FC<Props> = ({
             audio.volume = outputVolume / 100;
             audio.play();
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
         >
           <Volume2 size={11} />
           Test Sound

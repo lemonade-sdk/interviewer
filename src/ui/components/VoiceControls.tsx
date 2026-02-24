@@ -110,7 +110,7 @@ export const VoiceControls: React.FC<Props> = ({
         {/* Status Indicators */}
         <div className="flex flex-col gap-2 min-w-[120px]">
           <div
-            className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg ${
+            className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl ${
               isRecording
                 ? 'bg-red-50 text-red-700'
                 : 'bg-gray-50 text-gray-500'
@@ -125,14 +125,14 @@ export const VoiceControls: React.FC<Props> = ({
           </div>
 
           {isSpeaking && (
-            <div className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg bg-blue-50 text-blue-700">
+            <div className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl bg-blue-50 text-blue-700">
               <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
               AI Speaking
             </div>
           )}
 
           {isMuted && (
-            <div className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg bg-yellow-50 text-yellow-700">
+            <div className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl bg-yellow-50 text-yellow-700">
               <VolumeX size={14} />
               Muted
             </div>

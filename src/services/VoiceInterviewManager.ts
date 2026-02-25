@@ -416,6 +416,7 @@ export class VoiceInterviewManager extends EventEmitter {
         this.emit('utterance-complete', text);
       } else {
         console.log('Hands-free: no speech detected, resuming listening');
+        this.emit('utterance-complete', '');
         shouldResumListening = true;
       }
     } catch (error: any) {
@@ -487,6 +488,7 @@ export class VoiceInterviewManager extends EventEmitter {
         this.emit('utterance-complete', text);
       } else {
         console.log('HTTP fallback: Whisper returned empty transcript, resuming');
+        this.emit('utterance-complete', '');
         if (this._isHandsFreeMode) {
           await this.startHandsFreeListening();
         }

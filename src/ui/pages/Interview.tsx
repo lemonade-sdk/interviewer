@@ -311,7 +311,6 @@ const Interview: React.FC = () => {
       manager.on('recording-started', () => setIsRecording(true));
       manager.on('recording-stopped', () => {
         setIsRecording(false);
-        setTranscriptionDelta('');
       });
       manager.on('audio-level', (level: number) => setAudioLevel(level));
       manager.on('speech-detected', () => setIsVADActive(true));
@@ -325,6 +324,8 @@ const Interview: React.FC = () => {
         // Don't clear transcriptionDelta here - keep it visible until message appears
         if (!manager.isHandsFreeMode && text.trim() && id) {
           await sendVoiceMessage(text);
+        } else if (!text.trim()) {
+          setTranscriptionDelta('');
         }
       });
 
@@ -332,6 +333,8 @@ const Interview: React.FC = () => {
         // Don't clear transcriptionDelta here - keep it visible until message appears
         if (text.trim() && id) {
           await sendVoiceMessage(text);
+        } else if (!text.trim()) {
+          setTranscriptionDelta('');
         }
       });
       manager.on('listening-started', () => {

@@ -8,10 +8,43 @@ import { truncateConversationHistory } from '../utils/tokenUtils';
 import { TextProcessingService } from './TextProcessingService';
 
 /**
+ * Enhanced error information for model downloads
+ */
+interface DownloadError {
+  errorType: 'size_mismatch' | 'checksum_failed' | 'file_locked' | 'network' | 'unknown';
+  message: string;
+  recoverable: boolean;
+  suggestedAction: 'retry' | 'force_restart' | 'contact_support';
+}
+
+/**
+ * Download progress information with validation status
+ */
+interface DownloadProgress {
+  file?: string;
+  fileIndex?: number;
+  totalFiles?: number;
+  bytesDownloaded?: number;
+  bytesTotal?: number;
+  percent: number;
+  validating?: boolean;
+  checksumVerified?: boolean;
+}
+
+/**
+ * Options for model pull operations
+ */
+interface PullOptions {
+  forceRestart?: boolean;
+  verifyChecksum?: boolean;
+  timeout?: number;
+}
+
+/**
  * LemonadeClient - Integration with Lemonade Server
  * Lemonade Server is a local LLM server that implements the OpenAI API standard
  * Running at http://localhost:8000/api/v1
- * 
+ *
  * Documentation: https://lemonade-server.ai/docs/
  */
 export class LemonadeClient {

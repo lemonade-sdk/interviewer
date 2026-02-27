@@ -431,7 +431,7 @@ const Preparing: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ─── LEFT: Resume viewer ─── */}
-        <div className="flex-1 flex items-center justify-center p-8 bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
+        <div className="flex-1 flex items-center justify-center p-6 bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
           {pdfBlobUrl ? (
             <iframe
               src={pdfBlobUrl}
@@ -439,7 +439,7 @@ const Preparing: React.FC = () => {
               title="Resume Preview"
             />
           ) : resumeText ? (
-            <div className="w-full max-w-2xl mx-auto">
+            <div className="w-full max-w-2xl mx-auto p-6">
               <div className="flex items-center gap-2 mb-3 text-gray-500 dark:text-white/40">
                 <FileText size={16} />
                 <span className="text-xs font-medium">{state.resumeFileName}</span>
@@ -462,7 +462,7 @@ const Preparing: React.FC = () => {
 
           {/* ── loading list ── */}
           {phase === 'loading-list' && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
               <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
                 <Loader2 size={20} className="animate-spin text-lemonade-accent-hover" />
               </div>
@@ -474,7 +474,7 @@ const Preparing: React.FC = () => {
           {phase === 'select' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto">
-                <div className="px-8 pt-8 pb-5 space-y-6">
+                <div className="p-6 space-y-6">
                   {/* Interview preferences */}
                   <div className="space-y-3">
                     <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
@@ -549,13 +549,13 @@ const Preparing: React.FC = () => {
                               <p className="text-xs font-semibold truncate leading-tight">{model.id}</p>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 {model.suggested && (
-                                  <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">
+                                  <span className="inline-flex items-center gap-0.5 text-xs px-2.5 py-1 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">
                                     <Star size={10} className="fill-lemonade-accent text-lemonade-accent" />
                                     Suggested
                                   </span>
                                 )}
                                 {model.labels.filter(l => l !== 'llm').map(l => (
-                                  <span key={l} className="text-xs px-1.5 py-px border border-gray-200/50 dark:border-white/[0.08] rounded-full text-gray-500 dark:text-white/40">{l}</span>
+                                  <span key={l} className="text-xs px-2.5 py-1 border border-gray-200/50 dark:border-white/[0.08] rounded-full text-gray-500 dark:text-white/40">{l}</span>
                                 ))}
                               </div>
                             </div>
@@ -565,11 +565,11 @@ const Preparing: React.FC = () => {
                                 <span className="text-xs font-medium text-gray-400 dark:text-white/30">{formatSize(model.size)}</span>
                               ) : null}
                               {model.downloaded ? (
-                                <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-px bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400 rounded-full font-medium">
+                                <span className="inline-flex items-center gap-0.5 text-xs px-2.5 py-1 bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400 rounded-full font-medium">
                                   <HardDrive size={10} /> Ready
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-px border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-white/40 rounded-full">
+                                <span className="inline-flex items-center gap-0.5 text-xs px-2.5 py-1 border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-white/40 rounded-full">
                                   <Download size={10} /> Download
                                 </span>
                               )}
@@ -583,11 +583,11 @@ const Preparing: React.FC = () => {
               </div>
 
               {/* action bar */}
-              <div className="px-8 py-5 border-t border-gray-100/60 dark:border-white/[0.04]">
+              <div className="p-6 border-t border-gray-100/60 dark:border-white/[0.04]">
                 <button
                   onClick={handleContinue}
                   disabled={!selectedModelId}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                  className="w-full flex items-center justify-center gap-1.5 px-6 py-2.5 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                 >
                   {selectedModel && !selectedModel.downloaded ? (
                     <>
@@ -607,7 +607,7 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ DOWNLOADING PHASE ═══════ */}
           {phase === 'downloading' && (
-            <div className="flex-1 flex flex-col px-8 pt-8">
+            <div className="flex-1 flex flex-col p-6">
               <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center mb-5">
                 <Download size={20} className="text-lemonade-accent-hover animate-bounce" />
               </div>
@@ -650,7 +650,7 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ LOADING MODEL PHASE ═══════ */}
           {phase === 'loading-model' && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
               <div className="relative">
                 <div className="w-14 h-14 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
                   <Zap size={24} className="text-lemonade-accent-hover" />
@@ -668,7 +668,7 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ GENERATING PERSONA PHASE ═══════ */}
           {phase === 'generating-persona' && (
-            <div className="flex-1 flex flex-col px-8 pt-8">
+            <div className="flex-1 flex flex-col p-6">
               <div className="w-12 h-12 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center mb-5">
                 <Sparkles size={20} className="text-lemonade-accent-hover" />
               </div>
@@ -729,7 +729,7 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ ERROR PHASE ═══════ */}
           {phase === 'error' && (
-            <div className="flex-1 flex flex-col justify-center px-8">
+            <div className="flex-1 flex flex-col justify-center p-6">
               <div className="border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-2xl p-6">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-500/15 flex items-center justify-center shrink-0 mt-0.5">
@@ -797,8 +797,8 @@ const PersonaStep: React.FC<{
           <p className="text-xs font-semibold">{persona.name}</p>
           <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 leading-relaxed">{persona.description}</p>
           <div className="flex gap-1.5 mt-2">
-            <span className="text-xs px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.interviewStyle}</span>
-            <span className="text-xs px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.questionDifficulty}</span>
+            <span className="text-xs px-3 py-1 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.interviewStyle}</span>
+            <span className="text-xs px-3 py-1 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.questionDifficulty}</span>
           </div>
         </div>
       )}

@@ -32,7 +32,7 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({
     <div
       onClick={onClick}
       className={cn(
-        'group flex items-center justify-between p-4 rounded-2xl',
+        'group flex items-center justify-between p-6 rounded-2xl',
         'border border-transparent hover:border-gray-200/60 dark:hover:border-white/5',
         'hover:bg-lemonade-bg dark:hover:bg-white/[0.03]',
         'cursor-pointer transition-all duration-200',
@@ -45,7 +45,7 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <h3 className="font-semibold text-sm text-gray-900 dark:text-white/90 truncate group-hover:text-lemonade-accent-hover transition-colors">
               {interview.title}
             </h3>
@@ -59,11 +59,11 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({
           </p>
           
           <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400 dark:text-white/30">
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <Clock size={11} />
               {format(new Date(interview.startedAt), 'MMM d, yyyy')}
             </span>
-            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-white/5 rounded text-[11px]">
+            <span className="px-2.5 py-1 bg-gray-100 dark:bg-white/5 rounded text-[11px]">
               {interview.interviewType}
             </span>
           </div>

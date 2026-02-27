@@ -10,7 +10,7 @@ import { InterviewType, UploadedDocument } from '../../types';
 import { LemonSelect } from '../components/lemon/LemonSelect';
 
 const INPUT_CLASS =
-  'w-full px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none';
+  'w-full px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm leading-[1.5] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none';
 const LABEL_CLASS = 'block text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5';
 
 type Step = 'initial' | 'setup' | 'selection';
@@ -308,7 +308,7 @@ const Landing: React.FC = () => {
 
             {/* AI extraction progress */}
             {isExtracting && (
-              <div className="mb-8 pb-7 border-b border-gray-100/60 dark:border-white/[0.04]">
+              <div className="mb-6 pb-6 border-b border-gray-100/60 dark:border-white/[0.04]">
                 <div className="flex items-center gap-3.5 mb-5">
                   <div className="w-10 h-10 rounded-xl bg-lemonade-accent/10 flex items-center justify-center">
                     <Sparkles size={18} className="text-lemonade-accent-hover" />
@@ -328,14 +328,14 @@ const Landing: React.FC = () => {
             )}
 
             {extractionStep === 'done' && (
-              <div className="mb-7 flex items-center gap-3 px-4 py-3.5 bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-xl">
+              <div className="mb-6 flex items-center gap-3 px-4 py-3.5 bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-xl">
                 <Check size={14} className="text-green-600 dark:text-green-400 shrink-0" />
                 <p className="text-xs font-medium text-green-700 dark:text-green-400">Details auto-filled. Review before continuing.</p>
               </div>
             )}
 
             {extractionStep === 'error' && extractionError && (
-              <div className="mb-7 flex items-center justify-between gap-3 px-4 py-3.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/15 rounded-xl">
+              <div className="mb-6 flex items-center justify-between gap-3 px-4 py-3.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/15 rounded-xl">
                 <div className="flex items-center gap-3">
                   <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
                   <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{extractionError}</p>
@@ -389,15 +389,15 @@ const Landing: React.FC = () => {
             </div>
 
             {/* Attached files */}
-            <div className="mt-7 pt-6 border-t border-gray-100/60 dark:border-white/[0.04] flex gap-3 flex-wrap text-xs text-gray-500 dark:text-white/40">
+            <div className="mt-7 pt-6 border-t border-gray-100/60 dark:border-white/[0.04] flex gap-3 flex-wrap text-xs text-gray-500 dark:text-white/40 mb-6">
               {resumeDoc && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl">
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl">
                   <FileText size={11} className="text-lemonade-accent-hover" />
                   <span className="truncate max-w-[120px]">{resumeDoc.fileName}</span>
                 </span>
               )}
               {jobPostDoc && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl">
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl">
                   <Briefcase size={11} className="text-lemonade-accent-hover" />
                   <span className="truncate max-w-[120px]">{jobPostDoc.fileName}</span>
                 </span>
@@ -405,10 +405,10 @@ const Landing: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3.5 mt-7">
+            <div className="flex gap-4">
               <button
                 onClick={() => setStep('initial')}
-                className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200/60 dark:border-white/10 text-gray-600 dark:text-white/50 font-semibold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+                className="flex items-center justify-center gap-1.5 px-6 py-2.5 border border-gray-200/60 dark:border-white/10 text-gray-600 dark:text-white/50 font-semibold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
               >
                 <ChevronLeft size={16} />
                 Back
@@ -416,10 +416,10 @@ const Landing: React.FC = () => {
               <button
                 onClick={handleSetupNext}
                 disabled={!isFormValid || isExtracting}
-                className="flex-1 px-5 py-3 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                className="flex-1 px-6 py-2.5 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {isExtracting ? (
-                  <span className="flex items-center justify-center gap-2">
+                  <span className="flex items-center justify-center gap-1.5">
                     <Loader2 size={14} className="animate-spin" />
                     AI is filling details...
                   </span>
@@ -437,7 +437,7 @@ const Landing: React.FC = () => {
         <div className="flex flex-col items-center">
           <div className="mb-8 text-center">
             <p className="text-base font-semibold">{formData.title}</p>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
+            <p className="text-sm text-gray-500 dark:text-white/40 mt-2">
               {formData.company} &middot; {formData.position} &middot; {formData.interviewType}
             </p>
           </div>
@@ -445,13 +445,13 @@ const Landing: React.FC = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => handleSelectionClick('single')}
-              className="w-48 py-3.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
+              className="w-48 px-6 py-2.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
             >
               One Stage Interview
             </button>
             <button
               onClick={() => handleSelectionClick('multi')}
-              className="w-48 py-3.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
+              className="w-48 px-6 py-2.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
             >
               Multi Stage Interview
             </button>
@@ -484,7 +484,7 @@ const UploadButton: React.FC<{
     disabled={isUploading}
     className={`w-48 h-20 rounded-xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center gap-1.5 ${
       doc
-        ? 'border-green-400/50 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400'
+        ? 'border-green-400/50 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-500'
         : 'border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.03] text-gray-500 dark:text-white/40 hover:border-lemonade-accent hover:text-black dark:hover:text-white'
     }`}
   >

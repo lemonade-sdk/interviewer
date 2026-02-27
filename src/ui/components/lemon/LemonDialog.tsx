@@ -65,7 +65,7 @@ export const LemonDialog: React.FC<LemonDialogProps> = ({
       >
         {/* Header */}
         {(title || subtitle) && (
-          <div className="flex items-start justify-between px-8 pt-6 pb-4 border-b border-gray-100/60 dark:border-white/[0.04]">
+          <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100/60 dark:border-white/[0.04]">
             <div>
               {title && (
                 <h2 className="text-lg font-semibold leading-tight dark:text-white">{title}</h2>

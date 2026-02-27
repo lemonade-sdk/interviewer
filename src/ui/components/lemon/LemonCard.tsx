@@ -37,7 +37,7 @@ export const LemonCard: React.FC<LemonCardProps> = ({
       )}
     >
       {(title || subtitle || headerAction) && (
-        <div className="px-8 py-5 border-b border-gray-100/60 dark:border-white/[0.04] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-100/60 dark:border-white/[0.04] flex items-center justify-between">
           <div>
             {title && (
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">
@@ -55,14 +55,14 @@ export const LemonCard: React.FC<LemonCardProps> = ({
       )}
 
       <div className={cn(
-        !noPadding && 'p-8',
+        !noPadding && 'p-6',
         contentClassName
       )}>
         {children}
       </div>
 
       {footer && (
-        <div className="px-8 py-5 border-t border-gray-100/60 dark:border-white/[0.04]">
+        <div className="px-6 py-4 border-t border-gray-100/60 dark:border-white/[0.04]">
           {footer}
         </div>
       )}

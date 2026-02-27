@@ -616,7 +616,7 @@ const Interview: React.FC = () => {
       </LemonDialog>
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
@@ -708,7 +708,7 @@ const Interview: React.FC = () => {
 
       {/* Audio Settings Panel */}
       {showAudioSettings && (
-        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-5 py-3 transition-colors duration-300">
+        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-6 py-3 transition-colors duration-300">
           <AudioSettings />
         </div>
       )}
@@ -786,7 +786,7 @@ const Interview: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
             {visibleMessages.length === 0 && !isThinking && (
               <div className="flex items-center justify-center h-full">
                 <p className="text-sm text-gray-400 dark:text-white/30">
@@ -802,7 +802,7 @@ const Interview: React.FC = () => {
             {/* Real-time transcription delta */}
             {transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="max-w-[75%] bg-lemonade-accent/10 dark:bg-lemonade-accent/5 border border-lemonade-accent/20 dark:border-lemonade-accent/10 rounded-2xl rounded-br-sm px-4 py-2.5">
+                <div className="max-w-[75%] bg-lemonade-accent/10 dark:bg-lemonade-accent/5 border border-lemonade-accent/20 dark:border-lemonade-accent/10 rounded-2xl rounded-br-sm px-4 py-4">
                   <p className="text-sm text-lemonade-accent-hover dark:text-lemonade-accent/60 italic">{transcriptionDelta}</p>
                 </div>
               </div>
@@ -811,7 +811,7 @@ const Interview: React.FC = () => {
             {/* Transcribing indicator */}
             {isTranscribing && !transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-sm px-4 py-2.5 flex items-center gap-2">
+                <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-sm px-4 py-4 flex items-center gap-2">
                   <div className="flex items-center gap-[3px]">
                     {[0, 1, 2, 3].map((i) => (
                       <div
@@ -832,7 +832,7 @@ const Interview: React.FC = () => {
             {/* Thinking indicator */}
             {isThinking && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 dark:bg-white/[0.04] rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2">
+                <div className="bg-gray-100 dark:bg-white/[0.04] rounded-2xl rounded-bl-sm px-4 py-4 flex items-center gap-2">
                   <div className="flex items-center gap-1">
                     {[0, 1, 2].map((i) => (
                       <div
@@ -860,7 +860,7 @@ const Interview: React.FC = () => {
                   setTextInput('');
                 }
               }}
-              className="px-5 py-3 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-2.5"
+              className="px-6 py-3 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-2.5"
             >
               <input
                 type="text"
@@ -868,7 +868,7 @@ const Interview: React.FC = () => {
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
-                className="flex-1 px-4 py-2.5 text-sm bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
+                className="flex-1 px-3 py-2 text-sm bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
               />
               <button
                 type="submit"
@@ -917,7 +917,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex gap-4", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
         <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0 mt-0.5 text-gray-400">
           <Bot size={15} />
@@ -926,7 +926,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       <div className="max-w-[75%] min-w-[80px]">
         <div
           className={cn(
-            "px-4 py-3 text-sm leading-[1.7]",
+            "px-4 py-4 text-sm leading-[1.7]",
             isUser
               ? "bg-lemonade-accent text-black rounded-2xl rounded-br-sm"
               : "bg-gray-100 dark:bg-white/[0.05] text-black dark:text-white rounded-2xl rounded-bl-sm"

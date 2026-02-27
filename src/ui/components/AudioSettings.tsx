@@ -79,7 +79,7 @@ export const AudioSettings: React.FC<Props> = ({
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl">
+      <div className="p-6 bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl">
         <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
         <button onClick={loadDevices} className="mt-2 text-sm text-red-600 dark:text-red-400 underline hover:no-underline">
           Try again
@@ -90,7 +90,7 @@ export const AudioSettings: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Settings size={14} className="text-gray-400 dark:text-white/40" />
         <h3 className="text-sm font-semibold text-gray-700 dark:text-white/90">Audio Settings</h3>
       </div>
@@ -107,9 +107,9 @@ export const AudioSettings: React.FC<Props> = ({
             className="h-8 text-xs"
             options={inputDevices.map((device) => ({ value: device.deviceId, label: device.label }))}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <LemonSlider value={inputVolume} onChange={handleInputVolumeChange} min={0} max={100} step={1} className="flex-1" />
-            <span className="text-[11px] font-mono w-10 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-1.5 py-0.5">
+            <span className="text-[11px] font-mono w-10 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-2.5 py-1">
               {inputVolume}%
             </span>
           </div>
@@ -126,9 +126,9 @@ export const AudioSettings: React.FC<Props> = ({
             className="h-8 text-xs"
             options={outputDevices.map((device) => ({ value: device.deviceId, label: device.label }))}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <LemonSlider value={outputVolume} onChange={handleOutputVolumeChange} min={0} max={100} step={1} className="flex-1" />
-            <span className="text-[11px] font-mono w-10 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-1.5 py-0.5">
+            <span className="text-[11px] font-mono w-10 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-2.5 py-1">
               {outputVolume}%
             </span>
           </div>
@@ -137,10 +137,10 @@ export const AudioSettings: React.FC<Props> = ({
 
       <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
 
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         <button
           onClick={loadDevices}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
         >
           <RefreshCw size={11} />
           Refresh
@@ -151,7 +151,7 @@ export const AudioSettings: React.FC<Props> = ({
             audio.volume = outputVolume / 100;
             audio.play();
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
         >
           <Volume2 size={11} />
           Test Sound

@@ -38,7 +38,7 @@ export const SystemInfoPanel: React.FC = () => {
     return (
       <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
-        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-4">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-6">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
           <button onClick={loadSystemInfo} className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline">
             Retry
@@ -97,7 +97,7 @@ export const SystemInfoPanel: React.FC = () => {
           <div className="space-y-2">
             {systemInfo.devices.cpu && (
               <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.cpu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">CPU</span>
                 </div>
@@ -106,7 +106,7 @@ export const SystemInfoPanel: React.FC = () => {
             )}
             {systemInfo.devices.amd_igpu && (
               <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.amd_igpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">AMD iGPU</span>
                 </div>
@@ -115,7 +115,7 @@ export const SystemInfoPanel: React.FC = () => {
             )}
             {systemInfo.devices.nvidia_dgpu && (
               <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.nvidia_dgpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">NVIDIA GPU</span>
                 </div>
@@ -124,7 +124,7 @@ export const SystemInfoPanel: React.FC = () => {
             )}
             {systemInfo.devices.npu && (
               <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.npu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">NPU</span>
                 </div>
@@ -150,7 +150,7 @@ export const SystemInfoPanel: React.FC = () => {
                     {Object.entries(systemInfo.recipes.llamacpp.backends).map(([name, config]) => (
                       <span
                         key={name}
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${
                           config.available
                             ? 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-400'
                             : 'bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-white/30'
@@ -171,7 +171,7 @@ export const SystemInfoPanel: React.FC = () => {
                     {Object.entries(systemInfo.recipes.whispercpp.backends).map(([name, config]) => (
                       <span
                         key={name}
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${
                           config.available
                             ? 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-400'
                             : 'bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-white/30'

@@ -99,7 +99,7 @@ const InterviewHistory: React.FC = () => {
                       {interview.company} &middot; {interview.position}
                     </p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-white/30">
-                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
+                      <span className="text-[11px] px-2.5 py-1 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
                         {interview.interviewType}
                       </span>
                       <span className="flex items-center gap-1">

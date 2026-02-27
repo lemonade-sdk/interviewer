@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="h-full overflow-y-auto transition-colors duration-300">
-      <div className="p-8 max-w-5xl mx-auto space-y-8 pb-16">
+      <div className="p-6 max-w-5xl mx-auto space-y-8 pb-16">
         {/* Header */}
         <div className="flex items-end justify-between">
           <div>
@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
           >
             <Plus size={16} />
             New Interview

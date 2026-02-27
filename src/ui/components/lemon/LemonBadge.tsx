@@ -24,7 +24,7 @@ export const LemonBadge: React.FC<LemonBadgeProps> = ({
   return (
     <span
       className={cn(
-        'text-[11px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide inline-flex items-center justify-center transition-colors',
+        'text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide inline-flex items-center justify-center transition-colors',
         variants[variant],
         className
       )}

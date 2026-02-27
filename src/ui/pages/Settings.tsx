@@ -145,7 +145,7 @@ const GeneralSettings: React.FC = () => {
                   }
                   min={5}
                   max={120}
-                  className="w-20 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+                  className="w-20 px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
                 />
                 <span className="text-sm text-gray-500 dark:text-white/40">minutes</span>
               </div>
@@ -196,7 +196,7 @@ const GeneralSettings: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-1.5 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
           <Save size={16} />
           {saved ? 'Saved!' : 'Save Changes'}
@@ -373,14 +373,14 @@ const InterviewerSettingsPanel: React.FC = () => {
               }
               min={1}
               max={50}
-              className="w-24 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+              className="w-24 px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
             />
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Temperature</label>
-              <span className="text-xs font-semibold text-lemonade-accent-hover bg-lemonade-accent/10 px-2 py-0.5 rounded">
+              <span className="text-xs font-semibold text-lemonade-accent-hover bg-lemonade-accent/10 px-2.5 py-0.5 rounded">
                 {formData.temperature?.toFixed(1) || '0.7'}
               </span>
             </div>
@@ -406,7 +406,7 @@ const InterviewerSettingsPanel: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, maxTokens: parseInt(e.target.value) })}
               min={100}
               max={8000}
-              className="w-28 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+              className="w-28 px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
             />
           </div>
 
@@ -442,7 +442,7 @@ const InterviewerSettingsPanel: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-1.5 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
           <Save size={16} />
           {saved ? 'Saved!' : 'Save AI Settings'}

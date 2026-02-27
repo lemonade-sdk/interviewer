@@ -62,7 +62,7 @@ const Jobs: React.FC = () => {
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
           >
             <Plus size={16} />
             Add Job
@@ -133,7 +133,7 @@ const Jobs: React.FC = () => {
                 </p>
                 <button
                   onClick={() => setShowModal(true)}
-                  className="px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                  className="px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
                 >
                   Add Your First Job
                 </button>
@@ -384,13 +384,13 @@ const JobModal: React.FC<JobModalProps> = ({ job, onClose, onSave }) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-2.5 border border-gray-200/60 dark:border-white/10 text-gray-700 dark:text-white/70 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+              className="flex-1 px-6 py-3 border border-gray-200/60 dark:border-white/10 text-gray-700 dark:text-white/70 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors active:scale-[0.98]"
+              className="flex-1 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors active:scale-[0.98]"
             >
               {job ? 'Update' : 'Create'}
             </button>

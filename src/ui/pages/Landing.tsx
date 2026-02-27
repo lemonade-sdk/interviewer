@@ -10,7 +10,7 @@ import { InterviewType, UploadedDocument } from '../../types';
 import { LemonSelect } from '../components/lemon/LemonSelect';
 
 const INPUT_CLASS =
-  'w-full px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm leading-[1.5] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none';
+  'w-full px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm leading-[1.5] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none';
 const LABEL_CLASS = 'block text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5';
 
 type Step = 'initial' | 'setup' | 'selection';
@@ -408,7 +408,7 @@ const Landing: React.FC = () => {
             <div className="flex gap-4">
               <button
                 onClick={() => setStep('initial')}
-                className="flex items-center justify-center gap-1.5 px-6 py-2.5 border border-gray-200/60 dark:border-white/10 text-gray-600 dark:text-white/50 font-semibold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+                className="flex items-center justify-center gap-1.5 px-6 py-3 border border-gray-200/60 dark:border-white/10 text-gray-600 dark:text-white/50 font-semibold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
               >
                 <ChevronLeft size={16} />
                 Back
@@ -416,7 +416,7 @@ const Landing: React.FC = () => {
               <button
                 onClick={handleSetupNext}
                 disabled={!isFormValid || isExtracting}
-                className="flex-1 px-6 py-2.5 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                className="flex-1 px-6 py-3 bg-lemonade-accent text-black font-semibold text-sm rounded-xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {isExtracting ? (
                   <span className="flex items-center justify-center gap-1.5">
@@ -445,13 +445,13 @@ const Landing: React.FC = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => handleSelectionClick('single')}
-              className="w-48 px-6 py-2.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
+              className="w-48 px-6 py-3 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
             >
               One Stage Interview
             </button>
             <button
               onClick={() => handleSelectionClick('multi')}
-              className="w-48 px-6 py-2.5 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
+              className="w-48 px-6 py-3 rounded-xl font-semibold text-sm border border-gray-200 dark:border-white/10 bg-lemonade-bg dark:bg-white/[0.04] text-black dark:text-white hover:border-lemonade-accent transition-colors active:scale-[0.98]"
             >
               Multi Stage Interview
             </button>

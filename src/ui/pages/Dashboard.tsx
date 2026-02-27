@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
           >
             <Plus size={16} />
             New Interview
@@ -98,7 +98,7 @@ const Dashboard: React.FC = () => {
                 </p>
                 <button
                   onClick={() => navigate('/')}
-                  className="px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                  className="px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
                 >
                   Start Interview
                 </button>

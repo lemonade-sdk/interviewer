@@ -868,7 +868,7 @@ const Interview: React.FC = () => {
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
-                className="flex-1 px-3 py-2 text-sm bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
+                className="flex-1 px-4 py-3 text-sm bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
               />
               <button
                 type="submit"
@@ -934,7 +934,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-1.5 px-1", isUser ? "text-right" : "text-left")}>
+        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-2 px-1", isUser ? "text-right" : "text-left")}>
           {format(new Date(message.timestamp), 'h:mm a')}
         </p>
       </div>

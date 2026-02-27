@@ -63,7 +63,7 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({
               <Clock size={11} />
               {format(new Date(interview.startedAt), 'MMM d, yyyy')}
             </span>
-            <span className="px-2.5 py-1 bg-gray-100 dark:bg-white/5 rounded text-[11px]">
+            <span className="px-2.5 py-1 bg-gray-100 dark:bg-white/5 rounded text-xs">
               {interview.interviewType}
             </span>
           </div>

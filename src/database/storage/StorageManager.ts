@@ -161,7 +161,8 @@ export class StorageManager {
     if (!interviewerSettings) {
       await this.interviewerSettings.set({
         modelProvider: 'lemonade-server',
-        modelName: 'Llama-3.2-1B-Instruct-Hybrid',
+        modelName: 'gpt-oss-mxp4',
+        extractionModelName: 'gpt-oss-mxp4',
         temperature: 0.7,
         maxTokens: 2000,
         interviewStyle: 'conversational',

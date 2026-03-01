@@ -16,7 +16,7 @@ export class TTSService {
   private baseURL: string;
   private model: string = 'kokoro-v1';
   private voice: string = 'shimmer'; // Default voice
-  private speed: number = 1.15; // Slightly faster for natural conversational pacing
+  private speed: number = 1.3; // Human-like conversational speed (natural, engaging pace)
   private responseFormat: 'mp3' | 'wav' | 'opus' | 'pcm' = 'mp3';
   private currentAudio: HTMLAudioElement | null = null;
 
@@ -103,6 +103,34 @@ export class TTSService {
    */
   async setVoice(voiceId: string): Promise<void> {
     this.voice = voiceId;
+  }
+
+  /**
+   * Get recommended voice for gender
+   * Maps gender to appropriate TTS voice
+   */
+  getVoiceForGender(gender: 'male' | 'female' | 'neutral' | undefined): string {
+    // Male voices: onyx (deep/professional), echo (male), fable (male), am_echo (Kokoro male)
+    // Female voices: nova (professional female), shimmer (bright female), af_sky (Kokoro female)
+    // Neutral: alloy (versatile, works for any)
+    switch (gender) {
+      case 'male':
+        return 'onyx'; // Professional male voice
+      case 'female':
+        return 'nova'; // Professional female voice
+      case 'neutral':
+      default:
+        return 'alloy'; // Neutral/versatile voice
+    }
+  }
+
+  /**
+   * Set voice based on gender
+   */
+  async setVoiceForGender(gender: 'male' | 'female' | 'neutral' | undefined): Promise<void> {
+    const voiceId = this.getVoiceForGender(gender);
+    this.voice = voiceId;
+    console.log(`[TTSService] Voice set to ${voiceId} for gender: ${gender || 'neutral'}`);
   }
 
   /**

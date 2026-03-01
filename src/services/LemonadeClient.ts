@@ -778,16 +778,13 @@ export class LemonadeClient {
 
   /**
    * Pre-load required audio models (Whisper for ASR + Kokoro for TTS) on the
-   * Lemonade Server.  Both models are of type "audio" and need to coexist
-   * simultaneously, which requires:
-   *
-   *   lemonade-server serve --max-loaded-models 2
-   *
-   * (2 models per type slot — allows both Whisper and Kokoro audio models)
+   * Lemonade Server. Whisper is of type "audio" and Kokoro is of type "tts".
+   * They occupy different type slots, so they can coexist simultaneously
+   * as long as each slot has a limit of at least 1.
    *
    * This method:
-   *  1. Fetches /health to inspect `max_models.audio`.
-   *  2. If `audio < 2` logs a prominent warning (the limit is a server-side CLI
+   *  1. Fetches /health to inspect `max_models.audio` and `max_models.tts`.
+   *  2. If either is < 1, logs a prominent warning (the limit is a server-side CLI
    *     argument and cannot be changed via the API).
    *  3. Pre-loads Whisper-Base and kokoro-v1 so both are ready before the user
    *     starts an interview.
@@ -800,16 +797,20 @@ export class LemonadeClient {
         return;
       }
 
-      // --- Check max_models audio limit ---------------------------------
+      // --- Check model slot limits for ASR + TTS co-existence ---------------
+      // Whisper is type='audio', Kokoro is type='tts' — they occupy DIFFERENT
+      // per-type slots, so only warn if either slot is fully unavailable.
       const maxAudio = health.max_models?.audio ?? 1;
-      if (maxAudio < 2) {
+      const maxTts = health.max_models?.tts ?? 1;
+      if (maxAudio < 1 || maxTts < 1) {
         console.warn(
           '====================================================================\n' +
-          '  WARNING: Lemonade Server audio model limit is ' + maxAudio + ' (need 2).\n' +
-          '  Both Whisper (ASR) and Kokoro (TTS) must be loaded simultaneously.\n' +
-          '  Restart lemonade-server with:\n' +
+          '  WARNING: Lemonade Server model slot limits are too restrictive.\n' +
+          `  audio slot limit: ${maxAudio} (need ≥1), tts slot limit: ${maxTts} (need ≥1).\n` +
+          '  Both Whisper (ASR, type=audio) and Kokoro (TTS, type=tts) must be\n' +
+          '  loaded simultaneously. Restart lemonade-server with:\n' +
           '\n' +
-          '    lemonade-server serve --max-loaded-models 2\n' +
+          '    lemonade-server serve --max-loaded-models 3\n' +
           '\n' +
           '  Without this, models will evict each other on every switch.\n' +
           '====================================================================',
@@ -962,7 +963,7 @@ export class LemonadeClient {
       model_name: string;
       checkpoint: string;
       last_use: number;
-      type: 'llm' | 'embedding' | 'reranking' | 'audio';
+      type: 'llm' | 'embedding' | 'reranking' | 'audio' | 'tts' | 'image';
       device: string;
       recipe: string;
       recipe_options?: Record<string, any>;
@@ -973,6 +974,8 @@ export class LemonadeClient {
       embedding: number;
       reranking: number;
       audio: number;
+      tts?: number;
+      image?: number;
     };
     /** Dynamic WebSocket port reported by the server */
     websocket_port?: number;

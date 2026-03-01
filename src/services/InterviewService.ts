@@ -4,6 +4,23 @@ import { InterviewRepository } from '../database/repositories/InterviewRepositor
 import { PromptManager } from './PromptManager';
 import { StructuredExtractionService } from './StructuredExtractionService';
 
+/** Default interview duration when not specified (minutes). */
+const DEFAULT_TOTAL_MINUTES = 30;
+/** Default wrap-up threshold when not specified (minutes from end). */
+const DEFAULT_WRAP_UP_MINUTES = 5;
+
+/** Phase keyword lookup — drives currentPhaseKeyword in UCL template. */
+const PHASE_KEYWORDS: Record<string, string> = {
+  greeting: 'greeting start introduction audio_check',
+  '1': 'q1_active warm_up baseline',
+  '2': 'q2_active core_technical primary',
+  '3': 'q3_active behavioral leadership team',
+  '4': 'q4_active validation resume_probe',
+  '5': 'q5_active deep_dive closing_technical',
+  wrap_up: 'wrap_up_signal closing_soon timer time_warning',
+  mid: 'pacing_check time_update mid_session',
+};
+
 export class InterviewService {
   private lemonadeClient: LemonadeClient;
   private extractionService: StructuredExtractionService;
@@ -15,18 +32,34 @@ export class InterviewService {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
-    this.extractionService = new StructuredExtractionService(this.lemonadeClient);
+    this.extractionService = new StructuredExtractionService(this.lemonadeClient, settings.extractionModelName);
   }
 
-  /**
-   * Get the LemonadeClient instance (used by PersonaGeneratorService).
-   */
   getLemonadeClient(): LemonadeClient {
     return this.lemonadeClient;
   }
 
-  async startInterview(interviewId: string, config: Partial<Interview>, persona?: AgentPersona | null): Promise<void> {
-    const systemPrompt = this.buildSystemPrompt(config, persona);
+  async startInterview(
+    interviewId: string,
+    config: Partial<Interview>,
+    persona?: AgentPersona | null,
+    timerConfig?: { totalInterviewMinutes: number; wrapUpThresholdMinutes: number },
+    documents?: { jobDescription?: string; resume?: string },
+  ): Promise<void> {
+    const totalInterviewMinutes = timerConfig?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
+    const wrapUpThresholdMinutes = timerConfig?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
+
+    // Greeting phase is always first — interviewer does audio check + intro before Q1
+    const initialPhaseKeyword = PHASE_KEYWORDS['greeting'];
+
+    const systemPrompt = this.buildSystemPrompt(config, persona, {
+      totalInterviewMinutes,
+      wrapUpThresholdMinutes,
+      currentPhaseKeyword: initialPhaseKeyword,
+      jobDescription: documents?.jobDescription ?? '',
+      resume: documents?.resume ?? '',
+    });
+
     const session: InterviewSession = {
       interviewId,
       messages: [
@@ -38,15 +71,21 @@ export class InterviewService {
         },
       ],
       questionCount: 0,
+      sessionStartMs: Date.now(),
+      totalInterviewMinutes,
+      wrapUpThresholdMinutes,
+      currentPhaseKeyword: initialPhaseKeyword,
+      midpointInjected: false,
+      wrapUpInjected: false,
+      interviewConfig: config,
+      persona: persona ?? null,
+      jobDescription: documents?.jobDescription ?? '',
+      resume: documents?.resume ?? '',
     };
 
     this.activeInterviews.set(interviewId, session);
 
-    // Send initial greeting
-    // Note: session.messages already has the system prompt
-    const greeting = await this.lemonadeClient.sendMessage(
-      session.messages
-    );
+    const greeting = await this.lemonadeClient.sendMessage(session.messages);
 
     session.messages.push({
       id: (Date.now() + 1).toString(),
@@ -62,7 +101,6 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
 
-    // Add user message to the full transcript (never trimmed)
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -71,15 +109,10 @@ export class InterviewService {
     };
     session.messages.push(userMsg);
 
-    // Get AI response
-    // Use a small context window (approx 3k tokens) for snappy "Time to First Token"
-    // during the active interview loop.
-    const response = await this.lemonadeClient.sendMessage(
-      session.messages,
-      { maxInputTokens: 3072 }
-    );
+    const messagesToSend = this.buildMessagesWithInjections(session);
 
-    // Add assistant message
+    const response = await this.lemonadeClient.sendMessage(messagesToSend, { maxInputTokens: 3072 });
+
     const assistantMsg: Message = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
@@ -87,18 +120,15 @@ export class InterviewService {
       timestamp: new Date().toISOString(),
     };
     session.messages.push(assistantMsg);
-
     session.questionCount++;
+    this.advancePhaseIfNeeded(session);
 
     return response;
   }
 
   /**
    * Streaming variant of sendMessage.
-   *
-   * Tokens are forwarded to `onToken` as they arrive from the LLM so the
-   * caller can pipeline them to TTS.  The full (cleaned) response is
-   * returned once the stream ends.
+   * Tokens are forwarded to `onToken` as they arrive from the LLM.
    */
   async sendMessageStreaming(
     interviewId: string,
@@ -110,7 +140,6 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
 
-    // Add user message to conversation
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -119,15 +148,14 @@ export class InterviewService {
     };
     session.messages.push(userMsg);
 
-    // Stream AI response — tokens forwarded via callback
-    // Use a small context window (approx 3k tokens) for snappy "Time to First Token"
+    const messagesToSend = this.buildMessagesWithInjections(session);
+
     const response = await this.lemonadeClient.sendMessageStreaming(
-      session.messages,
+      messagesToSend,
       onToken,
-      { maxInputTokens: 3072 }
+      { maxInputTokens: 3072 },
     );
 
-    // Add assistant message to in-memory session
     const assistantMsg: Message = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
@@ -135,8 +163,8 @@ export class InterviewService {
       timestamp: new Date().toISOString(),
     };
     session.messages.push(assistantMsg);
-
     session.questionCount++;
+    this.advancePhaseIfNeeded(session);
 
     return response;
   }
@@ -157,12 +185,10 @@ export class InterviewService {
           id: Date.now().toString(),
           role: 'user',
           content: feedbackPrompt,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       ],
-      // Use maximum available context (approx 3k tokens) for high-fidelity feedback
-      // This ensures the model sees as much of the interview history as possible.
-      { maxInputTokens: 3072 }
+      { maxInputTokens: 3072 },
     );
 
     // Stage 2: Extract structured data from natural language feedback
@@ -174,10 +200,9 @@ export class InterviewService {
       strengths: extracted?.strengths ?? ['Completed the interview'],
       weaknesses: extracted?.weaknesses ?? ['Unable to extract detailed feedback'],
       suggestions: extracted?.suggestions ?? ['Practice more interviews'],
-      detailedFeedback: feedbackText, // Natural text from Stage 1
+      detailedFeedback: feedbackText,
     };
 
-    // Clean up session
     this.activeInterviews.delete(interviewId);
 
     return feedback;
@@ -185,54 +210,49 @@ export class InterviewService {
 
   /**
    * Generate detailed per-question feedback by grading each Q/A pair individually.
-   * Emits progress events via onProgress callback for real-time UI updates.
+   * Uses split systemPrompt + userPrompt for the grading call (v8.1 breaking change).
    */
   async generateDetailedFeedback(
     _interviewId: string,
     transcript: Message[],
     onProgress: (data: { questionIndex: number; totalQuestions: number; status: string }) => void,
   ): Promise<InterviewFeedback> {
-    // Extract Q/A pairs from transcript (assistant asks, user answers)
     const qaPairs: { question: string; answer: string }[] = [];
     for (let i = 0; i < transcript.length; i++) {
       const msg = transcript[i];
       if (msg.role === 'assistant' && msg.content.trim()) {
-        // Look for the next user message as the answer
         const nextUser = transcript.slice(i + 1).find(m => m.role === 'user');
         if (nextUser) {
-          qaPairs.push({
-            question: msg.content,
-            answer: nextUser.content,
-          });
+          qaPairs.push({ question: msg.content, answer: nextUser.content });
         }
       }
     }
 
     const totalQuestions = qaPairs.length;
     const questionFeedbacks: QuestionFeedback[] = [];
+    const pm = PromptManager.getInstance();
 
-    // Grade each Q/A pair individually via the LLM
     for (let idx = 0; idx < qaPairs.length; idx++) {
       const { question, answer } = qaPairs[idx];
       onProgress({ questionIndex: idx, totalQuestions, status: `Grading question ${idx + 1} of ${totalQuestions}` });
 
-      const gradingPrompt = PromptManager.getInstance().getFeedbackGradingPrompt({
-        question,
-        answer
-      });
-
       try {
-        // Stage 1: Generate natural language feedback for this Q/A pair
         const feedbackText = await this.lemonadeClient.sendMessage([
-          { id: `grade-${idx}`, role: 'user', content: gradingPrompt, timestamp: new Date().toISOString() },
+          {
+            id: `grade-sys-${idx}`,
+            role: 'system',
+            content: pm.getFeedbackGradingSystemPrompt(),
+            timestamp: new Date().toISOString(),
+          },
+          {
+            id: `grade-${idx}`,
+            role: 'user',
+            content: pm.getFeedbackGradingUserPrompt({ question, answer }),
+            timestamp: new Date().toISOString(),
+          },
         ]);
 
-        // Stage 2: Extract structured grade data
-        const extracted = await this.extractionService.extractQuestionGrade(
-          question,
-          answer,
-          feedbackText
-        );
+        const extracted = await this.extractionService.extractQuestionGrade(question, answer, feedbackText);
 
         if (extracted) {
           questionFeedbacks.push({
@@ -246,7 +266,6 @@ export class InterviewService {
             suggestedAnswer: extracted.suggestedAnswer,
           });
         } else {
-          // Extraction failed, use fallback with natural text
           questionFeedbacks.push({
             questionIndex: idx,
             question,
@@ -275,12 +294,10 @@ export class InterviewService {
 
     onProgress({ questionIndex: totalQuestions, totalQuestions, status: 'Calculating final score...' });
 
-    // Calculate overall score as weighted average
     const overallScore = totalQuestions > 0
       ? Math.round(questionFeedbacks.reduce((sum, qf) => sum + qf.score, 0) / totalQuestions)
       : 0;
 
-    // Aggregate strengths and weaknesses
     const allStrengths = [...new Set(questionFeedbacks.flatMap(qf => qf.strengths))].slice(0, 5);
     const allWeaknesses = [...new Set(questionFeedbacks.flatMap(qf => qf.improvements))].slice(0, 5);
     const suggestions = questionFeedbacks
@@ -288,7 +305,7 @@ export class InterviewService {
       .map((qf, i) => `Q${i + 1}: ${qf.suggestedAnswer}`)
       .slice(0, 5);
 
-    const feedback: InterviewFeedback = {
+    return {
       overallScore,
       questionFeedbacks,
       strengths: allStrengths,
@@ -302,8 +319,6 @@ export class InterviewService {
             : 'Needs significant improvement in several areas.'
       }`,
     };
-
-    return feedback;
   }
 
   async getAvailableModels(): Promise<ModelConfig[]> {
@@ -361,11 +376,11 @@ export class InterviewService {
     return await this.lemonadeClient.checkServerHealth();
   }
 
-  async getSystemInfo(): Promise<any> {
+  async getSystemInfo(): Promise<unknown> {
     return await this.lemonadeClient.fetchSystemInfo();
   }
 
-  async getServerHealth(): Promise<any> {
+  async getServerHealth(): Promise<unknown> {
     return await this.lemonadeClient.fetchServerHealth();
   }
 
@@ -374,69 +389,166 @@ export class InterviewService {
   }
 
   async resumeInterview(interviewId: string): Promise<void> {
-    // Load interview from database
     const interview = await this.interviewRepo.findById(interviewId);
     if (!interview) {
       throw new Error(`Interview ${interviewId} not found`);
     }
 
-    // Restore session state
     if (interview.transcript && interview.transcript.length > 0) {
       this.activeInterviews.set(interviewId, {
         interviewId,
         messages: interview.transcript,
         questionCount: interview.transcript.filter(m => m.role === 'assistant').length,
+        sessionStartMs: Date.now(),
+        totalInterviewMinutes: DEFAULT_TOTAL_MINUTES,
+        wrapUpThresholdMinutes: DEFAULT_WRAP_UP_MINUTES,
+        currentPhaseKeyword: PHASE_KEYWORDS['greeting'],
+        midpointInjected: false,
+        wrapUpInjected: false,
+        interviewConfig: {},
+        persona: null,
+        jobDescription: '',
+        resume: '',
       });
       console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages`);
     }
   }
 
-  private buildSystemPrompt(config: Partial<Interview>, persona?: AgentPersona | null): string {
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Build the messages array for an API call, prepending ephemeral system
+   * messages for phase updates and timer signals as needed.
+   * These injections are NOT stored in session.messages so the transcript
+   * and feedback pipeline stay clean.
+   */
+  private buildMessagesWithInjections(session: InterviewSession): Message[] {
+    const messagesToSend: Message[] = [...session.messages];
+
+    // Phase update: inject a brief system message when the phase changes
+    const newPhaseKeyword = this.getPhaseKeyword(session.questionCount);
+    if (newPhaseKeyword !== session.currentPhaseKeyword) {
+      messagesToSend.push({
+        id: `phase-${Date.now()}`,
+        role: 'system',
+        content: `<phase_update>current_phase: ${newPhaseKeyword}</phase_update>`,
+        timestamp: new Date().toISOString(),
+      });
+      session.currentPhaseKeyword = newPhaseKeyword;
+    }
+
+    // Remaining time
+    const elapsedMs = Date.now() - session.sessionStartMs;
+    const elapsedMinutes = elapsedMs / 60000;
+    const remainingMinutes = Math.max(0, session.totalInterviewMinutes - elapsedMinutes);
+
+    // Midpoint pacing signal (~50% of total duration)
+    const midpointThreshold = session.totalInterviewMinutes / 2;
+    if (!session.midpointInjected && remainingMinutes <= midpointThreshold) {
+      messagesToSend.push({
+        id: `timer-mid-${Date.now()}`,
+        role: 'system',
+        content: `<timer_update>pacing_check time_update mid_session \u2014 ${Math.round(remainingMinutes)} minutes remaining</timer_update>`,
+        timestamp: new Date().toISOString(),
+      });
+      session.midpointInjected = true;
+    }
+
+    // Wrap-up signal
+    if (!session.wrapUpInjected && remainingMinutes <= session.wrapUpThresholdMinutes) {
+      messagesToSend.push({
+        id: `timer-wrap-${Date.now()}`,
+        role: 'system',
+        content: `<timer_signal>wrap_up_signal closing_soon timer time_warning \u2014 ${Math.round(remainingMinutes)} minutes remaining</timer_signal>`,
+        timestamp: new Date().toISOString(),
+      });
+      session.wrapUpInjected = true;
+    }
+
+    return messagesToSend;
+  }
+
+  /**
+   * Map question count to topic-phase keyword string.
+   * After greeting the interviewer starts Q1; each phase spans ~2 turns.
+   */
+  private getPhaseKeyword(questionCount: number): string {
+    if (questionCount === 0) return PHASE_KEYWORDS['greeting'];
+    if (questionCount <= 2) return PHASE_KEYWORDS['1'];
+    if (questionCount <= 4) return PHASE_KEYWORDS['2'];
+    if (questionCount <= 6) return PHASE_KEYWORDS['3'];
+    if (questionCount <= 8) return PHASE_KEYWORDS['4'];
+    return PHASE_KEYWORDS['5'];
+  }
+
+  private advancePhaseIfNeeded(session: InterviewSession): void {
+    session.currentPhaseKeyword = this.getPhaseKeyword(session.questionCount);
+  }
+
+  private buildSystemPrompt(
+    config: Partial<Interview>,
+    persona?: AgentPersona | null,
+    timerContext?: {
+      totalInterviewMinutes: number;
+      wrapUpThresholdMinutes: number;
+      currentPhaseKeyword: string;
+      jobDescription: string;
+      resume: string;
+    },
+  ): string {
     const { interviewType, position, company } = config;
-    const { interviewStyle, questionDifficulty, numberOfQuestions, includeFollowUps } = this.settings;
+    const { interviewStyle, questionDifficulty, numberOfQuestions } = this.settings;
 
-    const followUpInstruction = includeFollowUps 
-      ? 'Include follow-up questions based on candidate responses.' 
-      : 'Limit follow-up questions.';
+    const totalInterviewMinutes = timerContext?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
+    const wrapUpThresholdMinutes = timerContext?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
+    const currentPhaseKeyword = timerContext?.currentPhaseKeyword ?? PHASE_KEYWORDS['greeting'];
 
-    // If we have a generated persona with a rich system prompt (from document analysis),
-    // use it as the primary prompt and augment with interview settings
-    if (persona?.systemPrompt) {
+    if (persona) {
+      const q1Topic = persona.q1Topic ?? 'Tell me about your background and experience relevant to this role.';
+
       return PromptManager.getInstance().getInterviewSystemPromptWithPersona({
-        personaSystemPrompt: persona.systemPrompt,
-        interviewType: interviewType || '',
-        position: position || '',
-        company: company || '',
+        personaName: persona.name,
+        personaRole: persona.personaRole ?? `Interviewer at ${company ?? 'the company'}`,
+        interviewType: interviewType ?? '',
+        position: position ?? '',
+        company: company ?? '',
         interviewStyle: persona.interviewStyle || interviewStyle,
         questionDifficulty: persona.questionDifficulty || questionDifficulty,
         numberOfQuestions,
-        followUpInstruction
+        wrapUpThresholdMinutes,
+        // Dynamic per-call vars — initial values; subsequent turns use ephemeral injections
+        currentMinutesRemaining: totalInterviewMinutes,
+        currentPhaseKeyword,
+        currentTopicInstruction: currentPhaseKeyword.includes('greeting') ? '' : q1Topic,
+        q1Topic,
+        q2Topic: persona.q2Topic ?? 'Describe a challenging technical problem you solved.',
+        q3Topic: persona.q3Topic ?? 'Tell me about a time you had to lead or collaborate under pressure.',
+        q4Topic: persona.q4Topic ?? 'Walk me through a key project from your resume in detail.',
+        q5Topic: persona.q5Topic ?? 'What aspects of this role excite you and what would you want to grow in?',
+        primaryProbeArea: persona.primaryProbeArea ?? `Core competencies for ${position ?? 'this role'}`,
+        mustCoverTopic1: persona.mustCoverTopic1 ?? 'Technical depth and problem-solving approach',
+        mustCoverTopic2: persona.mustCoverTopic2 ?? 'Team collaboration and communication',
+        mustCoverTopic3: persona.mustCoverTopic3 ?? 'Motivation and culture fit',
+        validateClaim1: persona.validateClaim1 ?? 'Technical experience claims in resume',
+        validateClaim2: persona.validateClaim2 ?? 'Leadership or ownership claims',
+        watchSignal1: persona.watchSignal1 ?? 'Ownership vs. passive participation in projects',
+        watchSignal2: persona.watchSignal2 ?? 'Ability to handle ambiguity and self-direct',
       });
     }
 
     // Fallback: generic prompt when no persona is available
-    const styleAdjective = interviewStyle === 'supportive' ? 'encouraging' : interviewStyle === 'challenging' ? 'probing' : 'conversational';
-    
-    let typeSpecificInstruction = '';
-    if (interviewType === 'technical') typeSpecificInstruction = 'Focus on technical skills, problem-solving abilities, and technical knowledge relevant to the role.';
-    else if (interviewType === 'behavioral') typeSpecificInstruction = 'Focus on past experiences, soft skills, and how the candidate handles various situations.';
-    else if (interviewType === 'system-design') typeSpecificInstruction = 'Focus on architectural thinking, scalability considerations, and system design principles.';
-    else if (interviewType === 'coding') typeSpecificInstruction = 'Present coding problems and evaluate the candidate\'s approach, code quality, and problem-solving process.';
-
-    const fallbackFollowUpInstruction = includeFollowUps 
-      ? 'Include follow-up questions based on candidate responses.' 
-      : 'Avoid follow-up questions unless necessary.';
-
     return PromptManager.getInstance().getInterviewSystemPromptFallback({
-      interviewType: interviewType || '',
-      position: position || '',
-      company: company || '',
+      interviewType: interviewType ?? '',
+      position: position ?? '',
+      company: company ?? '',
       interviewStyle,
       questionDifficulty,
       numberOfQuestions,
-      followUpInstruction: fallbackFollowUpInstruction,
-      styleAdjective,
-      typeSpecificInstruction
+      wrapUpThresholdMinutes,
+      currentMinutesRemaining: totalInterviewMinutes,
+      currentPhaseKeyword,
+      jobDescription: timerContext?.jobDescription ?? '',
+      resume: timerContext?.resume ?? '',
     });
   }
 }
@@ -445,4 +557,17 @@ interface InterviewSession {
   interviewId: string;
   messages: Message[];
   questionCount: number;
+  // Timer state
+  sessionStartMs: number;
+  totalInterviewMinutes: number;
+  wrapUpThresholdMinutes: number;
+  midpointInjected: boolean;
+  wrapUpInjected: boolean;
+  // Phase tracking
+  currentPhaseKeyword: string;
+  // Stored for resume/rebuild support
+  interviewConfig: Partial<Interview>;
+  persona: AgentPersona | null;
+  jobDescription: string;
+  resume: string;
 }

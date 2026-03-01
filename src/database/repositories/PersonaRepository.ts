@@ -36,6 +36,8 @@ export class PersonaRepository {
       validateClaim2: persona.validateClaim2,
       watchSignal1: persona.watchSignal1,
       watchSignal2: persona.watchSignal2,
+      // Voice gender for TTS voice matching
+      gender: persona.gender,
     };
 
     return await this.store.create(newPersona);

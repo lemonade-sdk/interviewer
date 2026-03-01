@@ -4,15 +4,6 @@ This directory contains all project documentation, organized by category.
 
 ## 📁 Directory Structure
 
-### `/design`
-UI/UX design system documentation
-- **LEMONADE_DESIGN_SYSTEM.md** - Complete design system with spacing, typography, colors, and component standards
-
-### `/development`
-Technical documentation for developers
-- **FORENSIC_AUDIT_HARDCODED_PROMPTS.md** - Audit of all hardcoded prompts in the system
-- **CODE_QUALITY_TRACKING.md** - TypeScript warnings and technical debt tracking
-
 ### `/community`
 Community guidelines and contribution guides
 - **CONTRIBUTING.md** - How to contribute to the project

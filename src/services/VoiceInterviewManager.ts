@@ -116,8 +116,9 @@ export class VoiceInterviewManager extends EventEmitter {
 
   /**
    * Initialize the manager (must be called before use)
+   * @param personaGender - Optional gender to auto-select matching TTS voice
    */
-  async initialize(): Promise<void> {
+  async initialize(personaGender?: 'male' | 'female' | 'neutral'): Promise<void> {
     if (this.isInitialized) {
       console.warn('VoiceInterviewManager already initialized');
       return;
@@ -126,10 +127,16 @@ export class VoiceInterviewManager extends EventEmitter {
     try {
       // Initialize TTS voices
       await this.ttsService.getVoices();
-      await this.ttsService.setVoice('alloy'); // Default to Alloy
+      
+      // Set voice based on persona gender, or default to alloy
+      if (personaGender) {
+        await this.ttsService.setVoiceForGender(personaGender);
+      } else {
+        await this.ttsService.setVoice('alloy'); // Default to Alloy
+      }
       
       this.isInitialized = true;
-      console.log('VoiceInterviewManager initialized');
+      console.log(`VoiceInterviewManager initialized with ${personaGender || 'neutral'} voice`);
     } catch (error) {
       console.error('Failed to initialize VoiceInterviewManager:', error);
       throw error;
@@ -1059,6 +1066,14 @@ export class VoiceInterviewManager extends EventEmitter {
     if (settings.volume !== undefined) {
       this.ttsService.setVolume(settings.volume);
     }
+  }
+
+  /**
+   * Set TTS voice based on persona gender
+   * Automatically selects appropriate male/female/neutral voice
+   */
+  async setVoiceForPersona(gender: 'male' | 'female' | 'neutral' | undefined): Promise<void> {
+    await this.ttsService.setVoiceForGender(gender);
   }
 
   /**

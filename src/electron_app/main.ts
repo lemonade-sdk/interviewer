@@ -135,7 +135,7 @@ async function initializeApp(): Promise<void> {
     console.log('Interview Service initialized');
     
     // Initialize extraction service for document processing
-    extractionService = new StructuredExtractionService(interviewService.getLemonadeClient());
+    extractionService = new StructuredExtractionService(interviewService.getLemonadeClient(), interviewerSettings.extractionModelName);
     console.log('Extraction Service initialized');
     
     // Initialize MCP Manager
@@ -462,7 +462,7 @@ ipcMain.handle('settings:updateInterviewer', async (_event: IpcMainInvokeEvent, 
     // Reinitialize interview service with new settings
     interviewService = new InterviewService(updated, interviewRepo);
     // Reinitialize extraction service with updated client
-    extractionService = new StructuredExtractionService(interviewService.getLemonadeClient());
+    extractionService = new StructuredExtractionService(interviewService.getLemonadeClient(), updated.extractionModelName);
     return updated;
   } catch (error) {
     console.error('Failed to update interviewer settings:', error);
@@ -762,7 +762,7 @@ ipcMain.handle('persona:generate', async (_event: IpcMainInvokeEvent, input: {
 
     const result = await generator.generatePersona(input as PersonaGenerationInput);
 
-    // Persist the generated persona
+    // Persist the generated persona (including structured arc fields)
     const savedPersona = await personaRepo.create({
       name: result.persona.name,
       description: result.persona.description,
@@ -770,6 +770,20 @@ ipcMain.handle('persona:generate', async (_event: IpcMainInvokeEvent, input: {
       interviewStyle: result.persona.interviewStyle,
       questionDifficulty: result.persona.questionDifficulty,
       isDefault: false,
+      personaRole: result.persona.personaRole,
+      q1Topic: result.persona.q1Topic,
+      q2Topic: result.persona.q2Topic,
+      q3Topic: result.persona.q3Topic,
+      q4Topic: result.persona.q4Topic,
+      q5Topic: result.persona.q5Topic,
+      primaryProbeArea: result.persona.primaryProbeArea,
+      mustCoverTopic1: result.persona.mustCoverTopic1,
+      mustCoverTopic2: result.persona.mustCoverTopic2,
+      mustCoverTopic3: result.persona.mustCoverTopic3,
+      validateClaim1: result.persona.validateClaim1,
+      validateClaim2: result.persona.validateClaim2,
+      watchSignal1: result.persona.watchSignal1,
+      watchSignal2: result.persona.watchSignal2,
     });
 
     return {

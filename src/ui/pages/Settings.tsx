@@ -323,8 +323,8 @@ const InterviewerSettingsPanel: React.FC = () => {
 
       {/* Model Selection */}
       <LemonCard
-        title="Model"
-        subtitle="Select the LLM that powers your interviewer."
+        title="Models"
+        subtitle="Select the LLMs that power your interviewer and extraction processes."
         headerAction={
           <button
             onClick={refreshModels}
@@ -336,22 +336,53 @@ const InterviewerSettingsPanel: React.FC = () => {
           </button>
         }
       >
-        <div className="space-y-3">
-          <LemonSelect
-            value={formData.modelName || ''}
-            onChange={(v) => setFormData({ ...formData, modelName: v })}
-            disabled={!serverStatus.isRunning}
-            placeholder="Select a model..."
-            options={
-              availableModels.length > 0
-                ? availableModels.map((model) => ({ value: model.id, label: model.name }))
-                : [
-                    { value: 'Llama-3.2-1B-Instruct-Hybrid', label: 'Llama 3.2 1B Instruct (Hybrid)' },
-                    { value: 'Llama-3.2-3B-Instruct-Hybrid', label: 'Llama 3.2 3B Instruct (Hybrid)' },
-                    { value: 'Phi-3.5-mini-instruct-Hybrid', label: 'Phi 3.5 Mini Instruct (Hybrid)' },
-                  ]
-            }
-          />
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Interview Model</label>
+            <LemonSelect
+              value={formData.modelName || ''}
+              onChange={(v) => setFormData({ ...formData, modelName: v })}
+              disabled={!serverStatus.isRunning}
+              placeholder="Select a model..."
+              options={
+                availableModels.length > 0
+                  ? availableModels.map((model) => ({ value: model.id, label: model.name }))
+                  : [
+                      { value: 'gpt-oss-mxp4', label: 'GPT-OSS MXP4' },
+                      { value: 'Llama-3.2-1B-Instruct-Hybrid', label: 'Llama 3.2 1B Instruct (Hybrid)' },
+                      { value: 'Llama-3.2-3B-Instruct-Hybrid', label: 'Llama 3.2 3B Instruct (Hybrid)' },
+                      { value: 'Phi-3.5-mini-instruct-Hybrid', label: 'Phi 3.5 Mini Instruct (Hybrid)' },
+                    ]
+              }
+            />
+            <p className="text-xs text-gray-500 dark:text-white/40">
+              Used for generating the interviewer's responses.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Extraction Model</label>
+            <LemonSelect
+              value={formData.extractionModelName || formData.modelName || ''}
+              onChange={(v) => setFormData({ ...formData, extractionModelName: v })}
+              disabled={!serverStatus.isRunning}
+              placeholder="Select a model..."
+              options={
+                availableModels.length > 0
+                  ? availableModels.map((model) => ({ value: model.id, label: model.name }))
+                  : [
+                      { value: 'gpt-oss-mxp4', label: 'GPT-OSS MXP4' },
+                      { value: 'Llama-3.2-1B-Instruct-Hybrid', label: 'Llama 3.2 1B Instruct (Hybrid)' },
+                      { value: 'Llama-3.2-3B-Instruct-Hybrid', label: 'Llama 3.2 3B Instruct (Hybrid)' },
+                      { value: 'Phi-3.5-mini-instruct-Hybrid', label: 'Phi 3.5 Mini Instruct (Hybrid)' },
+                    ]
+              }
+            />
+            <p className="text-xs text-gray-500 dark:text-white/40">
+              Used for structured data extraction (e.g., feedback, persona generation).
+            </p>
+          </div>
+
           {!serverStatus.isRunning && (
             <p className="text-xs text-gray-500 dark:text-white/40">
               Start Lemonade Server to see available models.

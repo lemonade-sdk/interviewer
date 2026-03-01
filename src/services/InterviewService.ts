@@ -51,6 +51,15 @@ export class InterviewService {
 
     // Greeting phase is always first — interviewer does audio check + intro before Q1
     const initialPhaseKeyword = PHASE_KEYWORDS['greeting'];
+    const now = Date.now();
+
+    // Calculate interview pacing allocation (v2: time-based tracking)
+    const GREETING_ALLOCATION_MINUTES = 2;  // 2 minutes for 3-step opener
+    const effectiveInterviewMinutes = Math.max(
+      totalInterviewMinutes - wrapUpThresholdMinutes - GREETING_ALLOCATION_MINUTES,
+      5  // Minimum 5 minutes for actual interview
+    );
+    const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
     const systemPrompt = this.buildSystemPrompt(config, persona, {
       totalInterviewMinutes,
@@ -58,25 +67,39 @@ export class InterviewService {
       currentPhaseKeyword: initialPhaseKeyword,
       jobDescription: documents?.jobDescription ?? '',
       resume: documents?.resume ?? '',
+      // New timing variables for coherent UX
+      greetingAllocationMinutes: GREETING_ALLOCATION_MINUTES,
+      timePerQuestionMinutes,
+      effectiveInterviewMinutes,
     });
 
     const session: InterviewSession = {
       interviewId,
       messages: [
         {
-          id: Date.now().toString(),
+          id: now.toString(),
           role: 'system',
           content: systemPrompt,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(now).toISOString(),
         },
       ],
       questionCount: 0,
-      sessionStartMs: Date.now(),
+      // Timer state
+      sessionStartMs: now,
       totalInterviewMinutes,
       wrapUpThresholdMinutes,
-      currentPhaseKeyword: initialPhaseKeyword,
       midpointInjected: false,
       wrapUpInjected: false,
+      // Greeting phase timing (v2)
+      greetingPhaseStartMs: now,
+      greetingMinDurationMs: GREETING_ALLOCATION_MINUTES * 60000,  // 2 min in ms
+      greetingCompleted: false,
+      // Interview pacing allocation
+      timePerQuestionMinutes,
+      effectiveInterviewMinutes,
+      // Phase tracking
+      currentPhaseKeyword: initialPhaseKeyword,
+      // Stored for resume/rebuild support
       interviewConfig: config,
       persona: persona ?? null,
       jobDescription: documents?.jobDescription ?? '',
@@ -395,16 +418,32 @@ export class InterviewService {
     }
 
     if (interview.transcript && interview.transcript.length > 0) {
+      const now = Date.now();
+      const questionCount = interview.transcript.filter(m => m.role === 'assistant').length;
+      const effectiveInterviewMinutes = Math.max(
+        DEFAULT_TOTAL_MINUTES - DEFAULT_WRAP_UP_MINUTES - 2,
+        5
+      );
+      const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
+
       this.activeInterviews.set(interviewId, {
         interviewId,
         messages: interview.transcript,
-        questionCount: interview.transcript.filter(m => m.role === 'assistant').length,
-        sessionStartMs: Date.now(),
+        questionCount,
+        sessionStartMs: now,
         totalInterviewMinutes: DEFAULT_TOTAL_MINUTES,
         wrapUpThresholdMinutes: DEFAULT_WRAP_UP_MINUTES,
-        currentPhaseKeyword: PHASE_KEYWORDS['greeting'],
         midpointInjected: false,
         wrapUpInjected: false,
+        // Greeting phase timing (v2)
+        greetingPhaseStartMs: now,
+        greetingMinDurationMs: 2 * 60000,  // 2 minutes
+        greetingCompleted: questionCount > 0,  // If already have messages, greeting is done
+        // Interview pacing allocation
+        timePerQuestionMinutes,
+        effectiveInterviewMinutes,
+        // Phase tracking
+        currentPhaseKeyword: this.getPhaseKeyword(questionCount),
         interviewConfig: {},
         persona: null,
         jobDescription: '',
@@ -494,6 +533,10 @@ export class InterviewService {
       currentPhaseKeyword: string;
       jobDescription: string;
       resume: string;
+      // v2: Time allocation variables for coherent UX
+      greetingAllocationMinutes?: number;
+      timePerQuestionMinutes?: number;
+      effectiveInterviewMinutes?: number;
     },
   ): string {
     const { interviewType, position, company } = config;
@@ -502,6 +545,11 @@ export class InterviewService {
     const totalInterviewMinutes = timerContext?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
     const wrapUpThresholdMinutes = timerContext?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
     const currentPhaseKeyword = timerContext?.currentPhaseKeyword ?? PHASE_KEYWORDS['greeting'];
+
+    // v2: Time allocation for coherent interview pacing
+    const greetingAllocationMinutes = timerContext?.greetingAllocationMinutes ?? 2;
+    const timePerQuestionMinutes = timerContext?.timePerQuestionMinutes ?? 2.5;
+    const effectiveInterviewMinutes = timerContext?.effectiveInterviewMinutes ?? (totalInterviewMinutes - wrapUpThresholdMinutes - 2);
 
     if (persona) {
       const q1Topic = persona.q1Topic ?? 'Tell me about your background and experience relevant to this role.';
@@ -533,6 +581,10 @@ export class InterviewService {
         validateClaim2: persona.validateClaim2 ?? 'Leadership or ownership claims',
         watchSignal1: persona.watchSignal1 ?? 'Ownership vs. passive participation in projects',
         watchSignal2: persona.watchSignal2 ?? 'Ability to handle ambiguity and self-direct',
+        // v2: Time allocation for coherent UX
+        greetingAllocationMinutes,
+        timePerQuestionMinutes,
+        effectiveInterviewMinutes,
       });
     }
 
@@ -549,6 +601,10 @@ export class InterviewService {
       currentPhaseKeyword,
       jobDescription: timerContext?.jobDescription ?? '',
       resume: timerContext?.resume ?? '',
+      // v2: Time allocation for coherent UX
+      greetingAllocationMinutes,
+      timePerQuestionMinutes,
+      effectiveInterviewMinutes,
     });
   }
 }
@@ -563,6 +619,13 @@ interface InterviewSession {
   wrapUpThresholdMinutes: number;
   midpointInjected: boolean;
   wrapUpInjected: boolean;
+  // Greeting phase timing (v2: time-based tracking for coherent UX)
+  greetingPhaseStartMs: number;
+  greetingMinDurationMs: number;        // Default: 2 minutes (120000 ms)
+  greetingCompleted: boolean;           // Whether 3-step opener is done
+  // Interview pacing allocation
+  timePerQuestionMinutes: number;      // Calculated: ~2-3 min per question
+  effectiveInterviewMinutes: number;     // total - wrapUp - greeting allocation
   // Phase tracking
   currentPhaseKeyword: string;
   // Stored for resume/rebuild support

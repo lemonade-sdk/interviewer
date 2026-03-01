@@ -62,6 +62,10 @@ export class PromptManager {
     validateClaim2: string;
     watchSignal1: string;
     watchSignal2: string;
+    // v2: Time allocation for coherent UX
+    greetingAllocationMinutes?: number;
+    timePerQuestionMinutes?: number;
+    effectiveInterviewMinutes?: number;
   }): string {
     return this.interpolate(prompts.interview.systemPrompt.withPersona as string | string[], variables);
   }
@@ -78,6 +82,10 @@ export class PromptManager {
     currentPhaseKeyword: string;
     jobDescription: string;
     resume: string;
+    // v2: Time allocation for coherent UX
+    greetingAllocationMinutes?: number;
+    timePerQuestionMinutes?: number;
+    effectiveInterviewMinutes?: number;
   }): string {
     return this.interpolate(prompts.interview.systemPrompt.fallback as string | string[], variables);
   }

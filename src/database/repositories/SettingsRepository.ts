@@ -60,7 +60,7 @@ export class SettingsRepository {
       language: 'en',
       notifications: true,
       autoSave: true,
-      defaultInterviewDuration: 3600,
+      defaultInterviewDuration: 30,  // Fixed: Store as minutes (was 3600 seconds)
       createdAt: now,
       updatedAt: now,
     };

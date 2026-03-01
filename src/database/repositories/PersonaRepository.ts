@@ -21,6 +21,21 @@ export class PersonaRepository {
       isDefault: persona.isDefault || false,
       createdAt: now,
       updatedAt: now,
+      // v5: Interview intelligence fields - critical for structured interview arc
+      personaRole: persona.personaRole,
+      q1Topic: persona.q1Topic,
+      q2Topic: persona.q2Topic,
+      q3Topic: persona.q3Topic,
+      q4Topic: persona.q4Topic,
+      q5Topic: persona.q5Topic,
+      primaryProbeArea: persona.primaryProbeArea,
+      mustCoverTopic1: persona.mustCoverTopic1,
+      mustCoverTopic2: persona.mustCoverTopic2,
+      mustCoverTopic3: persona.mustCoverTopic3,
+      validateClaim1: persona.validateClaim1,
+      validateClaim2: persona.validateClaim2,
+      watchSignal1: persona.watchSignal1,
+      watchSignal2: persona.watchSignal2,
     };
 
     return await this.store.create(newPersona);

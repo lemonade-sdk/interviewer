@@ -1,5 +1,5 @@
 import { LemonadeClient } from './LemonadeClient';
-import { InterviewStyle, InterviewType } from '../types';
+import { InterviewType } from '../types';
 import { Message } from '../types';
 import { PromptManager } from './PromptManager';
 
@@ -21,9 +21,9 @@ export class StructuredExtractionService {
 
   constructor(lemonadeClient: LemonadeClient, extractionModel?: string) {
     this.lemonadeClient = lemonadeClient;
-    // Default to smallest/fastest available model for extraction
+    // Default to standard model for extraction
     // Can be overridden for specific use cases
-    this.extractionModel = extractionModel || 'Qwen2.5-0.5B-Instruct-Hybrid';
+    this.extractionModel = extractionModel || 'gpt-oss-mxp4';
   }
 
   /**
@@ -165,90 +165,6 @@ export class StructuredExtractionService {
   }
 
   /**
-   * Extract structured persona data from natural language persona description.
-   * 
-   * @param personaText - Natural language persona description from Stage 1
-   * @returns Structured persona data or null if extraction fails
-   */
-  async extractPersonaData(personaText: string): Promise<{
-    name: string;
-    description: string;
-    interviewStyle: InterviewStyle;
-    questionDifficulty: 'easy' | 'medium' | 'hard';
-    systemPrompt: string;
-    jobAnalysis: string;
-    resumeAnalysis: string;
-  } | null> {
-    try {
-      const extractionPrompt = PromptManager.getInstance().getPersonaExtractionUserPrompt({
-        personaText
-      });
-
-      const messages: Message[] = [
-        {
-          id: 'extract-system',
-          role: 'system',
-          content: PromptManager.getInstance().getPersonaExtractionSystemPrompt(),
-          timestamp: new Date().toISOString(),
-        },
-        {
-          id: 'extract-user',
-          role: 'user',
-          content: extractionPrompt,
-          timestamp: new Date().toISOString(),
-        },
-      ];
-
-      const response = await this.lemonadeClient.sendMessage(messages, {
-        maxTokens: 8192,
-      });
-
-      console.log('[StructuredExtractionService] Persona extraction raw response:', response.substring(0, 500));
-
-      const parsed = this.parseJSON(response);
-      if (!parsed) {
-        console.error('[StructuredExtractionService] Failed to parse persona JSON from response');
-        return null;
-      }
-
-      console.log('[StructuredExtractionService] Parsed persona data:', {
-        name: parsed.name,
-        hasDescription: !!parsed.description,
-        interviewStyle: parsed.interviewStyle,
-        questionDifficulty: parsed.questionDifficulty,
-        hasSystemPrompt: !!parsed.systemPrompt,
-        hasJobAnalysis: !!parsed.jobAnalysis,
-        hasResumeAnalysis: !!parsed.resumeAnalysis,
-      });
-
-      // Validate interview style
-      const validStyles: InterviewStyle[] = ['conversational', 'formal', 'challenging', 'supportive'];
-      const interviewStyle = validStyles.includes(parsed.interviewStyle)
-        ? parsed.interviewStyle
-        : 'conversational';
-
-      // Validate difficulty
-      const validDifficulties = ['easy', 'medium', 'hard'];
-      const questionDifficulty = validDifficulties.includes(parsed.questionDifficulty)
-        ? parsed.questionDifficulty
-        : 'medium';
-
-      return {
-        name: typeof parsed.name === 'string' ? parsed.name : 'Interviewer',
-        description: typeof parsed.description === 'string' ? parsed.description : '',
-        interviewStyle,
-        questionDifficulty,
-        systemPrompt: typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt : '',
-        jobAnalysis: typeof parsed.jobAnalysis === 'string' ? parsed.jobAnalysis : '',
-        resumeAnalysis: typeof parsed.resumeAnalysis === 'string' ? parsed.resumeAnalysis : '',
-      };
-    } catch (error) {
-      console.error('Failed to extract persona data:', error);
-      return null;
-    }
-  }
-
-  /**
    * Extract structured job details from job posting analysis.
    * 
    * @param jobPostingText - Original job posting text
@@ -285,8 +201,11 @@ export class StructuredExtractionService {
         },
       ];
 
+      // Extraction only needs short JSON output, but reasoning models (DeepSeek R1)
+      // consume tokens on internal CoT before producing visible content.
+      // 2048 gives sufficient headroom for thinking + a compact JSON response.
       const response = await this.lemonadeClient.sendMessage(messages, {
-        maxTokens: 512,
+        maxTokens: 2048,
       });
 
       const parsed = this.parseJSON(response);

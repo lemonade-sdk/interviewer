@@ -1,6 +1,20 @@
-import prompts from '../data/prompts.json';
+import promptsRaw from '../data/prompts.json';
 
 type PromptVariables = Record<string, string | number | boolean>;
+
+// Type the grading field explicitly since it changed to an object structure
+interface GradingPrompt {
+  systemPrompt: string[];
+  userPrompt: string[];
+}
+
+const prompts = promptsRaw as typeof promptsRaw & {
+  interview: {
+    feedback: {
+      grading: GradingPrompt;
+    };
+  };
+};
 
 export class PromptManager {
   private static instance: PromptManager;
@@ -23,14 +37,31 @@ export class PromptManager {
   }
 
   getInterviewSystemPromptWithPersona(variables: {
-    personaSystemPrompt: string;
+    personaName: string;
+    personaRole: string;
     interviewType: string;
     position: string;
     company: string;
     interviewStyle: string;
     questionDifficulty: string;
     numberOfQuestions: number;
-    followUpInstruction: string;
+    wrapUpThresholdMinutes: number;
+    currentMinutesRemaining: number;
+    currentPhaseKeyword: string;
+    currentTopicInstruction: string;
+    q1Topic: string;
+    q2Topic: string;
+    q3Topic: string;
+    q4Topic: string;
+    q5Topic: string;
+    primaryProbeArea: string;
+    mustCoverTopic1: string;
+    mustCoverTopic2: string;
+    mustCoverTopic3: string;
+    validateClaim1: string;
+    validateClaim2: string;
+    watchSignal1: string;
+    watchSignal2: string;
   }): string {
     return this.interpolate(prompts.interview.systemPrompt.withPersona as string | string[], variables);
   }
@@ -42,9 +73,11 @@ export class PromptManager {
     interviewStyle: string;
     questionDifficulty: string;
     numberOfQuestions: number;
-    followUpInstruction: string;
-    styleAdjective: string;
-    typeSpecificInstruction: string;
+    wrapUpThresholdMinutes: number;
+    currentMinutesRemaining: number;
+    currentPhaseKeyword: string;
+    jobDescription: string;
+    resume: string;
   }): string {
     return this.interpolate(prompts.interview.systemPrompt.fallback as string | string[], variables);
   }
@@ -54,11 +87,15 @@ export class PromptManager {
     return Array.isArray(p) ? p.join('\n') : p;
   }
 
-  getFeedbackGradingPrompt(variables: {
+  getFeedbackGradingSystemPrompt(): string {
+    return prompts.interview.feedback.grading.systemPrompt.join('\n');
+  }
+
+  getFeedbackGradingUserPrompt(variables: {
     question: string;
     answer: string;
   }): string {
-    return this.interpolate(prompts.interview.feedback.grading as string | string[], variables);
+    return this.interpolate(prompts.interview.feedback.grading.userPrompt, variables);
   }
 
   getPersonaGenerationUserPrompt(variables: {
@@ -67,7 +104,8 @@ export class PromptManager {
     interviewType: string;
     company: string;
     position: string;
-    styleInstruction: string;
+    numberOfQuestions: number;
+    styleInstruction?: string;
   }): string {
     return this.interpolate(prompts.persona.generation.userPrompt as string | string[], variables);
   }
@@ -84,6 +122,8 @@ export class PromptManager {
     jobDescription: string;
     resume: string;
     toneInstruction: string;
+    currentPhaseKeyword: string;
+    currentMinutesRemaining: number;
   }): string {
     return this.interpolate(prompts.persona.generation.fallback as string | string[], variables);
   }
@@ -123,17 +163,6 @@ export class PromptManager {
     feedbackText: string;
   }): string {
     return this.interpolate(prompts.extraction.questionGrade.userPrompt as string | string[], variables);
-  }
-
-  getPersonaExtractionSystemPrompt(): string {
-    const p = prompts.extraction.persona.systemPrompt as string | string[];
-    return Array.isArray(p) ? p.join('\n') : p;
-  }
-
-  getPersonaExtractionUserPrompt(variables: {
-    personaText: string;
-  }): string {
-    return this.interpolate(prompts.extraction.persona.userPrompt as string | string[], variables);
   }
 
   getJobDetailsExtractionSystemPrompt(): string {

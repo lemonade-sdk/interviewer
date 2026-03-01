@@ -638,7 +638,7 @@ getInterviewSystemPromptWithPersona(variables: {
 | `${currentMinutesRemaining}` | 30 | Current timer |
 | `${currentPhaseKeyword}` | "q1_active warm_up" | Phase tags |
 | `${currentTopicInstruction}` | "Tell me about..." | Current topic |
-| `${q1Topic}` - `${q5Topic}` | Question texts | 5-question arc |
+| `${q1Topic}` - `${q5Topic}` | Phase topics | 5-phase interview arc (8-15 exchanges) |
 | `${primaryProbeArea}` | "React architecture" | Focus area |
 | `${mustCoverTopic1-3}` | Required topics | Must cover |
 | `${validateClaim1-2}` | Resume claims | Validate |

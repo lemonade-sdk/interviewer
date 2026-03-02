@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mic, Speaker, Volume2, Settings, RefreshCw } from 'lucide-react';
+import { Mic, Speaker, Volume2, Settings, RefreshCw, Gauge } from 'lucide-react';
 import { AudioDevice } from '../../types';
 import { LemonSelect } from './lemon/LemonSelect';
 import { LemonSlider } from './lemon/LemonSlider';
@@ -7,11 +7,15 @@ import { LemonSlider } from './lemon/LemonSlider';
 interface Props {
   onDeviceChange?: (inputDeviceId: string, outputDeviceId: string) => void;
   onVolumeChange?: (input: number, output: number) => void;
+  onTTSRateChange?: (rate: number) => void;
+  initialTTSRate?: number;
 }
 
 export const AudioSettings: React.FC<Props> = ({
   onDeviceChange,
   onVolumeChange,
+  onTTSRateChange,
+  initialTTSRate = 1.0,
 }) => {
   const [inputDevices, setInputDevices] = useState<AudioDevice[]>([]);
   const [outputDevices, setOutputDevices] = useState<AudioDevice[]>([]);
@@ -19,6 +23,7 @@ export const AudioSettings: React.FC<Props> = ({
   const [selectedOutputId, setSelectedOutputId] = useState<string>('default');
   const [inputVolume, setInputVolume] = useState(80);
   const [outputVolume, setOutputVolume] = useState(80);
+  const [ttsRate, setTTSRate] = useState(initialTTSRate);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +72,11 @@ export const AudioSettings: React.FC<Props> = ({
   const handleOutputVolumeChange = (volume: number) => {
     setOutputVolume(volume);
     onVolumeChange?.(inputVolume, volume);
+  };
+
+  const handleTTSRateChange = (rate: number) => {
+    setTTSRate(rate);
+    onTTSRateChange?.(rate);
   };
 
   if (loading) {
@@ -133,6 +143,29 @@ export const AudioSettings: React.FC<Props> = ({
             </span>
           </div>
         </div>
+      </div>
+
+      {/* TTS Speed Control */}
+      <div className="pt-2">
+        <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-white/40 font-medium mb-2">
+          <Gauge size={12} /> Voice Speed
+        </label>
+        <div className="flex items-center gap-2">
+          <LemonSlider 
+            value={ttsRate} 
+            onChange={handleTTSRateChange} 
+            min={0.5} 
+            max={2.0} 
+            step={0.1} 
+            className="flex-1" 
+          />
+          <span className="text-[11px] font-mono w-12 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-1.5 py-0.5">
+            {ttsRate.toFixed(1)}x
+          </span>
+        </div>
+        <p className="text-[10px] text-gray-400 dark:text-white/30 mt-1">
+          Adjust the AI interviewer&apos;s speech rate (0.5x - 2.0x)
+        </p>
       </div>
 
       <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />

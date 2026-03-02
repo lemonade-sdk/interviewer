@@ -110,4 +110,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveAudioRecording: (audioData: any) => ipcRenderer.invoke('audio:saveRecording', audioData),
   getAudioRecordingsPath: () => ipcRenderer.invoke('audio:getRecordingsPath'),
   deleteAudioRecording: (filepath: string) => ipcRenderer.invoke('audio:deleteRecording', filepath),
+  setTTSRate: (rate: number) => ipcRenderer.invoke('tts:setRate', rate),
 });

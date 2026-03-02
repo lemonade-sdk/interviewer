@@ -98,6 +98,7 @@ export interface InterviewerSettings {
   voiceMode: boolean; // Enable voice interaction
   asrModel?: string; // ASR model for speech recognition
   ttsVoice?: string; // TTS voice selection
+  ttsRate?: number; // TTS speech rate (0.5 - 2.0, default 1.0)
   vadSensitivity: number; // 0-1, sensitivity for voice detection
   autoPlayTTS: boolean; // Automatically play TTS responses
   recordingQuality: 'low' | 'medium' | 'high';

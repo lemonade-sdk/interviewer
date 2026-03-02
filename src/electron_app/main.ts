@@ -1073,3 +1073,17 @@ ipcMain.handle('mcp:updateServers', async (_event: IpcMainInvokeEvent, servers: 
     throw error;
   }
 });
+
+// IPC Handler - TTS Rate
+ipcMain.handle('tts:setRate', async (_event: IpcMainInvokeEvent, rate: number) => {
+  try {
+    // Update interviewer settings with the new TTS rate
+    const currentSettings = await settingsRepo.getInterviewerSettings();
+    await settingsRepo.updateInterviewerSettings({ ...currentSettings, ttsRate: rate });
+    console.log(`[TTS] Rate updated to ${rate}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to set TTS rate:', error);
+    throw error;
+  }
+});

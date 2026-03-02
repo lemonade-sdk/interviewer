@@ -67,7 +67,7 @@ export class StructuredExtractionService {
         maxTokens: 2048,
       });
 
-      console.log('[StructuredExtractionService] Feedback extraction raw response:', response.substring(0, 500));
+      console.log('[StructuredExtractionService] Feedback extraction raw response:', response);
 
       // Parse the JSON response
       const parsed = this.parseJSON(response);

@@ -215,7 +215,7 @@ export class LemonadeClient {
         }
 
         // Truly empty / unexpected shape — log for debugging
-        console.warn('Unexpected completion response (no choices):', JSON.stringify(completion)?.slice(0, 500));
+        console.warn('Unexpected completion response (no choices):', JSON.stringify(completion));
         throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }
 

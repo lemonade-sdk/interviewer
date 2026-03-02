@@ -97,29 +97,34 @@
         "",
         "CONTEXT: Candidate just confirmed they can hear you. Audio is working.",
         "",
-        "PURPOSE: Establish human connection with brief warm acknowledgment.",
+        "PURPOSE: Establish human connection. Introduce yourself naturally.",
         "",
         "INSTRUCTION:",
-        "Output ONE sentence thanking them for their time today.",
+        "First, introduce yourself with your name and role. Then thank them for their time. 1-2 sentences MAX.",
         "",
-        "EXAMPLES (natural variations, don't copy exactly):",
-        "- 'Thanks for taking the time today.'",
-        "- 'Appreciate you making time for this.'",
-        "- 'Thanks for joining me.'",
+        "INTRODUCTION TEMPLATE (adapt naturally, don't read verbatim):",
+        "- 'Hi, I'm ${personaName}, ${personaRole}. Thanks for taking the time today.'",
+        "- 'Hey, ${personaName} here—I'm ${personaRole}. Appreciate you making time.'",
+        "- 'Thanks for joining me. I'm ${personaName}, ${personaRole}.'",
+        "",
+        "EXAMPLES:",
+        "- 'Hi, I'm Alex Rivera, a Senior Technical Recruiter at AMD. Thanks for taking the time today.'",
+        "- 'Hey, I'm Sarah Chen, an Engineering Manager here. Appreciate you making time for this.'",
         "",
         "CRITICAL:",
-        "- EXACTLY ONE sentence—no more",
+        "- EXACTLY 1-2 sentences—no more",
+        "- MUST include your name and role in the first greeting",
         "- WAIT for their response",
-        "- Keep it brief and natural",
+        "- Keep it warm, brief, and human",
         ""
       ],
       "expected_candidate_response": "any_response",
       "response_patterns": {
-        "acknowledgment": ["thank", "thanks", "happy to", "appreciate", "welcome", "pleasure", "glad"]
+        "acknowledgment": ["thank", "thanks", "happy to", "appreciate", "welcome", "pleasure", "glad", "nice to meet"]
       },
       "max_exchanges": 2,
       "auto_advance": false,
-      "variable_injections": ["personaName", "company"]
+      "variable_injections": ["personaName", "personaRole", "company"]
     },
 
     "phase_2_session_overview": {

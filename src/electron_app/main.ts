@@ -979,14 +979,14 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
 OUTPUT FORMAT - Return ONLY a JSON object with these exact keys:
 {
   "title": "Descriptive interview title",
-  "company": "Company name from filename or text (AMD = Advanced Micro Devices)",
+  "company": "Company name from filename or text",
   "position": "Job title/role",
   "interviewType": "technical" | "behavioral" | "system-design" | "coding" | "general" | "mixed"
 }
 
 RULES:
 - Check filename first for company name
-- For AMD postings, company is "Advanced Micro Devices, Inc." or "AMD"
+- For company postings, company is use company in from the job posting
 - Interview type: technical/coding/system → "technical", behavioral/leadership → "behavioral"
 - Output ONLY the JSON object, no markdown, no explanation`;
 

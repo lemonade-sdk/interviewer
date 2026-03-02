@@ -512,12 +512,7 @@ export class InterviewService {
       const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
       // NEW: Restore phase state from transcript
-      const phaseState = this.phaseManager.restorePhaseState(
-        interviewId,
-        interview.transcript,
-        DEFAULT_TOTAL_MINUTES,
-        (DEFAULT_TOTAL_MINUTES * 60000 - (now - interview.startedAt ? new Date(interview.startedAt).getTime() : now)) / 60000
-      );
+      const phaseState = this.phaseManager.restorePhaseState(interviewId, interview.transcript);
 
       this.activeInterviews.set(interviewId, {
         interviewId,

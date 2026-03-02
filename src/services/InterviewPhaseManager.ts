@@ -60,9 +60,7 @@ export class InterviewPhaseManager {
    */
   restorePhaseState(
     interviewId: string,
-    messages: Message[],
-    totalDurationMinutes: number,
-    elapsedMinutes: number
+    messages: Message[]
   ): InterviewPhaseState {
     // Attempt to rebuild phase from history
     const { phase, confidence } = this.phasePromptBuilder.rebuildPhaseFromHistory(messages);
@@ -402,10 +400,10 @@ export class InterviewPhaseManager {
    * Handle detected edge case
    */
   private handleEdgeCase(
-    interviewId: string,
+    _interviewId: string,
     state: InterviewPhaseState,
     edgeCaseKey: string,
-    candidateResponse: string
+    _candidateResponse: string
   ): PhaseTransitionResult {
     const handler = this.phasePromptBuilder.getEdgeCaseHandler(edgeCaseKey);
 
@@ -569,21 +567,26 @@ export class InterviewPhaseManager {
    * Use LLM to assess if phase coverage is sufficient
    */
   private async assessCoverageWithLLM(
-    interviewId: string,
-    state: InterviewPhaseState,
+    _interviewId: string,
+    _state: InterviewPhaseState,
     candidateResponse: string,
     llmPrompt: string
   ): Promise<boolean> {
     try {
       // Build context for LLM assessment
+      const now = new Date().toISOString();
       const messages = [
         {
+          id: `assess-sys-${Date.now()}`,
           role: 'system' as const,
           content: 'You are a coverage assessor. Analyze if the interview phase has sufficient coverage. Reply ONLY with "advance" or "continue".',
+          timestamp: now,
         },
         {
+          id: `assess-user-${Date.now()}`,
           role: 'user' as const,
           content: `${llmPrompt}\n\nCandidate response: ${candidateResponse}`,
+          timestamp: now,
         },
       ];
 
@@ -729,7 +732,7 @@ export class InterviewPhaseManager {
    */
   isInterviewComplete(interviewId: string): boolean {
     const state = this.phaseStates.get(interviewId);
-    return state?.currentPhase === 'phase_9_closing' ?? false;
+    return state ? state.currentPhase === 'phase_9_closing' : false;
   }
 }
 

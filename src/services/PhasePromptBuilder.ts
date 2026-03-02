@@ -462,6 +462,148 @@ export class PhasePromptBuilder {
       number: PHASE_NUMBERS[phase],
     };
   }
+
+  // ========== Persona Generation Methods (NEW) ==========
+
+  /**
+   * Get persona generation system prompt
+   */
+  getPersonaGenerationSystemPrompt(): string {
+    if (!this.phaseConfig) {
+      return this.buildFallbackPersonaGenerationSystemPrompt();
+    }
+    return this.phaseConfig.persona_generation?.system_prompt?.join('\n') ||
+      this.buildFallbackPersonaGenerationSystemPrompt();
+  }
+
+  /**
+   * Get persona generation user prompt with variables substituted
+   */
+  getPersonaGenerationUserPrompt(variables: {
+    jobDescription: string;
+    resume: string;
+    interviewType: string;
+    company: string;
+    position: string;
+  }): string {
+    if (!this.phaseConfig?.persona_generation?.user_prompt) {
+      return this.buildFallbackPersonaGenerationUserPrompt(variables);
+    }
+
+    const template = this.phaseConfig.persona_generation.user_prompt.join('\n');
+    return template
+      .replace(/\$\{jobDescription\}/g, variables.jobDescription)
+      .replace(/\$\{resume\}/g, variables.resume)
+      .replace(/\$\{interviewType\}/g, variables.interviewType)
+      .replace(/\$\{company\}/g, variables.company)
+      .replace(/\$\{position\}/g, variables.position);
+  }
+
+  // ========== Feedback Methods (NEW) ==========
+
+  /**
+   * Get comprehensive feedback system prompt
+   */
+  getFeedbackComprehensiveSystemPrompt(): string {
+    if (!this.phaseConfig) {
+      return this.buildFallbackFeedbackComprehensivePrompt();
+    }
+    return this.phaseConfig.feedback?.comprehensive?.system_prompt?.join('\n') ||
+      this.buildFallbackFeedbackComprehensivePrompt();
+  }
+
+  /**
+   * Get feedback grading system prompt
+   */
+  getFeedbackGradingSystemPrompt(): string {
+    if (!this.phaseConfig) {
+      return this.buildFallbackFeedbackGradingPrompt();
+    }
+    return this.phaseConfig.feedback?.grading?.system_prompt?.join('\n') ||
+      this.buildFallbackFeedbackGradingPrompt();
+  }
+
+  /**
+   * Get feedback grading user prompt with variables substituted
+   */
+  getFeedbackGradingUserPrompt(variables: {
+    question: string;
+    answer: string;
+  }): string {
+    if (!this.phaseConfig?.feedback?.grading?.user_prompt) {
+      return `Question: ${variables.question}\n\nAnswer: ${variables.answer}`;
+    }
+
+    const template = this.phaseConfig.feedback.grading.user_prompt.join('\n');
+    return template
+      .replace(/\$\{question\}/g, variables.question)
+      .replace(/\$\{answer\}/g, variables.answer);
+  }
+
+  // ========== Fallback Methods (NEW) ==========
+
+  private buildFallbackPersonaGenerationSystemPrompt(): string {
+    return [
+      'You are an Interview Intelligence Generator.',
+      'Analyze the job description and resume, then create a tailored interviewer persona.',
+      '',
+      'Output ONLY a valid JSON object with these fields:',
+      '- personaName, personaRole, personaFullContext, personaExperience',
+      '- gender, interviewStyle, questionDifficulty',
+      '- primaryProbeArea, mustCoverTopic1-3, validateClaim1-2, watchSignal1-2',
+      '- q1Topic-q5Topic, jobAnalysis, resumeAnalysis',
+      '',
+      'Begin immediately with { and output only JSON.',
+    ].join('\n');
+  }
+
+  private buildFallbackPersonaGenerationUserPrompt(variables: {
+    jobDescription: string;
+    resume: string;
+    interviewType: string;
+    company: string;
+    position: string;
+  }): string {
+    return [
+      `Generate an interviewer persona for ${variables.position} at ${variables.company}.`,
+      '',
+      'JOB DESCRIPTION:',
+      variables.jobDescription,
+      '',
+      'RESUME:',
+      variables.resume,
+      '',
+      'Output JSON only.',
+    ].join('\n');
+  }
+
+  private buildFallbackFeedbackComprehensivePrompt(): string {
+    return [
+      'You are generating post-interview feedback.',
+      '',
+      'Provide:',
+      '- Overall score (0-100)',
+      '- 3-5 strengths with specific evidence',
+      '- 3-5 areas for improvement with actionable guidance',
+      '- Observations on communication and technical depth',
+      '',
+      'Use encouraging yet honest tone. Be specific, not generic.',
+    ].join('\n');
+  }
+
+  private buildFallbackFeedbackGradingPrompt(): string {
+    return [
+      'You are an expert interview evaluator.',
+      '',
+      'Provide constructive feedback on this Q&A pair:',
+      '- Approximate score (0-100) and rating',
+      '- Specific strengths',
+      '- Actionable improvements',
+      '- Key points for an ideal answer',
+      '',
+      'Use natural, conversational prose.',
+    ].join('\n');
+  }
 }
 
 /**

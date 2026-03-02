@@ -1,18 +1,16 @@
 import { AgentPersona, InterviewStyle, InterviewType } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { v4 as uuidv4 } from 'uuid';
-import { PromptManager } from './PromptManager';
+import { PhasePromptBuilder } from './PhasePromptBuilder';
 
 /**
  * PersonaGeneratorService
  *
  * Analyzes uploaded documents (Job Description + Resume) and auto-generates
- * a tailored interviewer persona using a single UCL-driven LLM call that
- * outputs structured JSON directly (no separate extraction stage).
+ * a tailored interviewer persona using natural language prompts from phase-prompts.json.
  *
- * The generated JSON contains 19 fields that slot directly into UCL directives
- * in the interview system prompt — persona identity, a 5-question arc,
- * must-cover topics, validation targets, and behavioral watch signals.
+ * The generated JSON contains 21 fields including full persona context for phase-based
+ * interview prompting.
  */
 
 export interface PersonaGenerationInput {
@@ -55,21 +53,20 @@ export class PersonaGeneratorService {
   /**
    * Generate an interviewer persona from job description and resume.
    *
-   * Single UCL call: persona.generation.systemPrompt instructs the model to
-   * output JSON directly. The resulting JSON is parsed and mapped to AgentPersona.
+   * Uses natural language prompts from phase-prompts.json for better readability
+   * and maintainability compared to UCL format.
    */
   async generatePersona(input: PersonaGenerationInput): Promise<GeneratedPersonaResult> {
     const jd = this.truncate(input.jobDescriptionText);
     const resume = this.truncate(input.resumeText);
-    const numberOfQuestions = input.numberOfQuestions ?? 5;
 
-    const userPrompt = PromptManager.getInstance().getPersonaGenerationUserPrompt({
+    // Use PhasePromptBuilder for natural language persona generation prompts
+    const userPrompt = PhasePromptBuilder.getInstance().getPersonaGenerationUserPrompt({
       jobDescription: jd,
       resume,
       interviewType: input.interviewType,
       company: input.company,
       position: input.position,
-      numberOfQuestions,
     });
 
     const rawResponse = await this.lemonadeClient.sendMessage(
@@ -77,7 +74,7 @@ export class PersonaGeneratorService {
         {
           id: 'persona-gen-system',
           role: 'system',
-          content: PromptManager.getInstance().getPersonaGenerationSystemPrompt(),
+          content: PhasePromptBuilder.getInstance().getPersonaGenerationSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {

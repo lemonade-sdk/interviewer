@@ -12,7 +12,6 @@ import { DocumentRepository } from '../database/repositories/DocumentRepository'
 import { InterviewService } from '../services/InterviewService';
 import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
 import { StructuredExtractionService } from '../services/StructuredExtractionService';
-import { ExtractionPromptBuilder } from '../services/ExtractionPromptBuilder';
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -971,47 +970,85 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     const lemonadeClient = interviewService.getLemonadeClient();
     // Truncate to ~4000 chars to keep prompt compact for small-context models
     const jobText = doc.extractedText.substring(0, 4000);
-    console.log(`[document:extractJobDetails] Preparing to analyze job text. Length: ${jobText.length} chars. Preview: ${jobText.substring(0, 100)}...`);
-    console.log(`[document:extractJobDetails] Document filename: ${doc.fileName}`);
+    console.log(`[document:extractJobDetails] Analyzing job text. Length: ${jobText.length} chars`);
+    console.log(`[document:extractJobDetails] Filename: ${doc.fileName}`);
 
-    const prompt = ExtractionPromptBuilder.getInstance().getDocumentExtractionUserPrompt({
-      jobText,
-      fileName: doc.fileName,
-    });
-    console.log('[document:extractJobDetails] Full prompt sent to LLM:\n', prompt);
+    // SINGLE-STAGE: Direct JSON extraction with clear instructions
+    const systemPrompt = `You are a job posting analyzer. Extract structured data from the job posting below.
 
-    // Stage 1: Generate natural language analysis of the job posting
-    const analysisText = await lemonadeClient.sendMessage([
+OUTPUT FORMAT - Return ONLY a JSON object with these exact keys:
+{
+  "title": "Descriptive interview title",
+  "company": "Company name from filename or text (AMD = Advanced Micro Devices)",
+  "position": "Job title/role",
+  "interviewType": "technical" | "behavioral" | "system-design" | "coding" | "general" | "mixed"
+}
+
+RULES:
+- Check filename first for company name
+- For AMD postings, company is "Advanced Micro Devices, Inc." or "AMD"
+- Interview type: technical/coding/system → "technical", behavioral/leadership → "behavioral"
+- Output ONLY the JSON object, no markdown, no explanation`;
+
+    const userPrompt = `Extract job details from this posting:
+
+FILENAME: ${doc.fileName}
+
+JOB POSTING TEXT:
+${jobText}
+
+Output JSON only:`;
+
+    const response = await lemonadeClient.sendMessage([
       {
         id: 'extract-system',
         role: 'system',
-        content: ExtractionPromptBuilder.getInstance().getDocumentExtractionSystemPrompt(),
+        content: systemPrompt,
         timestamp: new Date().toISOString(),
       },
       {
         id: 'extract-user',
         role: 'user',
-        content: prompt,
+        content: userPrompt,
         timestamp: new Date().toISOString(),
       },
-    ], { maxTokens: 4096 });
+    ], { maxTokens: 1024 });
 
-    console.log(`[document:extractJobDetails] Stage 1 Analysis Result: ${analysisText}`);
+    console.log(`[document:extractJobDetails] Raw LLM response: ${response}`);
 
-    // Stage 2: Extract structured fields from the analysis
-    const extracted = await extractionService.extractJobDetails(jobText, analysisText);
-
-    if (!extracted) {
-      console.error('Could not extract structured data from job analysis. Raw analysis:', analysisText);
-      throw new Error('Failed to extract structured job details from the analysis.');
+    // Parse JSON response
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in response');
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      const result = {
+        title: parsed.title || `${parsed.position || 'Job'} Interview`,
+        company: parsed.company || 'Unknown Company',
+        position: parsed.position || 'Unknown Position',
+        interviewType: ['technical', 'behavioral', 'system-design', 'coding', 'general', 'mixed'].includes(parsed.interviewType) 
+          ? parsed.interviewType 
+          : 'general',
+      };
+      
+      console.log(`[document:extractJobDetails] Extracted:`, result);
+      return result;
+    } catch (parseError) {
+      console.error('[document:extractJobDetails] Failed to parse JSON:', parseError);
+      // Fallback: try to use extraction service
+      const extracted = await extractionService.extractJobDetails(jobText, response);
+      if (extracted) {
+        return {
+          title: extracted.title || 'Job Interview',
+          company: extracted.company || 'Unknown Company',
+          position: extracted.position || 'Unknown Position',
+          interviewType: extracted.interviewType || 'general',
+        };
+      }
+      throw new Error('Failed to extract job details from response');
     }
-
-    return {
-      title: extracted.title,
-      company: extracted.company,
-      position: extracted.position,
-      interviewType: extracted.interviewType,
-    };
   } catch (error) {
     console.error('Failed to extract job details:', error);
     throw error;

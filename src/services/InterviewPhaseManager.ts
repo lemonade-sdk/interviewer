@@ -60,10 +60,16 @@ export class InterviewPhaseManager {
    */
   restorePhaseState(
     interviewId: string,
-    messages: Message[]
+    messages: Message[],
+    totalDurationMinutes: number,
+    elapsedMinutes: number
   ): InterviewPhaseState {
     // Attempt to rebuild phase from history
     const { phase, confidence } = this.phasePromptBuilder.rebuildPhaseFromHistory(messages);
+
+    // Calculate time-based state
+    const remainingMinutes = Math.max(0, totalDurationMinutes - elapsedMinutes);
+    const isGreetingDone = !isGreetingPhase(phase) || elapsedMinutes > 2;
 
     const state: InterviewPhaseState = {
       currentPhase: phase,
@@ -80,11 +86,11 @@ export class InterviewPhaseManager {
       offTopicExchangeCount: 0,
       lastFollowUpSent: false,
       greetingPhaseStartMs: Date.now(),
-      greetingCompleted: !isGreetingPhase(phase),
+      greetingCompleted: isGreetingDone,
     };
 
     this.phaseStates.set(interviewId, state);
-    console.log(`[InterviewPhaseManager] Restored interview ${interviewId} to phase ${phase} (confidence: ${confidence})`);
+    console.log(`[InterviewPhaseManager] Restored interview ${interviewId} to phase ${phase} (confidence: ${confidence}, remaining: ${remainingMinutes}min)`);
     return state;
   }
 
@@ -592,7 +598,6 @@ export class InterviewPhaseManager {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 10,
-        temperature: 0.1,
       });
 
       const result = response.trim().toLowerCase();

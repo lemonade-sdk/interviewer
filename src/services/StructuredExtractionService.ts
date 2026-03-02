@@ -137,6 +137,7 @@ export class StructuredExtractionService {
           content: extractionPrompt,
           timestamp: new Date().toISOString(),
         },
+      ];
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 1024,
@@ -186,7 +187,7 @@ export class StructuredExtractionService {
     interviewType: InterviewType;
   } | null> {
     try {
-      const extractionPrompt = PromptManager.getInstance().getJobDetailsExtractionUserPrompt({
+      const extractionPrompt = ExtractionPromptBuilder.getInstance().getJobDetailsExtractionUserPrompt({
         jobText: jobPostingText.substring(0, 2000), // Truncate for efficiency
         analysisText
       });
@@ -195,7 +196,7 @@ export class StructuredExtractionService {
         {
           id: 'extract-system',
           role: 'system',
-          content: PromptManager.getInstance().getJobDetailsExtractionSystemPrompt(),
+          content: ExtractionPromptBuilder.getInstance().getJobDetailsExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {

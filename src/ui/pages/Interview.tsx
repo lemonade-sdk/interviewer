@@ -353,6 +353,18 @@ const Interview: React.FC = () => {
       });
 
       await manager.initialize();
+      
+      // Apply TTS rate from settings
+      try {
+        const settings = await window.electronAPI.getInterviewerSettings();
+        if (settings?.ttsRate !== undefined) {
+          manager.updateTTSSettings({ rate: settings.ttsRate });
+          console.log(`[Interview] Applied TTS rate: ${settings.ttsRate}x`);
+        }
+      } catch (err) {
+        console.warn('Failed to apply TTS rate from settings:', err);
+      }
+      
       voiceManagerRef.current = manager;
       setVoiceReady(true);
     } catch (error) {

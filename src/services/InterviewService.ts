@@ -276,15 +276,22 @@ export class InterviewService {
     }
 
     // Stage 1: Generate natural language feedback
-    const feedbackPrompt = PromptManager.getInstance().getFeedbackComprehensivePrompt();
+    // NEW: Use PhasePromptBuilder for comprehensive feedback
+    const feedbackSystemPrompt = PhasePromptBuilder.getInstance().getFeedbackComprehensiveSystemPrompt();
 
     const feedbackText = await this.lemonadeClient.sendMessage(
       [
         ...session.messages,
         {
+          id: 'feedback-system',
+          role: 'system',
+          content: feedbackSystemPrompt,
+          timestamp: new Date().toISOString(),
+        },
+        {
           id: Date.now().toString(),
           role: 'user',
-          content: feedbackPrompt,
+          content: 'Generate comprehensive post-interview feedback based on this interview transcript.',
           timestamp: new Date().toISOString(),
         },
       ],
@@ -333,24 +340,24 @@ export class InterviewService {
 
     const totalQuestions = qaPairs.length;
     const questionFeedbacks: QuestionFeedback[] = [];
-    const pm = PromptManager.getInstance();
 
     for (let idx = 0; idx < qaPairs.length; idx++) {
       const { question, answer } = qaPairs[idx];
       onProgress({ questionIndex: idx, totalQuestions, status: `Grading question ${idx + 1} of ${totalQuestions}` });
 
       try {
+        // NEW: Use PhasePromptBuilder for question grading
         const feedbackText = await this.lemonadeClient.sendMessage([
           {
             id: `grade-sys-${idx}`,
             role: 'system',
-            content: pm.getFeedbackGradingSystemPrompt(),
+            content: PhasePromptBuilder.getInstance().getFeedbackGradingSystemPrompt(),
             timestamp: new Date().toISOString(),
           },
           {
             id: `grade-${idx}`,
             role: 'user',
-            content: pm.getFeedbackGradingUserPrompt({ question, answer }),
+            content: PhasePromptBuilder.getInstance().getFeedbackGradingUserPrompt({ question, answer }),
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -545,58 +552,6 @@ export class InterviewService {
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
-
-  /**
-   * Build the messages array for an API call, prepending ephemeral system
-   * messages for phase updates and timer signals as needed.
-   * These injections are NOT stored in session.messages so the transcript
-   * and feedback pipeline stay clean.
-   */
-  private buildMessagesWithInjections(session: InterviewSession): Message[] {
-    const messagesToSend: Message[] = [...session.messages];
-
-    // Phase update: inject a brief system message when the phase changes
-    const newPhaseKeyword = this.getPhaseKeyword(session.questionCount);
-    if (newPhaseKeyword !== session.currentPhaseKeyword) {
-      messagesToSend.push({
-        id: `phase-${Date.now()}`,
-        role: 'system',
-        content: `<phase_update>current_phase: ${newPhaseKeyword}</phase_update>`,
-        timestamp: new Date().toISOString(),
-      });
-      session.currentPhaseKeyword = newPhaseKeyword;
-    }
-
-    // Remaining time
-    const elapsedMs = Date.now() - session.sessionStartMs;
-    const elapsedMinutes = elapsedMs / 60000;
-    const remainingMinutes = Math.max(0, session.totalInterviewMinutes - elapsedMinutes);
-
-    // Midpoint pacing signal (~50% of total duration)
-    const midpointThreshold = session.totalInterviewMinutes / 2;
-    if (!session.midpointInjected && remainingMinutes <= midpointThreshold) {
-      messagesToSend.push({
-        id: `timer-mid-${Date.now()}`,
-        role: 'system',
-        content: `<timer_update>pacing_check time_update mid_session \u2014 ${Math.round(remainingMinutes)} minutes remaining</timer_update>`,
-        timestamp: new Date().toISOString(),
-      });
-      session.midpointInjected = true;
-    }
-
-    // Wrap-up signal
-    if (!session.wrapUpInjected && remainingMinutes <= session.wrapUpThresholdMinutes) {
-      messagesToSend.push({
-        id: `timer-wrap-${Date.now()}`,
-        role: 'system',
-        content: `<timer_signal>wrap_up_signal closing_soon timer time_warning \u2014 ${Math.round(remainingMinutes)} minutes remaining</timer_signal>`,
-        timestamp: new Date().toISOString(),
-      });
-      session.wrapUpInjected = true;
-    }
-
-    return messagesToSend;
-  }
 
   /**
    * Map question count to topic-phase keyword string.

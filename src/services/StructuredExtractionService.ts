@@ -1,19 +1,23 @@
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewType } from '../types';
 import { Message } from '../types';
-import { PromptManager } from './PromptManager';
+import { ExtractionPromptBuilder } from './ExtractionPromptBuilder';
 
 /**
  * StructuredExtractionService - Stage 2 extraction service
- * 
+ *
  * Takes natural language text from LLMs (Stage 1) and extracts
  * structured data using specialized extraction prompts (Stage 2).
- * 
+ *
  * Key principles:
  * - Uses small, fast models for extraction (Llama-3.2-1B, Qwen-0.5B)
  * - Internal JSON parsing (not user-facing)
  * - Graceful degradation: returns null on failure, preserving natural text
- * - Extraction prompts are tuned independently from generation prompts
+ * - Extraction prompts from extraction-prompts.json (natural language format)
+ *
+ * MIGRATION: Now uses ExtractionPromptBuilder instead of PromptManager for
+ * extraction-related prompts. Interview-related prompts remain in PromptManager
+ * during transition period.
  */
 export class StructuredExtractionService {
   private lemonadeClient: LemonadeClient;
@@ -39,15 +43,16 @@ export class StructuredExtractionService {
     suggestions: string[];
   } | null> {
     try {
-      const extractionPrompt = PromptManager.getInstance().getFeedbackExtractionUserPrompt({
+      // NEW: Use ExtractionPromptBuilder for feedback extraction
+      const extractionPrompt = ExtractionPromptBuilder.getInstance().getFeedbackExtractionUserPrompt({
         feedbackText
       });
-      
+
       const messages: Message[] = [
         {
           id: 'extract-system',
           role: 'system',
-          content: PromptManager.getInstance().getFeedbackExtractionSystemPrompt(),
+          content: ExtractionPromptBuilder.getInstance().getFeedbackExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {
@@ -112,7 +117,8 @@ export class StructuredExtractionService {
     suggestedAnswer: string;
   } | null> {
     try {
-      const extractionPrompt = PromptManager.getInstance().getQuestionGradeExtractionUserPrompt({
+      // NEW: Use ExtractionPromptBuilder for question grade extraction
+      const extractionPrompt = ExtractionPromptBuilder.getInstance().getQuestionGradeExtractionUserPrompt({
         question: questionText,
         answer: answerText,
         feedbackText
@@ -122,7 +128,7 @@ export class StructuredExtractionService {
         {
           id: 'extract-system',
           role: 'system',
-          content: PromptManager.getInstance().getQuestionGradeExtractionSystemPrompt(),
+          content: ExtractionPromptBuilder.getInstance().getQuestionGradeExtractionSystemPrompt(),
           timestamp: new Date().toISOString(),
         },
         {
@@ -131,7 +137,6 @@ export class StructuredExtractionService {
           content: extractionPrompt,
           timestamp: new Date().toISOString(),
         },
-      ];
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 1024,

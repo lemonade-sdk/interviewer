@@ -634,6 +634,29 @@ export interface TimePressureAdaptation {
 }
 
 /**
+ * Persona generation prompt configuration
+ */
+export interface PersonaGenerationConfig {
+  description: string;
+  system_prompt: string[];
+  user_prompt: string[];
+}
+
+/**
+ * Feedback prompt configuration
+ */
+export interface FeedbackConfig {
+  description: string;
+  comprehensive: {
+    system_prompt: string[];
+  };
+  grading: {
+    system_prompt: string[];
+    user_prompt: string[];
+  };
+}
+
+/**
  * Complete phase prompts configuration structure
  */
 export interface PhasePromptsConfig {
@@ -671,6 +694,8 @@ export interface PhasePromptsConfig {
     }[];
     llm_rebuild_prompt: string;
   };
+  persona_generation?: PersonaGenerationConfig;
+  feedback?: FeedbackConfig;
 }
 
 /**

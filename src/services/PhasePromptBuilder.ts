@@ -5,14 +5,13 @@ import {
   InterviewPhase,
   PhaseConfig,
   PhasePromptsConfig,
-  PhaseTransitionResult,
   InterviewPhaseState,
   Message,
   TransitionRule,
   EdgeCaseHandler,
   getNextPhase,
-  isGreetingPhase,
   isInterviewPhase,
+  isClosingPhase,
   PHASE_NUMBERS,
 } from '../types';
 
@@ -329,7 +328,7 @@ export class PhasePromptBuilder {
    */
   rebuildPhaseFromHistory(
     messages: Message[],
-    useLLM: boolean = false
+    _useLLM: boolean = false
   ): { phase: InterviewPhase; confidence: 'high' | 'medium' | 'low' } {
     if (!this.phaseConfig || messages.length === 0) {
       return { phase: 'phase_0_audio_check', confidence: 'low' };
@@ -409,7 +408,7 @@ export class PhasePromptBuilder {
   detectEdgeCase(
     candidateResponse: string,
     phase: InterviewPhase,
-    state: InterviewPhaseState
+    _state: InterviewPhaseState
   ): string | null {
     if (!this.phaseConfig) return null;
 

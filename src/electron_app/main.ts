@@ -978,6 +978,7 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
       jobText,
       fileName: doc.fileName,
     });
+    console.log('[document:extractJobDetails] Full prompt sent to LLM:\n', prompt);
 
     // Stage 1: Generate natural language analysis of the job posting
     const analysisText = await lemonadeClient.sendMessage([

@@ -179,6 +179,8 @@ export class PhasePromptBuilder {
     const substitutions: Record<string, string> = {
       '${personaName}': persona.name,
       '${personaRole}': persona.personaRole || 'Hiring Manager',
+      '${personaFullContext}': persona.personaFullContext || this.buildDefaultPersonaContext(persona),
+      '${personaExperience}': persona.personaExperience || 'several years',
       '${company}': context.company || 'the company',
       '${position}': context.position || 'this position',
       '${interviewStyle}': persona.interviewStyle,
@@ -219,6 +221,23 @@ export class PhasePromptBuilder {
    */
   private escapeRegExp(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Build default persona context when not provided
+   */
+  private buildDefaultPersonaContext(persona: AgentPersona): string {
+    const styleDescriptions: Record<string, string> = {
+      'conversational': 'Known for creating a relaxed, conversational atmosphere while still probing for depth.',
+      'formal': 'Maintains a professional, structured approach to thoroughly assess qualifications.',
+      'challenging': 'Pushes candidates to demonstrate depth with follow-up questions on architectural decisions and trade-offs.',
+      'supportive': 'Creates a comfortable environment while still thoroughly evaluating capabilities.',
+    };
+
+    const styleDesc = styleDescriptions[persona.interviewStyle] || 'Conducts thorough, professional interviews.';
+    const role = persona.personaRole || 'hiring manager';
+
+    return `${persona.name} is a ${role}. ${styleDesc} Focuses on ${persona.primaryProbeArea || 'technical and leadership competencies'}.`;
   }
 
   /**

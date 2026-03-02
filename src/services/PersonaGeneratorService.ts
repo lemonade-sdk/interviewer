@@ -116,6 +116,16 @@ export class PersonaGeneratorService {
     const personaName = typeof parsed.personaName === 'string' ? parsed.personaName : 'Interviewer';
     const personaRole = typeof parsed.personaRole === 'string' ? parsed.personaRole : `Hiring Manager at ${input.company}`;
 
+    // Extract or build persona full context
+    const personaFullContext = typeof parsed.personaFullContext === 'string'
+      ? parsed.personaFullContext
+      : this.buildPersonaFullContext(personaName, personaRole, interviewStyle, parsed.primaryProbeArea as string);
+
+    // Extract years of experience from personaRole
+    const personaExperience = typeof parsed.personaExperience === 'string'
+      ? parsed.personaExperience
+      : this.extractExperienceYears(personaRole);
+
     const persona: AgentPersona = {
       id: uuidv4(),
       name: personaName,
@@ -125,6 +135,9 @@ export class PersonaGeneratorService {
       systemPrompt: '', // No longer injected as prose; persona fields are UCL variables
       interviewStyle,
       questionDifficulty,
+      // NEW: Full persona context for phase-based prompting
+      personaFullContext,
+      personaExperience,
       isDefault: false,
       createdAt: now,
       updatedAt: now,
@@ -199,14 +212,19 @@ export class PersonaGeneratorService {
     const personaName = 'Interviewer';
     const personaRole = `Hiring Manager at ${input.company}`;
 
+    const style = input.interviewType === 'behavioral' ? 'supportive' : 'conversational';
+
     const persona: AgentPersona = {
       id: uuidv4(),
       name: personaName,
       personaRole,
       description: `${personaName} — ${personaRole}`,
       systemPrompt: '',
-      interviewStyle: input.interviewType === 'behavioral' ? 'supportive' : 'conversational',
+      interviewStyle: style,
       questionDifficulty: 'medium',
+      // Full persona context for phase-based prompting
+      personaFullContext: this.buildPersonaFullContext(personaName, personaRole, style),
+      personaExperience: 'several years',
       isDefault: false,
       createdAt: now,
       updatedAt: now,
@@ -230,5 +248,35 @@ export class PersonaGeneratorService {
       jobAnalysis: `Role requires skills relevant to ${input.interviewType} interview for ${input.position} at ${input.company}.`,
       resumeAnalysis: `Candidate profile reviewed for alignment with ${input.position} requirements.`,
     };
+  }
+
+  /**
+   * Build full persona context from available information
+   */
+  private buildPersonaFullContext(
+    name: string,
+    role: string,
+    style: string,
+    probeArea?: string
+  ): string {
+    const styleDescriptions: Record<string, string> = {
+      'conversational': 'creates a relaxed atmosphere while probing for depth',
+      'formal': 'maintains professional structure to thoroughly assess qualifications',
+      'challenging': 'pushes candidates to demonstrate depth with rigorous follow-ups',
+      'supportive': 'creates comfort while thoroughly evaluating capabilities',
+    };
+
+    const styleDesc = styleDescriptions[style] || 'conducts thorough professional interviews';
+    const focus = probeArea || 'technical and leadership competencies';
+
+    return `${name} is a ${role}. Known for a ${style} interview style that ${styleDesc}. Focuses on assessing ${focus}.`;
+  }
+
+  /**
+   * Extract years of experience from personaRole string
+   */
+  private extractExperienceYears(role: string): string {
+    const match = role.match(/(\d+)[\+\s]*years?/i);
+    return match ? `${match[1]} years` : 'several years';
   }
 }

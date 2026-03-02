@@ -40,6 +40,10 @@ export class PhasePromptBuilder {
    * Resolve config path for both development and production (Electron)
    */
   private resolveConfigPath(): string {
+    console.log('[PhasePromptBuilder] Resolving config...');
+    console.log('[PhasePromptBuilder] __dirname:', __dirname);
+    console.log('[PhasePromptBuilder] process.cwd():', process.cwd());
+
     // Try multiple possible locations
     const possiblePaths = [
       // Development: src/services/../data/
@@ -50,9 +54,13 @@ export class PhasePromptBuilder {
       // Absolute from project root (if __dirname is deep in dist)
       path.join(process.cwd(), 'src', 'data', 'phase-prompts.json'),
       path.join(process.cwd(), 'dist', 'electron', 'src', 'data', 'phase-prompts.json'),
+      // Electron resources path
+      path.join(process.cwd(), '..', '..', 'src', 'data', 'phase-prompts.json'),
+      path.join(process.cwd(), '..', 'src', 'data', 'phase-prompts.json'),
     ];
 
     for (const tryPath of possiblePaths) {
+      console.log('[PhasePromptBuilder] Checking path:', tryPath, '- exists:', fs.existsSync(tryPath));
       if (fs.existsSync(tryPath)) {
         console.log('[PhasePromptBuilder] Found config at:', tryPath);
         return tryPath;
@@ -60,6 +68,7 @@ export class PhasePromptBuilder {
     }
 
     // Return default if none found (will show error in loadConfig)
+    console.error('[PhasePromptBuilder] No config file found in any location');
     return possiblePaths[0];
   }
 

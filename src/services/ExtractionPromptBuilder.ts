@@ -75,6 +75,10 @@ export class ExtractionPromptBuilder {
    * Resolve config path for both development and production (Electron)
    */
   private resolveConfigPath(): string {
+    console.log('[ExtractionPromptBuilder] Resolving config...');
+    console.log('[ExtractionPromptBuilder] __dirname:', __dirname);
+    console.log('[ExtractionPromptBuilder] process.cwd():', process.cwd());
+
     // Try multiple possible locations
     const possiblePaths = [
       // Development: src/services/../data/
@@ -85,9 +89,13 @@ export class ExtractionPromptBuilder {
       // Absolute from project root (if __dirname is deep in dist)
       path.join(process.cwd(), 'src', 'data', 'extraction-prompts.json'),
       path.join(process.cwd(), 'dist', 'electron', 'src', 'data', 'extraction-prompts.json'),
+      // Electron resources path
+      path.join(process.cwd(), '..', '..', 'src', 'data', 'extraction-prompts.json'),
+      path.join(process.cwd(), '..', 'src', 'data', 'extraction-prompts.json'),
     ];
 
     for (const tryPath of possiblePaths) {
+      console.log('[ExtractionPromptBuilder] Checking path:', tryPath, '- exists:', fs.existsSync(tryPath));
       if (fs.existsSync(tryPath)) {
         console.log('[ExtractionPromptBuilder] Found config at:', tryPath);
         return tryPath;
@@ -95,6 +103,7 @@ export class ExtractionPromptBuilder {
     }
 
     // Return default if none found (will show error in loadConfig)
+    console.error('[ExtractionPromptBuilder] No config file found in any location');
     return possiblePaths[0];
   }
 

@@ -104,7 +104,7 @@ const Jobs: React.FC = () => {
               <div key={status}>
                 {groupedJobs[status] && groupedJobs[status].length > 0 && (
                   <div className="space-y-3">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
                       {status.replace('-', ' ')}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -75,13 +75,8 @@ function sortModels(models: CompatibleModel[]): CompatibleModel[] {
 }
 
 function getLLMCandidates(models: CompatibleModel[]): CompatibleModel[] {
-  return models.filter(
-    m =>
-      !m.labels.includes('audio') &&
-      !m.labels.includes('embedding') &&
-      !m.labels.includes('reranking') &&
-      !m.labels.includes('image'),
-  );
+  // Filter to get only LLM models (exclude audio models)
+  return models.filter(m => !m.labels.includes('audio'));
 }
 
 function formatBytes(bytes: number): string {
@@ -404,7 +399,7 @@ const Preparing: React.FC = () => {
     <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
 
       {/* ═══════ TOP BAR ═══════ */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/')}
@@ -420,7 +415,7 @@ const Preparing: React.FC = () => {
           </div>
         </div>
         {selectedModel && isWorking && (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl text-gray-600 dark:text-white/60">
+          <span className="inline-flex items-center gap-2 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl text-gray-600 dark:text-white/60">
             <Cpu size={14} className="text-lemonade-accent-hover" />
             <span className="text-xs font-semibold">{selectedModel.id}</span>
           </span>
@@ -532,7 +527,7 @@ const Preparing: React.FC = () => {
                         <button
                           key={model.id}
                           onClick={() => setSelectedModelId(model.id)}
-                          className={`group w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 ${
+                          className={`group w-full text-left px-4 py-4 rounded-xl border transition-all duration-200 ${
                             selected
                               ? 'border-lemonade-accent bg-lemonade-accent/[0.06]'
                               : 'border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-white/[0.04] hover:border-gray-300 dark:hover:border-white/[0.12] hover:bg-gray-50 dark:hover:bg-white/[0.06]'
@@ -788,12 +783,12 @@ const PersonaStep: React.FC<{
       </p>
       <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{subtitle}</p>
       {analysis && (
-        <p className="text-xs text-gray-500 dark:text-white/35 mt-1.5 bg-gray-50 dark:bg-white/[0.04] rounded-xl p-2.5 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-white/35 mt-1.5 bg-gray-50 dark:bg-white/[0.04] rounded-xl p-4 leading-relaxed">
           {analysis}
         </p>
       )}
       {persona && (
-        <div className="mt-2 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-xl p-3.5">
+        <div className="mt-2 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-xl p-5">
           <p className="text-xs font-semibold">{persona.name}</p>
           <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 leading-relaxed">{persona.description}</p>
           <div className="flex gap-1.5 mt-2">

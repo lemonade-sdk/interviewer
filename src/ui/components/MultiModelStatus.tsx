@@ -29,9 +29,6 @@ export const MultiModelStatus: React.FC = () => {
     switch (type) {
       case 'llm': return 'bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-400';
       case 'audio': return 'bg-purple-100 dark:bg-purple-500/15 text-purple-800 dark:text-purple-400';
-      case 'embedding': return 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-400';
-      case 'reranking': return 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-400';
-      case 'image': return 'bg-pink-100 dark:bg-pink-500/15 text-pink-800 dark:text-pink-400';
       default: return 'bg-gray-100 dark:bg-white/[0.04] text-gray-800 dark:text-white/50';
     }
   };
@@ -55,7 +52,7 @@ export const MultiModelStatus: React.FC = () => {
     return (
       <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">Loaded Models</h3>
-        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-4">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-6">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
           <button onClick={loadHealth} className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline">
             Retry

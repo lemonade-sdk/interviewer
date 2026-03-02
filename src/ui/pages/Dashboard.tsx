@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
         {/* In Progress Interviews */}
         {inProgressInterviews.length > 0 && (
           <section className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
               In Progress
             </h2>
             <div className="space-y-2">
@@ -84,7 +84,7 @@ const Dashboard: React.FC = () => {
 
         {/* Recent Interviews */}
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
             Recent Activity
           </h2>
           
@@ -104,12 +104,12 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
+              <div className="space-y-2 p-2">
                 {recentInterviews.map(interview => (
                   <InterviewCard
                     key={interview.id}
                     interview={interview}
-                    className="rounded-none border-none hover:bg-lemonade-bg/60 dark:hover:bg-white/[0.03]"
+                    className="hover:bg-lemonade-bg/60 dark:hover:bg-white/[0.03]"
                     onClick={() => {
                       if (interview.status === 'in-progress') {
                         navigate(`/interview/${interview.id}`);

@@ -96,7 +96,7 @@ export const SystemInfoPanel: React.FC = () => {
           </h4>
           <div className="space-y-2">
             {systemInfo.devices.cpu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-3">
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.cpu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">CPU</span>
@@ -105,7 +105,7 @@ export const SystemInfoPanel: React.FC = () => {
               </div>
             )}
             {systemInfo.devices.amd_igpu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-3">
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.amd_igpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">AMD iGPU</span>
@@ -114,7 +114,7 @@ export const SystemInfoPanel: React.FC = () => {
               </div>
             )}
             {systemInfo.devices.nvidia_dgpu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-3">
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.nvidia_dgpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">NVIDIA GPU</span>
@@ -123,7 +123,7 @@ export const SystemInfoPanel: React.FC = () => {
               </div>
             )}
             {systemInfo.devices.npu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-3">
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.npu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">NPU</span>

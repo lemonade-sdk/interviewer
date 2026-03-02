@@ -176,10 +176,10 @@ const Feedback: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Q/A */}
         <div className="flex-1 border-r border-gray-200/50 dark:border-white/[0.08] flex flex-col">
-          <div className="px-6 py-2.5 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
+          <div className="px-6 py-4 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
             <div className="flex items-center gap-2">
               {getRatingIcon(currentQF.rating)}
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
                 {currentQF.rating.replace('-', ' ')}
               </span>
               <span className={`text-base font-bold ml-auto ${getScoreColor(currentQF.score)}`}>

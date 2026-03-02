@@ -158,9 +158,9 @@ const GeneralSettings: React.FC = () => {
       </LemonCard>
 
       {/* Preferences */}
-      <LemonCard title="Preferences" subtitle="Notifications and data options." noPadding>
-        <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
-          <div className="flex items-center justify-between px-6 py-4">
+      <LemonCard title="Preferences" subtitle="Notifications and data options.">
+        <div className="space-y-6 -mx-6 -mb-6">
+          <div className="flex items-center justify-between px-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Bell size={18} />
@@ -175,7 +175,7 @@ const GeneralSettings: React.FC = () => {
               onCheckedChange={(checked) => setFormData({ ...formData, notifications: checked })}
             />
           </div>
-          <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between px-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
                 <ShieldCheck size={18} />
@@ -410,7 +410,7 @@ const InterviewerSettingsPanel: React.FC = () => {
             />
           </div>
 
-          <div className="pt-4 border-t border-gray-100/60 dark:border-white/[0.04] space-y-4">
+          <div className="pt-6 mt-6 border-t border-gray-100/60 dark:border-white/[0.04] space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white/90">Follow-up Questions</p>

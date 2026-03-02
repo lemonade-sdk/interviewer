@@ -55,7 +55,7 @@ const InterviewHistory: React.FC = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
+        <div className="bg-lemonade-bg dark:bg-white/[0.04] rounded-2xl p-6 flex gap-3 items-center transition-colors duration-300">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={15} />
             <input

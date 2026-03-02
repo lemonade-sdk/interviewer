@@ -616,7 +616,7 @@ const Interview: React.FC = () => {
       </LemonDialog>
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
@@ -642,7 +642,7 @@ const Interview: React.FC = () => {
         <div className="flex items-center gap-2">
           {/* Timer */}
           <span className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-xl font-mono text-xs tabular-nums transition-colors",
+            "inline-flex items-center gap-1.5 px-3 py-2 border rounded-xl font-mono text-xs tabular-nums transition-colors",
             isTimerExpired
               ? "border-red-500 text-red-500 dark:text-red-400 animate-pulse"
               : isTimerWarning
@@ -698,7 +698,7 @@ const Interview: React.FC = () => {
           {/* End Interview */}
           <button
             onClick={() => handleEndInterview(false)}
-            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/15 text-red-600 dark:text-red-400 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition-colors"
+            className="ml-1 flex items-center gap-1.5 px-4 py-2 bg-red-500/10 dark:bg-red-500/15 text-red-600 dark:text-red-400 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition-colors"
           >
             <StopCircle size={14} />
             End
@@ -708,7 +708,7 @@ const Interview: React.FC = () => {
 
       {/* Audio Settings Panel */}
       {showAudioSettings && (
-        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-6 py-3 transition-colors duration-300">
+        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-6 py-4 transition-colors duration-300">
           <AudioSettings />
         </div>
       )}
@@ -771,7 +771,7 @@ const Interview: React.FC = () => {
         {/* ── Transcript Area ── */}
         <div className="h-[45%] min-h-[240px] flex flex-col border-t border-gray-200/50 dark:border-white/[0.08]">
           {/* Status bar */}
-          <div className="px-6 py-2.5 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
+          <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Transcript
             </span>
@@ -786,7 +786,7 @@ const Interview: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+          <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6">
             {visibleMessages.length === 0 && !isThinking && (
               <div className="flex items-center justify-center h-full">
                 <p className="text-sm text-gray-400 dark:text-white/30">
@@ -860,7 +860,7 @@ const Interview: React.FC = () => {
                   setTextInput('');
                 }
               }}
-              className="px-6 py-3 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-2.5"
+              className="px-6 py-5 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-2.5"
             >
               <input
                 type="text"
@@ -934,7 +934,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-2 px-1", isUser ? "text-right" : "text-left")}>
+        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-2", isUser ? "text-right" : "text-left")}>
           {format(new Date(message.timestamp), 'h:mm a')}
         </p>
       </div>

@@ -7,7 +7,16 @@
       "Bash(\"/c/Users/antmi/AppData/Local/lemonade_server/bin/lemonade-server.exe\" pull Qwen3.5-35B-A3B --checkpoint \"C:\\\\Users\\\\antmi\\\\Downloads\\\\Qwen3.5-35B-A3B-Q4_K_M.gguf\" --recipe llamacpp)",
       "Bash(\"/c/Users/antmi/AppData/Local/lemonade_server/bin/lemonade-server.exe\" pull user.Qwen3.5-35B-A3B --checkpoint \"C:\\\\Users\\\\antmi\\\\Downloads\\\\Qwen3.5-35B-A3B-Q4_K_M.gguf\" --recipe llamacpp)",
       "Bash(\"/c/Users/antmi/AppData/Local/lemonade_server/bin/lemonade-server.exe\" pull user.Qwen3-30B-Reasoning --checkpoint \"C:\\\\Users\\\\antmi\\\\Downloads\\\\Qwen3-30B-A3B-Thinking-2507-Claude-4.5-Sonnet-High-Reasoning-Distill-q4_k_m.gguf\" --recipe llamacpp --reasoning)",
-      "Bash(\"/c/Users/antmi/AppData/Local/lemonade_server/bin/lemonade-server.exe\" list)"
+      "Bash(\"/c/Users/antmi/AppData/Local/lemonade_server/bin/lemonade-server.exe\" list)",
+      "mcp__clear-thought-server__sequentialthinking",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(tasklist:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

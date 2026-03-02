@@ -972,9 +972,11 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     // Truncate to ~4000 chars to keep prompt compact for small-context models
     const jobText = doc.extractedText.substring(0, 4000);
     console.log(`[document:extractJobDetails] Preparing to analyze job text. Length: ${jobText.length} chars. Preview: ${jobText.substring(0, 100)}...`);
+    console.log(`[document:extractJobDetails] Document filename: ${doc.fileName}`);
 
     const prompt = ExtractionPromptBuilder.getInstance().getDocumentExtractionUserPrompt({
-      jobText
+      jobText,
+      fileName: doc.fileName,
     });
 
     // Stage 1: Generate natural language analysis of the job posting

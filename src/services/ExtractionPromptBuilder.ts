@@ -162,13 +162,20 @@ export class ExtractionPromptBuilder {
   /**
    * Get document extraction user prompt with variables substituted
    */
-  getDocumentExtractionUserPrompt(variables: { jobText: string }): string {
+  getDocumentExtractionUserPrompt(variables: { jobText: string; fileName?: string }): string {
     if (!this.extractionConfig) {
       return `Extract from this job posting:\n\n${variables.jobText}`;
     }
 
-    const template = this.extractionConfig.document.extraction.user_prompt.join('\n');
-    return template.replace(/\$\{jobText\}/g, variables.jobText);
+    let template = this.extractionConfig.document.extraction.user_prompt.join('\n');
+    template = template.replace(/\$\{jobText\}/g, variables.jobText);
+
+    // Add filename hint if available
+    if (variables.fileName) {
+      template += `\n\nDOCUMENT FILENAME (may contain company name): ${variables.fileName}`;
+    }
+
+    return template;
   }
 
   // ========== Feedback Extraction ==========

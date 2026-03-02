@@ -8,11 +8,6 @@ import {
   AgentPersona,
   InterviewPhase,
   InterviewPhaseState,
-  createInitialPhaseState,
-  isGreetingPhase,
-  isInterviewPhase,
-  isClosingPhase,
-  PHASE_NUMBERS,
 } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
@@ -748,85 +743,6 @@ export class InterviewService {
     return this.phaseManager.getPhaseStats(interviewId);
   }
 
-  // ========== Legacy methods (maintained for backward compatibility) ==========
-
-  private buildSystemPrompt(
-    config: Partial<Interview>,
-    persona?: AgentPersona | null,
-    timerContext?: {
-      totalInterviewMinutes: number;
-      wrapUpThresholdMinutes: number;
-      currentPhaseKeyword: string;
-      jobDescription: string;
-      resume: string;
-      greetingAllocationMinutes?: number;
-      timePerQuestionMinutes?: number;
-      effectiveInterviewMinutes?: number;
-    },
-  ): string {
-    const { interviewType, position, company } = config;
-    const { interviewStyle, questionDifficulty, numberOfQuestions } = this.settings;
-
-    const totalInterviewMinutes = timerContext?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
-    const wrapUpThresholdMinutes = timerContext?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
-    const currentPhaseKeyword = timerContext?.currentPhaseKeyword ?? PHASE_KEYWORDS['greeting'];
-
-    const greetingAllocationMinutes = timerContext?.greetingAllocationMinutes ?? 2;
-    const timePerQuestionMinutes = timerContext?.timePerQuestionMinutes ?? 2.5;
-    const effectiveInterviewMinutes = timerContext?.effectiveInterviewMinutes ?? (totalInterviewMinutes - wrapUpThresholdMinutes - 2);
-
-    if (persona) {
-      const q1Topic = persona.q1Topic ?? 'Tell me about your background and experience relevant to this role.';
-
-      return PromptManager.getInstance().getInterviewSystemPromptWithPersona({
-        personaName: persona.name,
-        personaRole: persona.personaRole ?? `Interviewer at ${company ?? 'the company'}`,
-        interviewType: interviewType ?? '',
-        position: position ?? '',
-        company: company ?? '',
-        interviewStyle: persona.interviewStyle || interviewStyle,
-        questionDifficulty: persona.questionDifficulty || questionDifficulty,
-        numberOfQuestions,
-        wrapUpThresholdMinutes,
-        currentMinutesRemaining: totalInterviewMinutes,
-        currentPhaseKeyword,
-        currentTopicInstruction: currentPhaseKeyword.includes('greeting') ? '' : q1Topic,
-        q1Topic,
-        q2Topic: persona.q2Topic ?? 'Describe a challenging technical problem you solved.',
-        q3Topic: persona.q3Topic ?? 'Tell me about a time you had to lead or collaborate under pressure.',
-        q4Topic: persona.q4Topic ?? 'Walk me through a key project from your resume in detail.',
-        q5Topic: persona.q5Topic ?? 'What aspects of this role excite you and what would you want to grow in?',
-        primaryProbeArea: persona.primaryProbeArea ?? `Core competencies for ${position ?? 'this role'}`,
-        mustCoverTopic1: persona.mustCoverTopic1 ?? 'Technical depth and problem-solving approach',
-        mustCoverTopic2: persona.mustCoverTopic2 ?? 'Team collaboration and communication',
-        mustCoverTopic3: persona.mustCoverTopic3 ?? 'Motivation and culture fit',
-        validateClaim1: persona.validateClaim1 ?? 'Technical experience claims in resume',
-        validateClaim2: persona.validateClaim2 ?? 'Leadership or ownership claims',
-        watchSignal1: persona.watchSignal1 ?? 'Ownership vs. passive participation in projects',
-        watchSignal2: persona.watchSignal2 ?? 'Ability to handle ambiguity and self-direct',
-        greetingAllocationMinutes,
-        timePerQuestionMinutes,
-        effectiveInterviewMinutes,
-      });
-    }
-
-    return PromptManager.getInstance().getInterviewSystemPromptFallback({
-      interviewType: interviewType ?? '',
-      position: position ?? '',
-      company: company ?? '',
-      interviewStyle,
-      questionDifficulty,
-      numberOfQuestions,
-      wrapUpThresholdMinutes,
-      currentMinutesRemaining: totalInterviewMinutes,
-      currentPhaseKeyword,
-      jobDescription: timerContext?.jobDescription ?? '',
-      resume: timerContext?.resume ?? '',
-      greetingAllocationMinutes,
-      timePerQuestionMinutes,
-      effectiveInterviewMinutes,
-    });
-  }
 }
 
 interface InterviewSession {

@@ -1,8 +1,25 @@
-import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, ModelConfig, Interview, AgentPersona } from '../types';
+import {
+  InterviewerSettings,
+  Message,
+  InterviewFeedback,
+  QuestionFeedback,
+  ModelConfig,
+  Interview,
+  AgentPersona,
+  InterviewPhase,
+  InterviewPhaseState,
+  createInitialPhaseState,
+  isGreetingPhase,
+  isInterviewPhase,
+  isClosingPhase,
+  PHASE_NUMBERS,
+} from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 import { PromptManager } from './PromptManager';
 import { StructuredExtractionService } from './StructuredExtractionService';
+import { PhasePromptBuilder, PromptContext } from './PhasePromptBuilder';
+import { InterviewPhaseManager, PhaseManagerContext } from './InterviewPhaseManager';
 
 /** Default interview duration when not specified (minutes). */
 const DEFAULT_TOTAL_MINUTES = 30;
@@ -27,12 +44,16 @@ export class InterviewService {
   private activeInterviews: Map<string, InterviewSession> = new Map();
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
+  private phasePromptBuilder: PhasePromptBuilder;
+  private phaseManager: InterviewPhaseManager;
 
   constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository) {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
     this.extractionService = new StructuredExtractionService(this.lemonadeClient, settings.extractionModelName);
+    this.phasePromptBuilder = PhasePromptBuilder.getInstance();
+    this.phaseManager = new InterviewPhaseManager(this.lemonadeClient);
   }
 
   getLemonadeClient(): LemonadeClient {
@@ -49,8 +70,8 @@ export class InterviewService {
     const totalInterviewMinutes = timerConfig?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
     const wrapUpThresholdMinutes = timerConfig?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
 
-    // Greeting phase is always first — interviewer does audio check + intro before Q1
-    const initialPhaseKeyword = PHASE_KEYWORDS['greeting'];
+    // NEW: Use phase-aware prompting instead of old keyword system
+    const initialPhase: InterviewPhase = 'phase_0_audio_check';
     const now = Date.now();
 
     // Calculate interview pacing allocation (v2: time-based tracking)
@@ -61,17 +82,25 @@ export class InterviewService {
     );
     const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
-    const systemPrompt = this.buildSystemPrompt(config, persona, {
+    // Initialize phase state
+    const phaseState = this.phaseManager.initializeInterview(interviewId);
+
+    // Build phase-aware system prompt
+    const promptContext: PromptContext = {
+      company: config.company ?? '',
+      position: config.position ?? '',
       totalInterviewMinutes,
-      wrapUpThresholdMinutes,
-      currentPhaseKeyword: initialPhaseKeyword,
-      jobDescription: documents?.jobDescription ?? '',
-      resume: documents?.resume ?? '',
-      // New timing variables for coherent UX
-      greetingAllocationMinutes: GREETING_ALLOCATION_MINUTES,
-      timePerQuestionMinutes,
-      effectiveInterviewMinutes,
-    });
+      currentMinutesRemaining: totalInterviewMinutes,
+    };
+
+    const systemPrompt = persona
+      ? this.phasePromptBuilder.buildSystemPrompt(initialPhase, persona, phaseState, promptContext)
+      : this.buildFallbackSystemPrompt(config, {
+          totalInterviewMinutes,
+          wrapUpThresholdMinutes,
+          jobDescription: documents?.jobDescription ?? '',
+          resume: documents?.resume ?? '',
+        });
 
     const session: InterviewSession = {
       interviewId,
@@ -83,7 +112,9 @@ export class InterviewService {
           timestamp: new Date(now).toISOString(),
         },
       ],
+      // Legacy tracking (for backward compatibility)
       questionCount: 0,
+      currentPhaseKeyword: 'greeting start introduction audio_check',
       // Timer state
       sessionStartMs: now,
       totalInterviewMinutes,
@@ -92,13 +123,14 @@ export class InterviewService {
       wrapUpInjected: false,
       // Greeting phase timing (v2)
       greetingPhaseStartMs: now,
-      greetingMinDurationMs: GREETING_ALLOCATION_MINUTES * 60000,  // 2 min in ms
+      greetingMinDurationMs: GREETING_ALLOCATION_MINUTES * 60000,
       greetingCompleted: false,
       // Interview pacing allocation
       timePerQuestionMinutes,
       effectiveInterviewMinutes,
-      // Phase tracking
-      currentPhaseKeyword: initialPhaseKeyword,
+      // NEW: Phase-aware state
+      currentPhase: initialPhase,
+      phaseState,
       // Stored for resume/rebuild support
       interviewConfig: config,
       persona: persona ?? null,
@@ -108,6 +140,7 @@ export class InterviewService {
 
     this.activeInterviews.set(interviewId, session);
 
+    // Generate initial greeting using phase-aware prompting
     const greeting = await this.lemonadeClient.sendMessage(session.messages);
 
     session.messages.push({
@@ -116,6 +149,8 @@ export class InterviewService {
       content: greeting,
       timestamp: new Date().toISOString(),
     });
+
+    console.log(`[InterviewService] Started interview ${interviewId} in phase ${initialPhase}`);
   }
 
   async sendMessage(interviewId: string, userMessage: string): Promise<string> {
@@ -132,7 +167,31 @@ export class InterviewService {
     };
     session.messages.push(userMsg);
 
-    const messagesToSend = this.buildMessagesWithInjections(session);
+    // NEW: Process candidate response through phase manager
+    const elapsedMs = Date.now() - session.sessionStartMs;
+    const elapsedMinutes = elapsedMs / 60000;
+    const remainingMinutes = Math.max(0, session.totalInterviewMinutes - elapsedMinutes);
+
+    const phaseContext: PhaseManagerContext = {
+      currentMinutesRemaining: remainingMinutes,
+      totalMinutes: session.totalInterviewMinutes,
+      transcript: session.messages,
+    };
+
+    const transitionResult = await this.phaseManager.processCandidateResponse(
+      interviewId,
+      userMessage,
+      phaseContext
+    );
+
+    // If phase transitioned, rebuild the system prompt
+    if (transitionResult.shouldTransition && transitionResult.newPhase) {
+      session.currentPhase = transitionResult.newPhase;
+      await this.rebuildSystemPromptForPhase(session, remainingMinutes);
+    }
+
+    // Build messages with phase-aware system prompt
+    const messagesToSend = this.buildPhaseAwareMessages(session, remainingMinutes);
 
     const response = await this.lemonadeClient.sendMessage(messagesToSend, { maxInputTokens: 3072 });
 
@@ -144,7 +203,6 @@ export class InterviewService {
     };
     session.messages.push(assistantMsg);
     session.questionCount++;
-    this.advancePhaseIfNeeded(session);
 
     return response;
   }
@@ -152,6 +210,7 @@ export class InterviewService {
   /**
    * Streaming variant of sendMessage.
    * Tokens are forwarded to `onToken` as they arrive from the LLM.
+   * Now with phase-aware prompting integration.
    */
   async sendMessageStreaming(
     interviewId: string,
@@ -171,7 +230,31 @@ export class InterviewService {
     };
     session.messages.push(userMsg);
 
-    const messagesToSend = this.buildMessagesWithInjections(session);
+    // NEW: Process candidate response through phase manager
+    const elapsedMs = Date.now() - session.sessionStartMs;
+    const elapsedMinutes = elapsedMs / 60000;
+    const remainingMinutes = Math.max(0, session.totalInterviewMinutes - elapsedMinutes);
+
+    const phaseContext: PhaseManagerContext = {
+      currentMinutesRemaining: remainingMinutes,
+      totalMinutes: session.totalInterviewMinutes,
+      transcript: session.messages,
+    };
+
+    const transitionResult = await this.phaseManager.processCandidateResponse(
+      interviewId,
+      userMessage,
+      phaseContext
+    );
+
+    // If phase transitioned, rebuild the system prompt
+    if (transitionResult.shouldTransition && transitionResult.newPhase) {
+      session.currentPhase = transitionResult.newPhase;
+      await this.rebuildSystemPromptForPhase(session, remainingMinutes);
+    }
+
+    // Build messages with phase-aware system prompt
+    const messagesToSend = this.buildPhaseAwareMessages(session, remainingMinutes);
 
     const response = await this.lemonadeClient.sendMessageStreaming(
       messagesToSend,
@@ -187,7 +270,6 @@ export class InterviewService {
     };
     session.messages.push(assistantMsg);
     session.questionCount++;
-    this.advancePhaseIfNeeded(session);
 
     return response;
   }
@@ -225,6 +307,9 @@ export class InterviewService {
       suggestions: extracted?.suggestions ?? ['Practice more interviews'],
       detailedFeedback: feedbackText,
     };
+
+    // Clean up phase manager state
+    this.phaseManager.cleanupInterview(interviewId);
 
     this.activeInterviews.delete(interviewId);
 
@@ -426,10 +511,19 @@ export class InterviewService {
       );
       const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
+      // NEW: Restore phase state from transcript
+      const phaseState = this.phaseManager.restorePhaseState(
+        interviewId,
+        interview.transcript,
+        DEFAULT_TOTAL_MINUTES,
+        (DEFAULT_TOTAL_MINUTES * 60000 - (now - interview.startedAt ? new Date(interview.startedAt).getTime() : now)) / 60000
+      );
+
       this.activeInterviews.set(interviewId, {
         interviewId,
         messages: interview.transcript,
         questionCount,
+        currentPhaseKeyword: this.getPhaseKeyword(questionCount),
         sessionStartMs: now,
         totalInterviewMinutes: DEFAULT_TOTAL_MINUTES,
         wrapUpThresholdMinutes: DEFAULT_WRAP_UP_MINUTES,
@@ -437,19 +531,20 @@ export class InterviewService {
         wrapUpInjected: false,
         // Greeting phase timing (v2)
         greetingPhaseStartMs: now,
-        greetingMinDurationMs: 2 * 60000,  // 2 minutes
-        greetingCompleted: questionCount > 0,  // If already have messages, greeting is done
+        greetingMinDurationMs: 2 * 60000,
+        greetingCompleted: questionCount > 0,
         // Interview pacing allocation
         timePerQuestionMinutes,
         effectiveInterviewMinutes,
-        // Phase tracking
-        currentPhaseKeyword: this.getPhaseKeyword(questionCount),
+        // NEW: Phase-aware state
+        currentPhase: phaseState.currentPhase,
+        phaseState,
         interviewConfig: {},
         persona: null,
         jobDescription: '',
         resume: '',
       });
-      console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages`);
+      console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages in phase ${phaseState.currentPhase}`);
     }
   }
 
@@ -524,6 +619,136 @@ export class InterviewService {
     session.currentPhaseKeyword = this.getPhaseKeyword(session.questionCount);
   }
 
+  // ========== NEW: Phase-aware helper methods ==========
+
+  /**
+   * Rebuild system prompt for current phase
+   */
+  private async rebuildSystemPromptForPhase(
+    session: InterviewSession,
+    remainingMinutes: number
+  ): Promise<void> {
+    if (!session.persona) return;
+
+    const promptContext: PromptContext = {
+      company: session.interviewConfig.company ?? '',
+      position: session.interviewConfig.position ?? '',
+      totalInterviewMinutes: session.totalInterviewMinutes,
+      currentMinutesRemaining: remainingMinutes,
+    };
+
+    const phaseState = this.phaseManager.getPhaseState(session.interviewId);
+    if (!phaseState) return;
+
+    const newSystemPrompt = this.phasePromptBuilder.buildSystemPrompt(
+      session.currentPhase,
+      session.persona,
+      phaseState,
+      promptContext
+    );
+
+    // Replace the system message
+    const systemIndex = session.messages.findIndex(m => m.role === 'system');
+    if (systemIndex >= 0) {
+      session.messages[systemIndex] = {
+        id: `system-${Date.now()}`,
+        role: 'system',
+        content: newSystemPrompt,
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      // Insert at beginning
+      session.messages.unshift({
+        id: `system-${Date.now()}`,
+        role: 'system',
+        content: newSystemPrompt,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    console.log(`[InterviewService] Rebuilt system prompt for phase ${session.currentPhase}`);
+  }
+
+  /**
+   * Build messages array with phase-aware system prompt
+   */
+  private buildPhaseAwareMessages(session: InterviewSession, remainingMinutes: number): Message[] {
+    // Start with current messages
+    const messagesToSend: Message[] = [...session.messages];
+
+    // Check for midpoint signal
+    const midpointThreshold = session.totalInterviewMinutes / 2;
+    if (!session.midpointInjected && remainingMinutes <= midpointThreshold) {
+      messagesToSend.push({
+        id: `timer-mid-${Date.now()}`,
+        role: 'system',
+        content: `<timer_update>pacing_check time_update mid_session - ${Math.round(remainingMinutes)} minutes remaining</timer_update>`,
+        timestamp: new Date().toISOString(),
+      });
+      session.midpointInjected = true;
+    }
+
+    // Check for wrap-up signal
+    if (!session.wrapUpInjected && remainingMinutes <= session.wrapUpThresholdMinutes) {
+      messagesToSend.push({
+        id: `timer-wrap-${Date.now()}`,
+        role: 'system',
+        content: `<timer_signal>wrap_up_signal closing_soon timer time_warning - ${Math.round(remainingMinutes)} minutes remaining</timer_signal>`,
+        timestamp: new Date().toISOString(),
+      });
+      session.wrapUpInjected = true;
+    }
+
+    return messagesToSend;
+  }
+
+  /**
+   * Fallback system prompt builder when phase prompts aren't available
+   */
+  private buildFallbackSystemPrompt(
+    config: Partial<Interview>,
+    timerContext: {
+      totalInterviewMinutes: number;
+      wrapUpThresholdMinutes: number;
+      jobDescription: string;
+      resume: string;
+    }
+  ): string {
+    const { interviewType, position, company } = config;
+    const { interviewStyle, questionDifficulty, numberOfQuestions } = this.settings;
+
+    return PromptManager.getInstance().getInterviewSystemPromptFallback({
+      interviewType: interviewType ?? '',
+      position: position ?? '',
+      company: company ?? '',
+      interviewStyle,
+      questionDifficulty,
+      numberOfQuestions,
+      wrapUpThresholdMinutes: timerContext.wrapUpThresholdMinutes,
+      currentMinutesRemaining: timerContext.totalInterviewMinutes,
+      currentPhaseKeyword: 'greeting start introduction audio_check',
+      jobDescription: timerContext.jobDescription,
+      resume: timerContext.resume,
+    });
+  }
+
+  /**
+   * Get current phase for an interview
+   */
+  getCurrentPhase(interviewId: string): InterviewPhase | null {
+    const session = this.activeInterviews.get(interviewId);
+    return session?.currentPhase ?? null;
+  }
+
+  /**
+   * Get phase statistics for debugging
+   */
+  getPhaseStats(interviewId: string) {
+    return this.phaseManager.getPhaseStats(interviewId);
+  }
+
+  // ========== Legacy methods (maintained for backward compatibility) ==========
+
   private buildSystemPrompt(
     config: Partial<Interview>,
     persona?: AgentPersona | null,
@@ -533,7 +758,6 @@ export class InterviewService {
       currentPhaseKeyword: string;
       jobDescription: string;
       resume: string;
-      // v2: Time allocation variables for coherent UX
       greetingAllocationMinutes?: number;
       timePerQuestionMinutes?: number;
       effectiveInterviewMinutes?: number;
@@ -546,7 +770,6 @@ export class InterviewService {
     const wrapUpThresholdMinutes = timerContext?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
     const currentPhaseKeyword = timerContext?.currentPhaseKeyword ?? PHASE_KEYWORDS['greeting'];
 
-    // v2: Time allocation for coherent interview pacing
     const greetingAllocationMinutes = timerContext?.greetingAllocationMinutes ?? 2;
     const timePerQuestionMinutes = timerContext?.timePerQuestionMinutes ?? 2.5;
     const effectiveInterviewMinutes = timerContext?.effectiveInterviewMinutes ?? (totalInterviewMinutes - wrapUpThresholdMinutes - 2);
@@ -564,7 +787,6 @@ export class InterviewService {
         questionDifficulty: persona.questionDifficulty || questionDifficulty,
         numberOfQuestions,
         wrapUpThresholdMinutes,
-        // Dynamic per-call vars — initial values; subsequent turns use ephemeral injections
         currentMinutesRemaining: totalInterviewMinutes,
         currentPhaseKeyword,
         currentTopicInstruction: currentPhaseKeyword.includes('greeting') ? '' : q1Topic,
@@ -581,14 +803,12 @@ export class InterviewService {
         validateClaim2: persona.validateClaim2 ?? 'Leadership or ownership claims',
         watchSignal1: persona.watchSignal1 ?? 'Ownership vs. passive participation in projects',
         watchSignal2: persona.watchSignal2 ?? 'Ability to handle ambiguity and self-direct',
-        // v2: Time allocation for coherent UX
         greetingAllocationMinutes,
         timePerQuestionMinutes,
         effectiveInterviewMinutes,
       });
     }
 
-    // Fallback: generic prompt when no persona is available
     return PromptManager.getInstance().getInterviewSystemPromptFallback({
       interviewType: interviewType ?? '',
       position: position ?? '',
@@ -601,7 +821,6 @@ export class InterviewService {
       currentPhaseKeyword,
       jobDescription: timerContext?.jobDescription ?? '',
       resume: timerContext?.resume ?? '',
-      // v2: Time allocation for coherent UX
       greetingAllocationMinutes,
       timePerQuestionMinutes,
       effectiveInterviewMinutes,
@@ -612,7 +831,9 @@ export class InterviewService {
 interface InterviewSession {
   interviewId: string;
   messages: Message[];
+  // Legacy tracking (backward compatibility)
   questionCount: number;
+  currentPhaseKeyword: string;
   // Timer state
   sessionStartMs: number;
   totalInterviewMinutes: number;
@@ -626,8 +847,9 @@ interface InterviewSession {
   // Interview pacing allocation
   timePerQuestionMinutes: number;      // Calculated: ~2-3 min per question
   effectiveInterviewMinutes: number;     // total - wrapUp - greeting allocation
-  // Phase tracking
-  currentPhaseKeyword: string;
+  // NEW: Phase-aware state
+  currentPhase: InterviewPhase;
+  phaseState: InterviewPhaseState;
   // Stored for resume/rebuild support
   interviewConfig: Partial<Interview>;
   persona: AgentPersona | null;

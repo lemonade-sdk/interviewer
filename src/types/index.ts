@@ -463,3 +463,270 @@ export interface IPC {
   getMCPServers: () => Promise<MCPServer[]>;
   updateMCPServers: (servers: MCPServer[]) => Promise<void>;
 }
+
+// ============================================================================
+// PHASE-AWARE INTERVIEW TYPES
+// ============================================================================
+// These types support the new phase-specific prompt architecture
+
+/**
+ * InterviewPhase enum - defines the 10 sequential phases of an interview
+ * Each phase has explicit turn-taking semantics and wait-for-response requirements
+ */
+export type InterviewPhase =
+  | 'phase_0_audio_check'      // Verify audio connection
+  | 'phase_1_warm_rapport'     // Build initial connection
+  | 'phase_2_session_overview' // Set expectations
+  | 'phase_3_q1_warmup'        // Baseline calibration
+  | 'phase_4_q2_technical'     // Core technical assessment
+  | 'phase_5_q3_behavioral'    // STAR-structured behavioral
+  | 'phase_6_q4_validation'    // Resume fact-check
+  | 'phase_7_q5_deep_dive'     // Advanced expertise demo
+  | 'phase_8_candidate_questions' // Candidate's turn
+  | 'phase_9_closing';         // Warm parting
+
+/**
+ * Phase numbering for numeric comparisons
+ */
+export const PHASE_NUMBERS: Record<InterviewPhase, number> = {
+  'phase_0_audio_check': 0,
+  'phase_1_warm_rapport': 1,
+  'phase_2_session_overview': 2,
+  'phase_3_q1_warmup': 3,
+  'phase_4_q2_technical': 4,
+  'phase_5_q3_behavioral': 5,
+  'phase_6_q4_validation': 6,
+  'phase_7_q5_deep_dive': 7,
+  'phase_8_candidate_questions': 8,
+  'phase_9_closing': 9,
+};
+
+/**
+ * Get next phase in sequence
+ */
+export function getNextPhase(currentPhase: InterviewPhase): InterviewPhase | null {
+  const currentNum = PHASE_NUMBERS[currentPhase];
+  const nextNum = currentNum + 1;
+  const nextPhase = Object.entries(PHASE_NUMBERS).find(([_, num]) => num === nextNum);
+  return nextPhase ? nextPhase[0] as InterviewPhase : null;
+}
+
+/**
+ * Check if phase is a greeting phase (0-2)
+ */
+export function isGreetingPhase(phase: InterviewPhase): boolean {
+  return PHASE_NUMBERS[phase] <= 2;
+}
+
+/**
+ * Check if phase is an interview question phase (3-7)
+ */
+export function isInterviewPhase(phase: InterviewPhase): boolean {
+  const num = PHASE_NUMBERS[phase];
+  return num >= 3 && num <= 7;
+}
+
+/**
+ * Check if phase is the closing phase (8-9)
+ */
+export function isClosingPhase(phase: InterviewPhase): boolean {
+  return PHASE_NUMBERS[phase] >= 8;
+}
+
+/**
+ * Phase configuration - defines behavior for a specific interview phase
+ */
+export interface PhaseConfig {
+  phase_number: number;
+  phase_name: string;
+  description: string;
+  system_prompt: string[];
+  expected_candidate_response: string;
+  response_patterns: {
+    confirmation?: string[];
+    audio_issues?: string[];
+    shallow?: string[];
+    strong?: string[];
+    vague_technical?: string[];
+    depth_indicators?: string[];
+    hypothetical?: string[];
+    star_complete?: string[];
+    team_not_personal?: string[];
+    vague_claim?: string[];
+    specific_evidence?: string[];
+    expertise_depth?: string[];
+    time_pressure?: string[];
+    has_questions?: string[];
+    no_questions?: string[];
+    acknowledgment?: string[];
+    session_questions?: string[];
+    background_response?: string[];
+    technical_deep_dive?: string[];
+    star_structured_story?: string[];
+    specific_claim_evidence?: string[];
+    advanced_expertise?: string[];
+    questions_about_role?: string[];
+    none_final_phase?: never[];
+  };
+  max_exchanges: number;
+  min_exchanges?: number;
+  auto_advance: boolean;
+  advance_after_exchanges?: number;
+  advance_condition?: 'coverage_assessment' | 'star_coverage' | 'validation_complete' | 'expertise_or_time' | 'question_saturation' | 'exchange_based';
+  is_final_phase?: boolean;
+  variable_injections: string[];
+}
+
+/**
+ * Transition rule for moving between phases
+ */
+export interface TransitionRule {
+  from: InterviewPhase;
+  to: InterviewPhase;
+  detection: 'pattern_based' | 'llm_based' | 'exchange_based' | 'exchange_based_or_llm' | 'exchange_based_or_time' | 'exchange_based_or_pattern';
+  patterns?: string[];
+  patterns_no_questions?: string[];
+  any_response?: boolean;
+  min_exchanges?: number;
+  max_exchanges?: number;
+  timeout_seconds?: number;
+  on_timeout?: string;
+  time_threshold_minutes?: number;
+  when_time_low?: string;
+  llm_prompt?: string;
+}
+
+/**
+ * Edge case handler for unexpected situations
+ */
+export interface EdgeCaseHandler {
+  description: string;
+  trigger?: string;
+  trigger_patterns?: string[];
+  strategy: 'prompt_rephrase' | 'acknowledge_and_pivot' | 'brief_answer_then_redirect' | 'force_advance' | 'acknowledge_and_offer_close' | 'one_targeted_followup' | 'deflect_gracefully' | 'rephrase_clearly';
+  prompt_addendum?: string;
+  recovery_phase?: InterviewPhase;
+  max_off_topic_exchanges?: number;
+  max_followups_per_phase?: number;
+  max_rephrases?: number;
+  jump_to_phase?: InterviewPhase;
+  escalation?: string;
+  actions?: {
+    attempt: number;
+    prompt_addendum?: string;
+    action?: string;
+    note?: string;
+  }[];
+}
+
+/**
+ * Time pressure adaptation rules
+ */
+export interface TimePressureAdaptation {
+  trigger_minutes_remaining: number;
+  inject_prompt?: string;
+  action?: string;
+  skip_phases?: InterviewPhase[];
+  once_per_session: boolean;
+}
+
+/**
+ * Complete phase prompts configuration structure
+ */
+export interface PhasePromptsConfig {
+  _meta: {
+    version: string;
+    description: string;
+    total_phases: number;
+    structure: string[];
+  };
+  core_identity: {
+    description: string;
+    system_prompt: string[];
+    variable_definitions: Record<string, string>;
+  };
+  phase_prompts: Record<InterviewPhase, PhaseConfig>;
+  transition_rules: {
+    description: string;
+    detection_methods: Record<string, string>;
+    rules: Record<string, TransitionRule>;
+    time_pressure_adaptations: {
+      midpoint_signal?: TimePressureAdaptation;
+      wrap_up_early?: TimePressureAdaptation;
+    };
+  };
+  edge_cases: {
+    description: string;
+    handlers: Record<string, EdgeCaseHandler>;
+  };
+  phase_recovery: {
+    description: string;
+    transcript_analysis_rules: {
+      pattern: string;
+      indicates: string;
+      confidence: 'high' | 'medium' | 'low';
+    }[];
+    llm_rebuild_prompt: string;
+  };
+}
+
+/**
+ * Interview phase state tracking
+ */
+export interface InterviewPhaseState {
+  currentPhase: InterviewPhase;
+  previousPhase: InterviewPhase | null;
+  phaseEnterTimeMs: number;
+  exchangeCountInPhase: number;
+  totalExchangesInInterview: number;
+  phaseHistory: {
+    phase: InterviewPhase;
+    enteredAt: string;
+    exchanges: number;
+    exitedAt?: string;
+  }[];
+  // Edge case tracking
+  noResponseAttempts: number;
+  offTopicExchangeCount: number;
+  lastFollowUpSent: boolean;
+  // Time tracking
+  greetingPhaseStartMs: number;
+  greetingCompleted: boolean;
+  // Transitions
+  lastTransitionReason?: string;
+}
+
+/**
+ * Initial phase state factory
+ */
+export function createInitialPhaseState(): InterviewPhaseState {
+  const now = Date.now();
+  return {
+    currentPhase: 'phase_0_audio_check',
+    previousPhase: null,
+    phaseEnterTimeMs: now,
+    exchangeCountInPhase: 0,
+    totalExchangesInInterview: 0,
+    phaseHistory: [{
+      phase: 'phase_0_audio_check',
+      enteredAt: new Date(now).toISOString(),
+      exchanges: 0,
+    }],
+    noResponseAttempts: 0,
+    offTopicExchangeCount: 0,
+    lastFollowUpSent: false,
+    greetingPhaseStartMs: now,
+    greetingCompleted: false,
+  };
+}
+
+/**
+ * Phase transition result
+ */
+export interface PhaseTransitionResult {
+  shouldTransition: boolean;
+  newPhase: InterviewPhase | null;
+  reason: string;
+  confidence: 'high' | 'medium' | 'low';
+  edgeCaseTriggered?: string;
+}

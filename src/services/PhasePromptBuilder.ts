@@ -148,12 +148,16 @@ export class PhasePromptBuilder {
     parts.push(''); // Empty line separator
 
     // 2. Phase-specific instructions
+    const phasePromptRaw = phaseConfig.system_prompt.join('\n');
     const phasePrompt = this.substituteVariables(
-      phaseConfig.system_prompt.join('\n'),
+      phasePromptRaw,
       persona,
       context,
       state
     );
+    // Debug: Log first 200 chars of phase prompt to verify substitution
+    console.log(`[PhasePromptBuilder] Phase ${phase} prompt (first 200 chars): ${phasePrompt.substring(0, 200)}...`);
+    console.log(`[PhasePromptBuilder] Persona: ${persona.name}, Role: ${persona.personaRole}, Company: ${context.company}`);
     parts.push(phasePrompt);
 
     // 3. Edge case addendum (if triggered)

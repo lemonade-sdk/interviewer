@@ -11,8 +11,8 @@ import { MCPManager } from '../mcp/MCPManager';
 import { DocumentRepository } from '../database/repositories/DocumentRepository';
 import { InterviewService } from '../services/InterviewService';
 import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
-import { PromptManager } from '../services/PromptManager';
 import { StructuredExtractionService } from '../services/StructuredExtractionService';
+import { ExtractionPromptBuilder } from '../services/ExtractionPromptBuilder';
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -973,7 +973,7 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     const jobText = doc.extractedText.substring(0, 4000);
     console.log(`[document:extractJobDetails] Preparing to analyze job text. Length: ${jobText.length} chars. Preview: ${jobText.substring(0, 100)}...`);
 
-    const prompt = PromptManager.getInstance().getDocumentExtractionUserPrompt({
+    const prompt = ExtractionPromptBuilder.getInstance().getDocumentExtractionUserPrompt({
       jobText
     });
 
@@ -982,7 +982,7 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
       {
         id: 'extract-system',
         role: 'system',
-        content: PromptManager.getInstance().getDocumentExtractionSystemPrompt(),
+        content: ExtractionPromptBuilder.getInstance().getDocumentExtractionSystemPrompt(),
         timestamp: new Date().toISOString(),
       },
       {

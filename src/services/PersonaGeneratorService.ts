@@ -1,16 +1,17 @@
-import { AgentPersona, InterviewStyle, InterviewType } from '../types';
+import { AgentPersona, InterviewType } from '../types';
 import { LemonadeClient } from './LemonadeClient';
+import { StructuredExtractionService } from './StructuredExtractionService';
 import { v4 as uuidv4 } from 'uuid';
+import { PromptManager } from './PromptManager';
 
 /**
  * PersonaGeneratorService
  * 
  * Analyzes uploaded documents (Job Description + Resume) and auto-generates
- * a tailored interviewer persona. The flow:
+ * a tailored interviewer persona using a two-stage approach:
  * 
- *   1. Read & deeply comprehend the Job Description
- *   2. Read & deeply comprehend the Candidate's Resume
- *   3. Synthesize both to produce a calibrated interviewer persona
+ * Stage 1: Generate natural language persona description and analysis
+ * Stage 2: Extract structured persona fields from the natural text
  * 
  * The generated persona includes a rich system prompt that encapsulates all
  * document knowledge so the interview AI doesn't need to re-read documents.
@@ -28,13 +29,16 @@ export interface GeneratedPersonaResult {
   persona: AgentPersona;
   jobAnalysis: string;
   resumeAnalysis: string;
+  rawText?: string; // Natural language output from Stage 1
 }
 
 export class PersonaGeneratorService {
   private lemonadeClient: LemonadeClient;
+  private extractionService: StructuredExtractionService;
 
   constructor(lemonadeClient: LemonadeClient) {
     this.lemonadeClient = lemonadeClient;
+    this.extractionService = new StructuredExtractionService(lemonadeClient);
   }
 
   /* ── Token-budget safety ──
@@ -63,46 +67,32 @@ export class PersonaGeneratorService {
   private buildPersonaGenerationPrompt(input: PersonaGenerationInput): string {
     const jd = this.truncate(input.jobDescriptionText);
     const resume = this.truncate(input.resumeText);
+    
+    const styleInstruction = input.interviewType === 'behavioral' ? 'warm and encouraging' : 'professionally rigorous';
 
-    return `You are an expert interview preparation system. Analyze the job description and resume below, then generate a tailored interviewer persona as a JSON object.
-
-<JOB_DESCRIPTION>
-${jd}
-</JOB_DESCRIPTION>
-
-<RESUME>
-${resume}
-</RESUME>
-
-Interview type: ${input.interviewType}
-Company: ${input.company}
-Position: ${input.position}
-
-Respond with ONLY a valid JSON object (no markdown, no explanation) with these fields:
-
-{
-  "name": "Realistic interviewer name",
-  "description": "1-2 sentence description of the interviewer",
-  "interviewStyle": "conversational | formal | challenging | supportive",
-  "questionDifficulty": "easy | medium | hard",
-  "systemPrompt": "200-400 word instruction prompt for the interviewer (include: interviewer identity, role context, candidate strengths & gaps from resume, key questions to ask, evaluation criteria, behavioral guidelines — ask one question at a time, be ${input.interviewType === 'behavioral' ? 'warm and encouraging' : 'professionally rigorous'})",
-  "jobAnalysis": "3-5 sentence summary of the job requirements",
-  "resumeAnalysis": "3-5 sentence summary of the candidate's fit"
-}`;
+    return PromptManager.getInstance().getPersonaGenerationUserPrompt({
+      jobDescription: jd,
+      resume: resume,
+      interviewType: input.interviewType,
+      company: input.company,
+      position: input.position,
+      styleInstruction
+    });
   }
 
   /**
    * Generate an interviewer persona from job description and resume.
+   * Uses two-stage approach: natural language generation → structured extraction.
    */
   async generatePersona(input: PersonaGenerationInput): Promise<GeneratedPersonaResult> {
     const prompt = this.buildPersonaGenerationPrompt(input);
 
-    // Send to the LLM
-    const response = await this.lemonadeClient.sendMessage([
+    // Stage 1: Generate natural language persona description
+    const personaText = await this.lemonadeClient.sendMessage([
       {
         id: 'persona-gen-system',
         role: 'system',
-        content: 'You are a JSON generation assistant. You ONLY output valid JSON objects. No markdown, no code fences, no explanations.',
+        content: PromptManager.getInstance().getPersonaGenerationSystemPrompt(),
         timestamp: new Date().toISOString(),
       },
       {
@@ -113,70 +103,29 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
       },
     ], { maxTokens: 8192 });
 
-    // Parse the response
-    const parsed = this.parsePersonaResponse(response, input);
-    return parsed;
-  }
+    console.log('[PersonaGeneratorService] Stage 1 natural language output length:', personaText.length);
+    console.log('[PersonaGeneratorService] Stage 1 first 500 chars:', personaText.substring(0, 500));
 
-  /**
-   * Parse the LLM response into a structured persona result.
-   * Includes robust fallback handling for malformed JSON.
-   */
-  private parsePersonaResponse(
-    response: string,
-    input: PersonaGenerationInput,
-  ): GeneratedPersonaResult {
-    let parsed: any;
+    // Stage 2: Extract structured persona fields
+    const extracted = await this.extractionService.extractPersonaData(personaText);
 
-    try {
-      // Try direct JSON parse first
-      parsed = JSON.parse(response);
-    } catch {
-      // Try to extract JSON from markdown code fences
-      const jsonMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[1]);
-        } catch {
-          // Last resort: try to find JSON object boundaries
-          const startIdx = response.indexOf('{');
-          const endIdx = response.lastIndexOf('}');
-          if (startIdx !== -1 && endIdx > startIdx) {
-            try {
-              parsed = JSON.parse(response.slice(startIdx, endIdx + 1));
-            } catch {
-              parsed = null;
-            }
-          }
-        }
-      }
+    // If extraction failed, use fallback with natural text
+    if (!extracted) {
+      console.warn('[PersonaGeneratorService] Extraction failed, using fallback persona');
+      return this.buildFallbackPersona(input, personaText);
     }
 
-    // If parsing completely failed, generate a fallback persona
-    if (!parsed) {
-      return this.buildFallbackPersona(input, response);
-    }
+    console.log('[PersonaGeneratorService] Successfully extracted structured persona data');
 
-    // Validate and normalize fields
-    const validStyles: InterviewStyle[] = ['conversational', 'formal', 'challenging', 'supportive'];
-    const validDifficulties = ['easy', 'medium', 'hard'] as const;
-
+    // Build the persona from extracted data
     const now = new Date().toISOString();
     const persona: AgentPersona = {
       id: uuidv4(),
-      name: typeof parsed.name === 'string' ? parsed.name : `${input.company} Interviewer`,
-      description: typeof parsed.description === 'string'
-        ? parsed.description
-        : `Interviewer for the ${input.position} role at ${input.company}`,
-      systemPrompt: typeof parsed.systemPrompt === 'string'
-        ? parsed.systemPrompt
-        : this.buildFallbackSystemPrompt(input),
-      interviewStyle: validStyles.includes(parsed.interviewStyle)
-        ? parsed.interviewStyle
-        : 'conversational',
-      questionDifficulty: validDifficulties.includes(parsed.questionDifficulty)
-        ? parsed.questionDifficulty
-        : 'medium',
+      name: extracted.name,
+      description: extracted.description,
+      systemPrompt: extracted.systemPrompt,
+      interviewStyle: extracted.interviewStyle,
+      questionDifficulty: extracted.questionDifficulty,
       isDefault: false,
       createdAt: now,
       updatedAt: now,
@@ -184,21 +133,19 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
 
     return {
       persona,
-      jobAnalysis: typeof parsed.jobAnalysis === 'string'
-        ? parsed.jobAnalysis
-        : 'Job description analyzed successfully.',
-      resumeAnalysis: typeof parsed.resumeAnalysis === 'string'
-        ? parsed.resumeAnalysis
-        : 'Resume analyzed successfully.',
+      jobAnalysis: extracted.jobAnalysis,
+      resumeAnalysis: extracted.resumeAnalysis,
+      rawText: personaText, // Store the natural language output
     };
   }
 
   /**
-   * Build a fallback persona when LLM response parsing fails entirely.
+   * Build a fallback persona when extraction fails entirely.
+   * Uses the natural text from Stage 1 to create a basic persona.
    */
   private buildFallbackPersona(
     input: PersonaGenerationInput,
-    _rawResponse: string,
+    rawResponse: string,
   ): GeneratedPersonaResult {
     const now = new Date().toISOString();
     return {
@@ -215,6 +162,7 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
       },
       jobAnalysis: 'The job description was processed but structured analysis could not be extracted.',
       resumeAnalysis: 'The resume was processed but structured analysis could not be extracted.',
+      rawText: rawResponse, // Keep the natural text for reference
     };
   }
 
@@ -222,25 +170,15 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) with these f
    * Build a fallback system prompt that still incorporates the documents.
    */
   private buildFallbackSystemPrompt(input: PersonaGenerationInput): string {
-    return `You are an experienced interviewer conducting a ${input.interviewType} interview for the position of ${input.position} at ${input.company}.
+    const toneInstruction = input.interviewType === 'behavioral' ? 'supportive' : 'balanced';
 
-You have thoroughly reviewed the job description and the candidate's resume.
-
-JOB DESCRIPTION CONTEXT:
-${input.jobDescriptionText.slice(0, 2000)}
-
-CANDIDATE RESUME CONTEXT:
-${input.resumeText.slice(0, 2000)}
-
-INTERVIEW GUIDELINES:
-1. Begin with a warm, professional greeting. Introduce yourself and the interview format.
-2. Ask questions that are specifically tailored to this role and this candidate's background.
-3. Probe areas where the candidate's experience aligns with the job requirements to validate depth.
-4. Explore potential gaps between the candidate's experience and the role's requirements.
-5. Ask one question at a time and listen carefully to responses.
-6. Provide natural follow-up questions based on the candidate's answers.
-7. Maintain a professional, ${input.interviewType === 'behavioral' ? 'supportive' : 'balanced'} tone throughout.
-8. Wrap up the interview naturally after covering the key areas.
-9. Give the candidate an opportunity to ask questions at the end.`;
+    return PromptManager.getInstance().getPersonaGenerationFallbackPrompt({
+      interviewType: input.interviewType,
+      position: input.position,
+      company: input.company,
+      jobDescription: input.jobDescriptionText.slice(0, 2000),
+      resume: input.resumeText.slice(0, 2000),
+      toneInstruction
+    });
   }
 }

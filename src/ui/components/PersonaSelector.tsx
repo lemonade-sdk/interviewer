@@ -65,7 +65,7 @@ export const PersonaSelector: React.FC<Props> = ({
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+      <div className="p-6 bg-red-50 border border-red-200 rounded-2xl">
         <p className="text-red-600">{error}</p>
         <button
           onClick={loadPersonas}
@@ -98,7 +98,7 @@ export const PersonaSelector: React.FC<Props> = ({
           <div
             key={persona.id}
             onClick={() => handleSelect(persona)}
-            className={`p-5 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg ${
+            className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg ${
               selectedPersonaId === persona.id
                 ? 'border-primary-600 bg-primary-50 shadow-md'
                 : 'border-gray-200 hover:border-primary-300 bg-white'
@@ -111,7 +111,7 @@ export const PersonaSelector: React.FC<Props> = ({
                   {persona.name}
                 </h3>
                 {persona.isDefault && (
-                  <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-primary-600 font-medium">
                     <Star size={12} fill="currentColor" />
                     Default
                   </span>
@@ -128,11 +128,11 @@ export const PersonaSelector: React.FC<Props> = ({
             </p>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-2">
-              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md font-medium">
+            <div className="flex flex-wrap gap-1.5">
+              <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-md font-medium">
                 {persona.interviewStyle}
               </span>
-              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md font-medium flex items-center gap-1">
+              <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-md font-medium flex items-center gap-1.5">
                 <span>{difficultyIcons[persona.questionDifficulty as keyof typeof difficultyIcons] || '📝'}</span>
                 {persona.questionDifficulty}
               </span>

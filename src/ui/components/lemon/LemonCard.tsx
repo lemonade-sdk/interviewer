@@ -30,7 +30,7 @@ export const LemonCard: React.FC<LemonCardProps> = ({
     <div
       onClick={onClick}
       className={cn(
-        'bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/5 rounded-2xl overflow-hidden transition-all duration-200',
+        'bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl overflow-hidden transition-all duration-200',
         hoverable && 'hover:shadow-lg hover:shadow-black/[0.03] dark:hover:shadow-none hover:-translate-y-0.5 cursor-pointer',
         onClick && 'cursor-pointer',
         className

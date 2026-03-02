@@ -10,7 +10,7 @@ import { cn } from '@ui/lib';
 const Settings: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto transition-colors duration-300">
-      <div className="p-8 max-w-3xl mx-auto space-y-8 pb-16">
+      <div className="p-6 max-w-3xl mx-auto space-y-8 pb-16">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">Settings</h1>
           <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
@@ -24,12 +24,12 @@ const Settings: React.FC = () => {
           tabs={[
             {
               value: 'general',
-              label: <div className="flex items-center gap-2"><SettingsIcon size={14} /> General</div>,
+              label: <div className="flex items-center gap-1.5"><SettingsIcon size={14} /> General</div>,
               content: <GeneralSettings />,
             },
             {
               value: 'interviewer',
-              label: <div className="flex items-center gap-2"><Sparkles size={14} /> Interviewer AI</div>,
+              label: <div className="flex items-center gap-1.5"><Sparkles size={14} /> Interviewer AI</div>,
               content: <InterviewerSettingsPanel />,
             },
           ]}
@@ -87,15 +87,15 @@ const GeneralSettings: React.FC = () => {
                   key={value}
                   onClick={() => handleThemeChange(value)}
                   className={cn(
-                    "flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all duration-200",
+                    "flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all duration-200",
                     formData.theme === value
                       ? "border-lemonade-accent bg-lemonade-accent/5"
-                      : "border-gray-200/60 dark:border-white/5 hover:border-lemonade-accent/40"
+                      : "border-gray-200/60 dark:border-white/[0.08] hover:border-lemonade-accent/40"
                   )}
                 >
                   <div className={cn(
-                    "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
-                    formData.theme === value ? "bg-lemonade-accent text-black" : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                    "w-9 h-9 rounded-xl flex items-center justify-center transition-colors",
+                    formData.theme === value ? "bg-lemonade-accent text-black" : "bg-gray-100 dark:bg-white/[0.06] text-gray-400"
                   )}>
                     <Icon size={18} />
                   </div>
@@ -145,7 +145,7 @@ const GeneralSettings: React.FC = () => {
                   }
                   min={5}
                   max={120}
-                  className="w-20 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+                  className="w-20 px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
                 />
                 <span className="text-sm text-gray-500 dark:text-white/40">minutes</span>
               </div>
@@ -158,11 +158,11 @@ const GeneralSettings: React.FC = () => {
       </LemonCard>
 
       {/* Preferences */}
-      <LemonCard title="Preferences" subtitle="Notifications and data options." noPadding>
-        <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
-          <div className="flex items-center justify-between px-6 py-4">
+      <LemonCard title="Preferences" subtitle="Notifications and data options.">
+        <div className="space-y-6 -mx-6 -mb-6">
+          <div className="flex items-center justify-between px-6">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Bell size={18} />
               </div>
               <div>
@@ -175,9 +175,9 @@ const GeneralSettings: React.FC = () => {
               onCheckedChange={(checked) => setFormData({ ...formData, notifications: checked })}
             />
           </div>
-          <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between px-6">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
+              <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
                 <ShieldCheck size={18} />
               </div>
               <div>
@@ -196,7 +196,7 @@ const GeneralSettings: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
           <Save size={16} />
           {saved ? 'Saved!' : 'Save Changes'}
@@ -306,7 +306,7 @@ const InterviewerSettingsPanel: React.FC = () => {
           </div>
           <button
             onClick={checkServerStatus}
-            className="p-2 rounded-xl border border-gray-200/60 dark:border-white/10 hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors"
+            className="px-3 py-2 rounded-xl border border-gray-200/60 dark:border-white/10 hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors"
           >
             <RefreshCw size={16} className="text-gray-400" />
           </button>
@@ -314,7 +314,7 @@ const InterviewerSettingsPanel: React.FC = () => {
       </LemonCard>
 
       {/* Info card */}
-      <div className="border border-lemonade-accent/20 bg-lemonade-accent/5 rounded-2xl p-4">
+      <div className="border border-lemonade-accent/20 bg-lemonade-accent/5 rounded-2xl p-6">
         <p className="text-xs text-gray-600 dark:text-white/50 leading-relaxed">
           <strong>Note:</strong> This application uses <strong>Lemonade Server</strong> for local LLM inference.
           All AI processing stays on your device — no API costs or data sent externally.
@@ -329,7 +329,7 @@ const InterviewerSettingsPanel: React.FC = () => {
           <button
             onClick={refreshModels}
             disabled={loadingModels || !serverStatus.isRunning}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200/60 dark:border-white/10 rounded-lg hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200/60 dark:border-white/[0.08] rounded-xl hover:bg-lemonade-bg dark:hover:bg-white/[0.04] transition-colors disabled:opacity-40"
           >
             <RefreshCw size={12} className={cn(loadingModels && "animate-spin")} />
             Refresh
@@ -373,14 +373,14 @@ const InterviewerSettingsPanel: React.FC = () => {
               }
               min={1}
               max={50}
-              className="w-24 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+              className="w-24 px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
             />
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Temperature</label>
-              <span className="text-xs font-semibold text-lemonade-accent-hover bg-lemonade-accent/10 px-2 py-0.5 rounded">
+              <span className="text-xs font-semibold text-lemonade-accent-hover bg-lemonade-accent/10 px-2.5 py-0.5 rounded">
                 {formData.temperature?.toFixed(1) || '0.7'}
               </span>
             </div>
@@ -406,11 +406,11 @@ const InterviewerSettingsPanel: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, maxTokens: parseInt(e.target.value) })}
               min={100}
               max={8000}
-              className="w-28 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+              className="w-28 px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
             />
           </div>
 
-          <div className="pt-4 border-t border-gray-100/60 dark:border-white/[0.04] space-y-4">
+          <div className="pt-6 mt-6 border-t border-gray-100/60 dark:border-white/[0.04] space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white/90">Follow-up Questions</p>
@@ -442,7 +442,7 @@ const InterviewerSettingsPanel: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
           <Save size={16} />
           {saved ? 'Saved!' : 'Save AI Settings'}

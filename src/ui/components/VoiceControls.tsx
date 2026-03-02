@@ -22,13 +22,13 @@ export const VoiceControls: React.FC<Props> = ({
 }) => {
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-6">
+      <div className="flex items-center justify-between gap-1.5">
         {/* Recording Button */}
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-1.5">
           <button
             onClick={onToggleRecording}
             disabled={isMuted}
-            className={`relative p-5 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`relative p-6 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
               isRecording
                 ? 'bg-red-500 hover:bg-red-600 shadow-lg'
                 : 'bg-primary-500 hover:bg-primary-600 shadow-md'
@@ -52,7 +52,7 @@ export const VoiceControls: React.FC<Props> = ({
         <div className="flex-1 max-w-md">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-gray-600">
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <Activity size={14} />
                 Audio Level
               </span>
@@ -76,7 +76,7 @@ export const VoiceControls: React.FC<Props> = ({
 
           {/* VAD Indicator */}
           {isVADActive && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-600">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
@@ -87,10 +87,10 @@ export const VoiceControls: React.FC<Props> = ({
         </div>
 
         {/* Mute Button */}
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-1.5">
           <button
             onClick={onToggleMute}
-            className={`p-5 rounded-full transition-all duration-200 ${
+            className={`p-6 rounded-full transition-all duration-200 ${
               isMuted
                 ? 'bg-gray-400 hover:bg-gray-500'
                 : 'bg-gray-600 hover:bg-gray-700'
@@ -108,9 +108,9 @@ export const VoiceControls: React.FC<Props> = ({
         </div>
 
         {/* Status Indicators */}
-        <div className="flex flex-col gap-2 min-w-[120px]">
+        <div className="flex flex-col gap-1.5 min-w-[120px]">
           <div
-            className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg ${
+            className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl ${
               isRecording
                 ? 'bg-red-50 text-red-700'
                 : 'bg-gray-50 text-gray-500'
@@ -125,14 +125,14 @@ export const VoiceControls: React.FC<Props> = ({
           </div>
 
           {isSpeaking && (
-            <div className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg bg-blue-50 text-blue-700">
+            <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl bg-blue-50 text-blue-700">
               <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
               AI Speaking
             </div>
           )}
 
           {isMuted && (
-            <div className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg bg-yellow-50 text-yellow-700">
+            <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl bg-yellow-50 text-yellow-700">
               <VolumeX size={14} />
               Muted
             </div>

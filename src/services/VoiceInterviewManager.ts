@@ -3,6 +3,7 @@ import { AudioService } from './audio/AudioService';
 import { TTSService } from './audio/TTSService';
 import { VADService } from './audio/VADService';
 import { RealtimeASRService } from './audio/RealtimeASRService';
+import { TextProcessingService } from './TextProcessingService';
 import {
   AudioSettings,
   VADConfig,
@@ -886,14 +887,14 @@ export class VoiceInterviewManager extends EventEmitter {
    * Prepare the streaming pipeline for a new response.
    * Call BEFORE starting to feed tokens.
    */
-  startStreamingPipeline(): void {
+  async startStreamingPipeline(): Promise<void> {
     this.sentenceBuffer = '';
     this.ttsQueue = [];
     this.isTTSQueueRunning = false;
     this.streamingCancelled = false;
     this.isSpeaking = true;
     // Open a shared AudioContext so sentences chain with zero gap
-    this.ttsService.openPipeline();
+    await this.ttsService.openPipeline();
     this.emit('speaking-started');
   }
 
@@ -1000,35 +1001,10 @@ export class VoiceInterviewManager extends EventEmitter {
 
   /**
    * Strip markdown formatting and other artifacts so TTS speaks clean text.
-   * Mirrors LemonadeClient.cleanResponseContent but runs per-sentence on the
-   * renderer side during streaming.
+   * Delegates to unified TextProcessingService.
    */
   private cleanForTTS(text: string): string {
-    let c = text;
-    // Bold / italic
-    c = c.replace(/\*\*([^*]+)\*\*/g, '$1');
-    c = c.replace(/__([^_]+)__/g, '$1');
-    c = c.replace(/\*([^*]+)\*/g, '$1');
-    c = c.replace(/_([^_]+)_/g, '$1');
-    // Headers
-    c = c.replace(/^#{1,6}\s+/gm, '');
-    // Horizontal rules
-    c = c.replace(/^[-*_]{3,}\s*$/gm, '');
-    // Blockquotes
-    c = c.replace(/^>\s+/gm, '');
-    // Links [text](url) → text
-    c = c.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-    // Inline code backticks
-    c = c.replace(/`([^`]+)`/g, '$1');
-    // Tool call artifacts (DeepSeek/Qwen)
-    c = c.replace(/<｜[^｜]*｜>/g, '');
-    // Numbered list prefixes "1. " → just the text
-    c = c.replace(/^\d+\.\s+/gm, '');
-    // Bullet list prefixes "- " or "* "
-    c = c.replace(/^[-*]\s+/gm, '');
-    // Collapse whitespace
-    c = c.replace(/\s{2,}/g, ' ').trim();
-    return c;
+    return TextProcessingService.cleanForTTS(text);
   }
 
   private async processTTSQueue(): Promise<void> {

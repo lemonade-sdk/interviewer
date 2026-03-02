@@ -1,9 +1,12 @@
 import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, ModelConfig, Interview, AgentPersona } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
+import { PromptManager } from './PromptManager';
+import { StructuredExtractionService } from './StructuredExtractionService';
 
 export class InterviewService {
   private lemonadeClient: LemonadeClient;
+  private extractionService: StructuredExtractionService;
   private activeInterviews: Map<string, InterviewSession> = new Map();
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
@@ -12,6 +15,7 @@ export class InterviewService {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
     this.lemonadeClient = new LemonadeClient(settings);
+    this.extractionService = new StructuredExtractionService(this.lemonadeClient);
   }
 
   /**
@@ -58,7 +62,7 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
 
-    // Add user message to conversation
+    // Add user message to the full transcript (never trimmed)
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -68,8 +72,11 @@ export class InterviewService {
     session.messages.push(userMsg);
 
     // Get AI response
+    // Use a small context window (approx 3k tokens) for snappy "Time to First Token"
+    // during the active interview loop.
     const response = await this.lemonadeClient.sendMessage(
-      session.messages
+      session.messages,
+      { maxInputTokens: 3072 }
     );
 
     // Add assistant message
@@ -113,9 +120,11 @@ export class InterviewService {
     session.messages.push(userMsg);
 
     // Stream AI response — tokens forwarded via callback
+    // Use a small context window (approx 3k tokens) for snappy "Time to First Token"
     const response = await this.lemonadeClient.sendMessageStreaming(
       session.messages,
       onToken,
+      { maxInputTokens: 3072 }
     );
 
     // Add assistant message to in-memory session
@@ -138,24 +147,10 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
 
-    // Generate feedback
-    const feedbackPrompt = `Based on the interview conversation, provide comprehensive feedback on the candidate's performance. Include:
-1. Overall score (0-100)
-2. Key strengths (list 3-5 points)
-3. Areas for improvement (list 3-5 points)
-4. Specific suggestions for improvement
-5. Detailed feedback on communication, technical knowledge, and problem-solving
+    // Stage 1: Generate natural language feedback
+    const feedbackPrompt = PromptManager.getInstance().getFeedbackComprehensivePrompt();
 
-Format your response as JSON with the following structure:
-{
-  "overallScore": number,
-  "strengths": string[],
-  "weaknesses": string[],
-  "suggestions": string[],
-  "detailedFeedback": string
-}`;
-
-    const feedbackResponse = await this.lemonadeClient.sendMessage(
+    const feedbackText = await this.lemonadeClient.sendMessage(
       [
         ...session.messages,
         {
@@ -164,25 +159,23 @@ Format your response as JSON with the following structure:
           content: feedbackPrompt,
           timestamp: new Date().toISOString()
         }
-      ]
+      ],
+      // Use maximum available context (approx 3k tokens) for high-fidelity feedback
+      // This ensures the model sees as much of the interview history as possible.
+      { maxInputTokens: 3072 }
     );
 
-    // Parse feedback
-    let feedback: InterviewFeedback;
-    try {
-      const parsed = JSON.parse(feedbackResponse);
-      feedback = { ...parsed, questionFeedbacks: parsed.questionFeedbacks ?? [] };
-    } catch (error) {
-      // Fallback if parsing fails
-      feedback = {
-        overallScore: 70,
-        questionFeedbacks: [],
-        strengths: ['Completed the interview'],
-        weaknesses: ['Unable to parse detailed feedback'],
-        suggestions: ['Practice more interviews'],
-        detailedFeedback: feedbackResponse,
-      };
-    }
+    // Stage 2: Extract structured data from natural language feedback
+    const extracted = await this.extractionService.extractFeedbackData(feedbackText);
+
+    const feedback: InterviewFeedback = {
+      overallScore: extracted?.overallScore ?? 70,
+      questionFeedbacks: [],
+      strengths: extracted?.strengths ?? ['Completed the interview'],
+      weaknesses: extracted?.weaknesses ?? ['Unable to extract detailed feedback'],
+      suggestions: extracted?.suggestions ?? ['Practice more interviews'],
+      detailedFeedback: feedbackText, // Natural text from Stage 1
+    };
 
     // Clean up session
     this.activeInterviews.delete(interviewId);
@@ -223,48 +216,48 @@ Format your response as JSON with the following structure:
       const { question, answer } = qaPairs[idx];
       onProgress({ questionIndex: idx, totalQuestions, status: `Grading question ${idx + 1} of ${totalQuestions}` });
 
-      const gradingPrompt = `You are an expert interview evaluator. Grade the following interview question and the candidate's answer.
-
-QUESTION: ${question}
-
-CANDIDATE'S ANSWER: ${answer}
-
-Provide your evaluation as JSON with this exact structure (no markdown, no code fences, just valid JSON):
-{
-  "score": <number 0-100>,
-  "rating": "<one of: excellent, good, needs-improvement>",
-  "strengths": ["<strength 1>", "<strength 2>"],
-  "improvements": ["<improvement 1>", "<improvement 2>"],
-  "suggestedAnswer": "<a brief ideal answer or key points the candidate should have mentioned>"
-}
-
-Rules:
-- score 80-100 = "excellent", 50-79 = "good", 0-49 = "needs-improvement"
-- Be specific and constructive in strengths and improvements
-- suggestedAnswer should be concise (2-3 sentences)`;
+      const gradingPrompt = PromptManager.getInstance().getFeedbackGradingPrompt({
+        question,
+        answer
+      });
 
       try {
-        const response = await this.lemonadeClient.sendMessage([
+        // Stage 1: Generate natural language feedback for this Q/A pair
+        const feedbackText = await this.lemonadeClient.sendMessage([
           { id: `grade-${idx}`, role: 'user', content: gradingPrompt, timestamp: new Date().toISOString() },
         ]);
 
-        // Parse JSON from response (handle potential markdown wrapping)
-        let cleaned = response.trim();
-        if (cleaned.startsWith('```')) {
-          cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const parsed = JSON.parse(cleaned);
-        questionFeedbacks.push({
-          questionIndex: idx,
+        // Stage 2: Extract structured grade data
+        const extracted = await this.extractionService.extractQuestionGrade(
           question,
           answer,
-          score: Math.max(0, Math.min(100, parsed.score ?? 50)),
-          rating: parsed.rating ?? 'good',
-          strengths: parsed.strengths ?? [],
-          improvements: parsed.improvements ?? [],
-          suggestedAnswer: parsed.suggestedAnswer ?? '',
-        });
+          feedbackText
+        );
+
+        if (extracted) {
+          questionFeedbacks.push({
+            questionIndex: idx,
+            question,
+            answer,
+            score: extracted.score,
+            rating: extracted.rating,
+            strengths: extracted.strengths,
+            improvements: extracted.improvements,
+            suggestedAnswer: extracted.suggestedAnswer,
+          });
+        } else {
+          // Extraction failed, use fallback with natural text
+          questionFeedbacks.push({
+            questionIndex: idx,
+            question,
+            answer,
+            score: 50,
+            rating: 'good',
+            strengths: ['Response provided'],
+            improvements: [`Feedback: ${feedbackText.substring(0, 200)}`],
+            suggestedAnswer: '',
+          });
+        }
       } catch (error) {
         console.error(`Failed to grade Q${idx + 1}:`, error);
         questionFeedbacks.push({
@@ -402,54 +395,49 @@ Rules:
     const { interviewType, position, company } = config;
     const { interviewStyle, questionDifficulty, numberOfQuestions, includeFollowUps } = this.settings;
 
+    const followUpInstruction = includeFollowUps 
+      ? 'Include follow-up questions based on candidate responses.' 
+      : 'Limit follow-up questions.';
+
     // If we have a generated persona with a rich system prompt (from document analysis),
     // use it as the primary prompt and augment with interview settings
     if (persona?.systemPrompt) {
-      return `${persona.systemPrompt}
-
-═══════════════════════════════════════════════════════════════
-INTERVIEW SESSION PARAMETERS
-═══════════════════════════════════════════════════════════════
-Interview type: ${interviewType}
-Position: ${position}
-Company: ${company}
-Your interview style: ${persona.interviewStyle || interviewStyle}
-Question difficulty: ${persona.questionDifficulty || questionDifficulty}
-Target number of questions: ${numberOfQuestions}
-${includeFollowUps ? 'Include follow-up questions based on candidate responses.' : 'Limit follow-up questions.'}
-
-IMPORTANT BEHAVIORAL RULES:
-- Start with a warm, professional greeting. Introduce yourself by name and briefly explain the interview format.
-- Ask ONE question at a time. Wait for the candidate to respond before asking the next.
-- Reference the candidate's specific experience from their resume when relevant.
-- Probe deeper when answers are vague or when the topic is critical for the role.
-- Keep track of time — wrap up naturally after ${numberOfQuestions} core questions.
-- End by asking if the candidate has questions for you.
-- Throughout the interview, maintain a natural conversational tone. You are a real person, not a bot.`;
+      return PromptManager.getInstance().getInterviewSystemPromptWithPersona({
+        personaSystemPrompt: persona.systemPrompt,
+        interviewType: interviewType || '',
+        position: position || '',
+        company: company || '',
+        interviewStyle: persona.interviewStyle || interviewStyle,
+        questionDifficulty: persona.questionDifficulty || questionDifficulty,
+        numberOfQuestions,
+        followUpInstruction
+      });
     }
 
     // Fallback: generic prompt when no persona is available
-    return `You are an experienced interviewer conducting a ${interviewType} interview for the position of ${position} at ${company}.
+    const styleAdjective = interviewStyle === 'supportive' ? 'encouraging' : interviewStyle === 'challenging' ? 'probing' : 'conversational';
+    
+    let typeSpecificInstruction = '';
+    if (interviewType === 'technical') typeSpecificInstruction = 'Focus on technical skills, problem-solving abilities, and technical knowledge relevant to the role.';
+    else if (interviewType === 'behavioral') typeSpecificInstruction = 'Focus on past experiences, soft skills, and how the candidate handles various situations.';
+    else if (interviewType === 'system-design') typeSpecificInstruction = 'Focus on architectural thinking, scalability considerations, and system design principles.';
+    else if (interviewType === 'coding') typeSpecificInstruction = 'Present coding problems and evaluate the candidate\'s approach, code quality, and problem-solving process.';
 
-Your interview style is ${interviewStyle}.
-Question difficulty level: ${questionDifficulty}
-Number of questions to ask: ${numberOfQuestions}
-${includeFollowUps ? 'Include follow-up questions based on candidate responses.' : 'Avoid follow-up questions unless necessary.'}
+    const fallbackFollowUpInstruction = includeFollowUps 
+      ? 'Include follow-up questions based on candidate responses.' 
+      : 'Avoid follow-up questions unless necessary.';
 
-Guidelines:
-1. Be professional and ${interviewStyle === 'supportive' ? 'encouraging' : interviewStyle === 'challenging' ? 'probing' : 'conversational'}
-2. Ask relevant questions for a ${interviewType} interview
-3. Listen carefully to responses and provide thoughtful follow-ups
-4. Maintain a natural conversation flow
-5. Take notes on the candidate's strengths and areas for improvement
-6. Be respectful of the candidate's time and experience
-
-${interviewType === 'technical' ? 'Focus on technical skills, problem-solving abilities, and technical knowledge relevant to the role.' : ''}
-${interviewType === 'behavioral' ? 'Focus on past experiences, soft skills, and how the candidate handles various situations.' : ''}
-${interviewType === 'system-design' ? 'Focus on architectural thinking, scalability considerations, and system design principles.' : ''}
-${interviewType === 'coding' ? 'Present coding problems and evaluate the candidate\'s approach, code quality, and problem-solving process.' : ''}
-
-Remember to keep track of the number of questions asked and wrap up the interview naturally when approaching the limit.`;
+    return PromptManager.getInstance().getInterviewSystemPromptFallback({
+      interviewType: interviewType || '',
+      position: position || '',
+      company: company || '',
+      interviewStyle,
+      questionDifficulty,
+      numberOfQuestions,
+      followUpInstruction: fallbackFollowUpInstruction,
+      styleAdjective,
+      typeSpecificInstruction
+    });
   }
 }
 

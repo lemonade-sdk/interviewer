@@ -48,8 +48,8 @@ export class TTSService {
    * share **one AudioContext** and a continuous `nextStartTime` timeline,
    * eliminating the silence gap between sentences.
    */
-  openPipeline(): void {
-    this.closePipeline();
+  async openPipeline(): Promise<void> {
+    await this.closePipeline();
     this.pipelineCtx = new AudioContext({ sampleRate: TTSService.STREAMING_SAMPLE_RATE });
     this.pipelineNextStartTime = this.pipelineCtx.currentTime;
     this.pipelineActive = true;
@@ -61,17 +61,21 @@ export class TTSService {
    */
   async closePipeline(): Promise<void> {
     this.pipelineActive = false;
-    if (this.pipelineCtx) {
+    const ctx = this.pipelineCtx;
+    const nextStart = this.pipelineNextStartTime;
+    if (ctx) {
+      // Clear instance references immediately to prevent race conditions
+      this.pipelineCtx = null;
+      this.pipelineNextStartTime = 0;
+      
       // Wait for remaining scheduled audio
-      const remaining = this.pipelineNextStartTime - this.pipelineCtx.currentTime;
+      const remaining = nextStart - ctx.currentTime;
       if (remaining > 0) {
         await new Promise((r) => setTimeout(r, remaining * 1000));
       }
-      if (this.pipelineCtx.state !== 'closed') {
-        await this.pipelineCtx.close().catch(() => {});
+      if (ctx.state !== 'closed') {
+        await ctx.close().catch(() => {});
       }
-      this.pipelineCtx = null;
-      this.pipelineNextStartTime = 0;
     }
   }
 

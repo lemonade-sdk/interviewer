@@ -4,12 +4,47 @@ import https from 'https';
 import net from 'net';
 import { InterviewerSettings, Message, ModelConfig } from '../types';
 import axios from 'axios';
+import { truncateConversationHistory } from '../utils/tokenUtils';
+import { TextProcessingService } from './TextProcessingService';
+
+/**
+ * Enhanced error information for model downloads
+ */
+interface DownloadError {
+  errorType: 'size_mismatch' | 'checksum_failed' | 'file_locked' | 'network' | 'unknown';
+  message: string;
+  recoverable: boolean;
+  suggestedAction: 'retry' | 'force_restart' | 'contact_support';
+}
+
+/**
+ * Download progress information with validation status
+ */
+interface DownloadProgress {
+  file?: string;
+  fileIndex?: number;
+  totalFiles?: number;
+  bytesDownloaded?: number;
+  bytesTotal?: number;
+  percent: number;
+  validating?: boolean;
+  checksumVerified?: boolean;
+}
+
+/**
+ * Options for model pull operations
+ */
+interface PullOptions {
+  forceRestart?: boolean;
+  verifyChecksum?: boolean;
+  timeout?: number;
+}
 
 /**
  * LemonadeClient - Integration with Lemonade Server
  * Lemonade Server is a local LLM server that implements the OpenAI API standard
  * Running at http://localhost:8000/api/v1
- * 
+ *
  * Documentation: https://lemonade-server.ai/docs/
  */
 export class LemonadeClient {
@@ -95,7 +130,7 @@ export class LemonadeClient {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number }): Promise<string> {
+  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number; maxInputTokens?: number }): Promise<string> {
     try {
       // Check server connection first
       if (!this.isConnected) {
@@ -107,9 +142,32 @@ export class LemonadeClient {
         }
       }
 
-      // Convert conversation history to OpenAI format
-      const messages = conversationHistory
-        .filter(msg => msg.role !== 'system' || conversationHistory.indexOf(msg) === 0)
+      // -----------------------------------------------------------------------
+      // CONTEXT MANAGEMENT STRATEGY
+      // -----------------------------------------------------------------------
+      // LLMs are stateless. We must send the "State" (Transcript) + "Identity" (System Prompt)
+      // with every request.
+      //
+      // 1. Chat Mode: Uses a small sliding window (e.g. ~3k tokens) for snappy "Time to First Token".
+      // 2. Feedback Mode: Uses the maximum available context (e.g. ~16k) for high-fidelity review.
+      //
+      // We guarantee zero crashes by mathematically capping the input tokens before sending.
+      // -----------------------------------------------------------------------
+
+      // Default to 4k context window if not specified (standard for smaller models)
+      const totalContextWindow = 4096;
+      
+      const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
+      
+      // Determine how much space we have for input (History + System Prompt)
+      // If caller specified a tighter input limit (e.g. for speed), use that.
+      // Otherwise, fill the remaining context window.
+      const maxInputTokens = options?.maxInputTokens ?? (totalContextWindow - maxOutputTokens);
+
+      const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
+
+      const messages = truncatedHistory
+        .filter(msg => msg.role !== 'system' || truncatedHistory.indexOf(msg) === 0)
         .map(msg => ({
           role: msg.role as 'system' | 'user' | 'assistant',
           content: msg.content,
@@ -194,13 +252,14 @@ export class LemonadeClient {
         throw new Error('Empty response from Lemonade Server — the model may not be loaded or ready');
       }
 
-      // Strip model-generated tool-call artifacts that some models (DeepSeek, Qwen3)
-      // embed directly in the content field.  These are NOT real function calls — they
-      // are part of the model's trained output format and the llamacpp backend does not
-      // always strip them.  If left in, they appear in the chat UI and get spoken by TTS.
+      // Clean tool-call artifacts that some models (DeepSeek, Qwen3) embed directly
+      // in the content field. These are NOT real function calls — they are part of
+      // the model's trained output format and the llamacpp backend does not always
+      // strip them. If left in, they appear in the chat UI and get spoken by TTS.
       //
-      // Also strip Markdown formatting (bold, headers, horizontal rules) to ensure
-      // clean text for TTS and transcript display.
+      // Uses cleanForDisplay to preserve formatting (line breaks, lists, markdown)
+      // for readable transcript display. TTS-specific cleaning happens separately
+      // in VoiceInterviewManager before speech synthesis.
       responseContent = this.cleanResponseContent(responseContent);
 
       return responseContent;
@@ -247,7 +306,7 @@ export class LemonadeClient {
   async sendMessageStreaming(
     conversationHistory: Message[],
     onToken: (token: string) => void,
-    options?: { maxTokens?: number },
+    options?: { maxTokens?: number; maxInputTokens?: number },
   ): Promise<string> {
     try {
       if (!this.isConnected) {
@@ -259,9 +318,18 @@ export class LemonadeClient {
         }
       }
 
-      const messages = conversationHistory
+      // Default to 4k context window if not specified
+      const totalContextWindow = 4096;
+      const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
+      
+      // Determine how much space we have for input (History + System Prompt)
+      const maxInputTokens = options?.maxInputTokens ?? (totalContextWindow - maxOutputTokens);
+
+      const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
+
+      const messages = truncatedHistory
         .filter(
-          (msg) => msg.role !== 'system' || conversationHistory.indexOf(msg) === 0,
+          (msg) => msg.role !== 'system' || truncatedHistory.indexOf(msg) === 0,
         )
         .map((msg) => ({
           role: msg.role as 'system' | 'user' | 'assistant',
@@ -290,6 +358,7 @@ export class LemonadeClient {
       }
 
       // Apply the same cleaning used by the non-streaming path
+      // (removes tool artifacts, preserves formatting for transcript display)
       accumulated = this.cleanResponseContent(accumulated);
 
       return accumulated;
@@ -822,58 +891,15 @@ export class LemonadeClient {
   }
 
   /**
-   * Clean model response content.
-   * 1. Strips tool-call artifacts (DeepSeek/Qwen3 tokens)
-   * 2. Strips markdown formatting (bold, headers, horizontal rules) to ensure
-   *    clean text for TTS and transcript display.
+   * Clean model response content for display in the transcript.
+   * Uses cleanForDisplay to preserve formatting (line breaks, lists, etc.)
+   * while removing tool-call artifacts.
+   * 
+   * Note: TTS-specific cleaning (removing markdown for speech) happens
+   * separately in VoiceInterviewManager.cleanForTTS() before speaking.
    */
   private cleanResponseContent(content: string): string {
-    if (!content) return content;
-
-    // 1. Remove tool-call blocks (outermost wrapper):
-    //   <｜tool▁calls▁begin｜> ... <｜tool▁calls▁end｜>
-    let cleaned = content.replace(
-      /<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g,
-      '',
-    );
-
-    // Fallback: if only partial markers exist (e.g. model was cut off before
-    // emitting the closing tag), strip from the opening tag to end of string
-    // or to the first blank line after a JSON block.
-    cleaned = cleaned.replace(
-      /<｜tool▁call[s]?▁(?:begin|end)｜>/g,
-      '',
-    );
-    cleaned = cleaned.replace(/<｜tool▁sep｜>/g, '');
-
-    // Remove any remaining orphan ``` json fences left by tool call blocks
-    cleaned = cleaned.replace(/```json\s*\{[\s\S]*?\}\s*```/g, '');
-
-    // 2. Remove Markdown artifacts for cleaner TTS/Transcript
-    
-    // Remove bold/italic markers (**text**, *text*, __text__, _text_)
-    // We replace with the captured text content
-    cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold** -> bold
-    cleaned = cleaned.replace(/__([^_]+)__/g, '$1');     // __bold__ -> bold
-    cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');     // *italic* -> italic
-    cleaned = cleaned.replace(/_([^_]+)_/g, '$1');       // _italic_ -> italic
-
-    // Remove headers (### Header -> Header)
-    cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
-
-    // Remove horizontal rules (---, ***, ___)
-    cleaned = cleaned.replace(/^[-*_]{3,}\s*$/gm, '');
-
-    // Remove blockquotes (> text -> text)
-    cleaned = cleaned.replace(/^>\s+/gm, '');
-    
-    // Remove links ([text](url) -> text)
-    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-
-    // Collapse excessive whitespace left by the removal
-    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
-
-    return cleaned;
+    return TextProcessingService.cleanForDisplay(content);
   }
 
   /**

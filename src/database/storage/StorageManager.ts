@@ -149,7 +149,7 @@ export class StorageManager {
         language: 'en',
         notifications: true,
         autoSave: true,
-        defaultInterviewDuration: 3600,
+        defaultInterviewDuration: 1800,
         createdAt: now,
         updatedAt: now,
       });

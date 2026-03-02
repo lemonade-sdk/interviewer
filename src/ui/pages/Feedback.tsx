@@ -64,9 +64,9 @@ const Feedback: React.FC = () => {
 
   const getRatingColor = (rating: string) => {
     switch (rating) {
-      case 'excellent': return 'text-green-600 dark:text-green-400';
-      case 'good': return 'text-lemonade-accent-hover';
-      case 'needs-improvement': return 'text-red-600 dark:text-red-400';
+      case 'excellent': return 'text-green-600 dark:text-green-500';
+      case 'good': return 'text-amber-600 dark:text-amber-400';
+      case 'needs-improvement': return 'text-red-600 dark:text-red-500';
       default: return 'text-gray-500 dark:text-white/40';
     }
   };
@@ -76,15 +76,15 @@ const Feedback: React.FC = () => {
       case 'excellent': return 'bg-green-50 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/15';
       case 'good': return 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15';
       case 'needs-improvement': return 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15';
-      default: return 'bg-gray-50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/5';
+      default: return 'bg-gray-50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/[0.08]';
     }
   };
 
   const getRatingIcon = (rating: string) => {
     switch (rating) {
-      case 'excellent': return <CheckCircle2 className="w-4 h-4 text-green-500 dark:text-green-400" />;
-      case 'good': return <AlertTriangle className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
-      case 'needs-improvement': return <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />;
+      case 'excellent': return <CheckCircle2 className="w-4 h-4 text-green-500 dark:text-green-500" />;
+      case 'good': return <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
+      case 'needs-improvement': return <XCircle className="w-4 h-4 text-red-500 dark:text-red-500" />;
       default: return null;
     }
   };
@@ -143,7 +143,7 @@ const Feedback: React.FC = () => {
   return (
     <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
@@ -175,11 +175,11 @@ const Feedback: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Q/A */}
-        <div className="flex-1 border-r border-gray-200/50 dark:border-white/5 flex flex-col">
-          <div className="px-6 py-2.5 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
+        <div className="flex-1 border-r border-gray-200/50 dark:border-white/[0.08] flex flex-col">
+          <div className="px-6 py-4 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
             <div className="flex items-center gap-2">
               {getRatingIcon(currentQF.rating)}
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
                 {currentQF.rating.replace('-', ' ')}
               </span>
               <span className={`text-base font-bold ml-auto ${getScoreColor(currentQF.score)}`}>
@@ -197,8 +197,8 @@ const Feedback: React.FC = () => {
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Question {currentQuestionIndex + 1}
                 </p>
-                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/5">
-                  <p className="text-sm leading-relaxed">{currentQF.question}</p>
+                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
+                  <p className="text-sm leading-[1.6]">{currentQF.question}</p>
                 </div>
               </div>
 
@@ -207,8 +207,8 @@ const Feedback: React.FC = () => {
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Your Answer
                 </p>
-                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/5">
-                  <p className="text-sm leading-relaxed">{currentQF.answer}</p>
+                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
+                  <p className="text-sm leading-[1.6]">{currentQF.answer}</p>
                 </div>
               </div>
 
@@ -220,7 +220,7 @@ const Feedback: React.FC = () => {
                     Suggested Response
                   </p>
                   <div className="p-4 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
-                    <p className="text-sm leading-relaxed">{currentQF.suggestedAnswer}</p>
+                    <p className="text-sm leading-[1.6]">{currentQF.suggestedAnswer}</p>
                   </div>
                 </div>
               )}
@@ -243,17 +243,17 @@ const Feedback: React.FC = () => {
               {/* Strengths */}
               {currentQF.strengths.length > 0 && (
                 <div className="bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-2xl overflow-hidden">
-                  <div className="px-4 pt-4 pb-2">
+                  <div className="px-6 pt-6 pb-3">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-1.5">
                       <CheckCircle2 className="w-3 h-3" />
                       Strengths
                     </h3>
                   </div>
-                  <div className="px-4 pb-4">
+                  <div className="px-6 pb-6">
                     <ul className="space-y-1.5">
                       {currentQF.strengths.map((s, i) => (
-                        <li key={i} className="text-sm text-green-800 dark:text-green-300 flex items-start gap-2">
-                          <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
+                        <li key={i} className="text-sm leading-[1.6] text-green-700 dark:text-green-400 flex items-start gap-2">
+                          <span className="text-green-500 dark:text-green-500 mt-0.5">+</span>
                           <span>{s}</span>
                         </li>
                       ))}
@@ -269,7 +269,7 @@ const Feedback: React.FC = () => {
                     ? 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15'
                     : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15'
                 }`}>
-                  <div className="px-4 pt-4 pb-2">
+                  <div className="px-6 pt-6 pb-3">
                     <h3 className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       currentQF.rating === 'needs-improvement' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
                     }`}>
@@ -277,13 +277,13 @@ const Feedback: React.FC = () => {
                       Areas to Improve
                     </h3>
                   </div>
-                  <div className="px-4 pb-4">
+                  <div className="px-6 pb-6">
                     <ul className="space-y-1.5">
                       {currentQF.improvements.map((imp, i) => (
-                        <li key={i} className={`text-sm flex items-start gap-2 ${
-                          currentQF.rating === 'needs-improvement' ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'
+                        <li key={i} className={`text-sm leading-[1.6] flex items-start gap-2 ${
+                          currentQF.rating === 'needs-improvement' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
                         }`}>
-                          <span className={currentQF.rating === 'needs-improvement' ? 'text-red-500 mt-0.5' : 'text-amber-500 mt-0.5'}>!</span>
+                          <span className={currentQF.rating === 'needs-improvement' ? 'text-red-500 dark:text-red-500 mt-0.5' : 'text-amber-500 dark:text-amber-400 mt-0.5'}>!</span>
                           <span>{imp}</span>
                         </li>
                       ))}
@@ -321,11 +321,11 @@ const Feedback: React.FC = () => {
       </div>
 
       {/* Footer Navigation */}
-      <footer className="flex items-center justify-between px-6 py-3 border-t border-gray-200/50 dark:border-white/5 bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <footer className="flex items-center justify-between px-6 py-3 border-t border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <button
           onClick={() => goToQuestion(currentQuestionIndex - 1)}
           disabled={currentQuestionIndex === 0}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-6 py-2.5 text-sm font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" />
           Previous
@@ -348,7 +348,7 @@ const Feedback: React.FC = () => {
         {currentQuestionIndex < totalQuestions - 1 ? (
           <button
             onClick={() => goToQuestion(currentQuestionIndex + 1)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border border-gray-200/50 dark:border-white/5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+            className="flex items-center gap-1.5 px-6 py-2.5 text-sm font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
           >
             Next
             <ChevronRight className="w-4 h-4" />

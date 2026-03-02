@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="h-full overflow-y-auto transition-colors duration-300">
-      <div className="p-8 max-w-5xl mx-auto space-y-8 pb-16">
+      <div className="p-6 max-w-5xl mx-auto space-y-8 pb-16">
         {/* Header */}
         <div className="flex items-end justify-between">
           <div>
@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
           >
             <Plus size={16} />
             New Interview
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
         {/* In Progress Interviews */}
         {inProgressInterviews.length > 0 && (
           <section className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
               In Progress
             </h2>
             <div className="space-y-2">
@@ -84,7 +84,7 @@ const Dashboard: React.FC = () => {
 
         {/* Recent Interviews */}
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
             Recent Activity
           </h2>
           
@@ -98,18 +98,18 @@ const Dashboard: React.FC = () => {
                 </p>
                 <button
                   onClick={() => navigate('/')}
-                  className="px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                  className="px-6 py-3 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
                 >
                   Start Interview
                 </button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
+              <div className="space-y-2 p-2">
                 {recentInterviews.map(interview => (
                   <InterviewCard
                     key={interview.id}
                     interview={interview}
-                    className="rounded-none border-none hover:bg-lemonade-bg/60 dark:hover:bg-white/[0.03]"
+                    className="hover:bg-lemonade-bg/60 dark:hover:bg-white/[0.03]"
                     onClick={() => {
                       if (interview.status === 'in-progress') {
                         navigate(`/interview/${interview.id}`);

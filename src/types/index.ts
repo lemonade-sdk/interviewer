@@ -313,7 +313,7 @@ export interface SystemInfo {
 
 export interface LoadedModel {
   model_name: string;
-  type: 'llm' | 'audio' | 'embedding' | 'reranking' | 'image';
+  type: 'llm' | 'audio'; // Only LLM and Audio models are used
   device: string; // e.g., "cpu", "gpu", "npu", "gpu npu"
   backend?: string;
 }

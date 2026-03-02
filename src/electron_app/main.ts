@@ -993,13 +993,13 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
       },
     ], { maxTokens: 4096 });
 
-    console.log(`[document:extractJobDetails] Stage 1 Analysis Result (first 200 chars): ${analysisText.substring(0, 200)}...`);
+    console.log(`[document:extractJobDetails] Stage 1 Analysis Result: ${analysisText}`);
 
     // Stage 2: Extract structured fields from the analysis
     const extracted = await extractionService.extractJobDetails(jobText, analysisText);
 
     if (!extracted) {
-      console.error('Could not extract structured data from job analysis. Raw analysis (first 500 chars):', analysisText.slice(0, 500));
+      console.error('Could not extract structured data from job analysis. Raw analysis:', analysisText);
       throw new Error('Failed to extract structured job details from the analysis.');
     }
 

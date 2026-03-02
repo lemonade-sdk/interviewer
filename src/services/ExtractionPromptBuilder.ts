@@ -67,8 +67,35 @@ export class ExtractionPromptBuilder {
   private configPath: string;
 
   constructor() {
-    this.configPath = path.join(__dirname, '..', 'data', 'extraction-prompts.json');
+    this.configPath = this.resolveConfigPath();
     this.loadConfig();
+  }
+
+  /**
+   * Resolve config path for both development and production (Electron)
+   */
+  private resolveConfigPath(): string {
+    // Try multiple possible locations
+    const possiblePaths = [
+      // Development: src/services/../data/
+      path.join(__dirname, '..', 'data', 'extraction-prompts.json'),
+      // Electron production: different relative paths
+      path.join(__dirname, '..', '..', '..', 'src', 'data', 'extraction-prompts.json'),
+      path.join(__dirname, '..', '..', 'src', 'data', 'extraction-prompts.json'),
+      // Absolute from project root (if __dirname is deep in dist)
+      path.join(process.cwd(), 'src', 'data', 'extraction-prompts.json'),
+      path.join(process.cwd(), 'dist', 'electron', 'src', 'data', 'extraction-prompts.json'),
+    ];
+
+    for (const tryPath of possiblePaths) {
+      if (fs.existsSync(tryPath)) {
+        console.log('[ExtractionPromptBuilder] Found config at:', tryPath);
+        return tryPath;
+      }
+    }
+
+    // Return default if none found (will show error in loadConfig)
+    return possiblePaths[0];
   }
 
   static getInstance(): ExtractionPromptBuilder {

@@ -32,8 +32,35 @@ export class PhasePromptBuilder {
   private configPath: string;
 
   constructor() {
-    this.configPath = path.join(__dirname, '..', 'data', 'phase-prompts.json');
+    this.configPath = this.resolveConfigPath();
     this.loadConfig();
+  }
+
+  /**
+   * Resolve config path for both development and production (Electron)
+   */
+  private resolveConfigPath(): string {
+    // Try multiple possible locations
+    const possiblePaths = [
+      // Development: src/services/../data/
+      path.join(__dirname, '..', 'data', 'phase-prompts.json'),
+      // Electron production: different relative paths
+      path.join(__dirname, '..', '..', '..', 'src', 'data', 'phase-prompts.json'),
+      path.join(__dirname, '..', '..', 'src', 'data', 'phase-prompts.json'),
+      // Absolute from project root (if __dirname is deep in dist)
+      path.join(process.cwd(), 'src', 'data', 'phase-prompts.json'),
+      path.join(process.cwd(), 'dist', 'electron', 'src', 'data', 'phase-prompts.json'),
+    ];
+
+    for (const tryPath of possiblePaths) {
+      if (fs.existsSync(tryPath)) {
+        console.log('[PhasePromptBuilder] Found config at:', tryPath);
+        return tryPath;
+      }
+    }
+
+    // Return default if none found (will show error in loadConfig)
+    return possiblePaths[0];
   }
 
   static getInstance(): PhasePromptBuilder {

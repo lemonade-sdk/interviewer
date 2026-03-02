@@ -87,7 +87,8 @@ export class PersonaGeneratorService {
       { maxTokens: 8192 },
     );
 
-    console.log('[PersonaGeneratorService] Raw response (first 500 chars):', rawResponse.substring(0, 500));
+    console.log('[PersonaGeneratorService] Raw response length:', rawResponse.length);
+    console.log('[PersonaGeneratorService] Raw response:', rawResponse);
 
     const parsed = this.parseJSON(rawResponse);
 

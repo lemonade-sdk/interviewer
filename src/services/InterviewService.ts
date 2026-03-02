@@ -611,11 +611,7 @@ export class InterviewService {
     return PHASE_KEYWORDS['5'];
   }
 
-  private advancePhaseIfNeeded(session: InterviewSession): void {
-    session.currentPhaseKeyword = this.getPhaseKeyword(session.questionCount);
-  }
-
-  // ========== NEW: Phase-aware helper methods ==========
+  // ========== Phase-aware helper methods ==========
 
   /**
    * Rebuild system prompt for current phase

@@ -3,6 +3,7 @@ import { LemonadeClient } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 import { PromptManager } from './PromptManager';
 import { StructuredExtractionService } from './StructuredExtractionService';
+import { PipelineLogger } from './PipelineLogger';
 
 /** Default interview duration when not specified (minutes). */
 const DEFAULT_TOTAL_MINUTES = 30;
@@ -45,7 +46,7 @@ export class InterviewService {
     persona?: AgentPersona | null,
     timerConfig?: { totalInterviewMinutes: number; wrapUpThresholdMinutes: number },
     documents?: { jobDescription?: string; resume?: string },
-  ): Promise<void> {
+  ): Promise<string> {
     const totalInterviewMinutes = timerConfig?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
     const wrapUpThresholdMinutes = timerConfig?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
 
@@ -61,6 +62,11 @@ export class InterviewService {
     );
     const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
+    console.log(`[Interview:start] ── Building session ─────────────────────────`);
+    console.log(`[Interview:start] interviewId=${interviewId}, persona=${persona?.name ?? 'none (fallback)'}`);
+    console.log(`[Interview:start] totalInterviewMinutes=${totalInterviewMinutes}, wrapUp=${wrapUpThresholdMinutes}min, effective=${effectiveInterviewMinutes}min`);
+    console.log(`[Interview:start] jobDescription: ${(documents?.jobDescription ?? '').length} chars, resume: ${(documents?.resume ?? '').length} chars`);
+
     const systemPrompt = this.buildSystemPrompt(config, persona, {
       totalInterviewMinutes,
       wrapUpThresholdMinutes,
@@ -72,6 +78,9 @@ export class InterviewService {
       timePerQuestionMinutes,
       effectiveInterviewMinutes,
     });
+
+    console.log(`[Interview:start] System prompt built: ${systemPrompt.length} chars (~${Math.round(systemPrompt.length/4)} tokens), path=${persona ? 'withPersona' : 'fallback'}`);
+    console.log(`[Interview:start] System prompt preview (first 400 chars):\n${systemPrompt.substring(0, 400)}...`);
 
     const session: InterviewSession = {
       interviewId,
@@ -108,7 +117,36 @@ export class InterviewService {
 
     this.activeInterviews.set(interviewId, session);
 
+    console.log(`[Interview:start] Sending initial greeting prompt (system prompt only, no user turn)...`);
+    const greetingStart = Date.now();
     const greeting = await this.lemonadeClient.sendMessage(session.messages);
+    const greetingDurationMs = Date.now() - greetingStart;
+
+    console.log(`[Interview:start] Greeting received (${greeting.length} chars): "${greeting.substring(0, 200)}${greeting.length > 200 ? '...' : ''}"`);
+
+    try {
+      PipelineLogger.getInstance().log(interviewId, {
+        stage: 'interview-greeting',
+        model: this.settings.modelName,
+        inputChars: systemPrompt.length,
+        inputTokensEst: Math.round(systemPrompt.length / 4),
+        maxOutputTokens: 2000,
+        messageCount: 1,
+        systemChars: systemPrompt.length,
+        finishReason: 'stop',
+        outputChars: greeting.length,
+        outputPreview: greeting.substring(0, 600),
+        extracted: {
+          personaName: persona?.name ?? null,
+          totalInterviewMinutes,
+          hasJobDescription: (documents?.jobDescription ?? '').length > 0,
+          hasResume: (documents?.resume ?? '').length > 0,
+        },
+        meta: { interviewId, personaId: persona?.id ?? null },
+        durationMs: greetingDurationMs,
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-fatal */ }
 
     session.messages.push({
       id: (Date.now() + 1).toString(),
@@ -116,6 +154,8 @@ export class InterviewService {
       content: greeting,
       timestamp: new Date().toISOString(),
     });
+
+    return greeting;
   }
 
   async sendMessage(interviewId: string, userMessage: string): Promise<string> {
@@ -172,12 +212,34 @@ export class InterviewService {
     session.messages.push(userMsg);
 
     const messagesToSend = this.buildMessagesWithInjections(session);
+    const turnStart = Date.now();
 
     const response = await this.lemonadeClient.sendMessageStreaming(
       messagesToSend,
       onToken,
       { maxInputTokens: 3072 },
     );
+
+    const turnDurationMs = Date.now() - turnStart;
+    const inputChars = messagesToSend.reduce((s, m) => s + m.content.length, 0);
+
+    try {
+      PipelineLogger.getInstance().log(interviewId, {
+        stage: 'interview-turn',
+        model: this.settings.modelName,
+        inputChars,
+        inputTokensEst: Math.round(inputChars / 4),
+        maxOutputTokens: 3072,
+        messageCount: messagesToSend.length,
+        finishReason: 'stop',
+        outputChars: response.length,
+        outputPreview: response.substring(0, 600),
+        extracted: { turnIndex: session.questionCount, phase: session.currentPhaseKeyword },
+        meta: { interviewId },
+        durationMs: turnDurationMs,
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-fatal */ }
 
     const assistantMsg: Message = {
       id: (Date.now() + 1).toString(),
@@ -554,6 +616,13 @@ export class InterviewService {
     if (persona) {
       const q1Topic = persona.q1Topic ?? 'Tell me about your background and experience relevant to this role.';
 
+      console.log(`[buildSystemPrompt] PATH: withPersona`);
+      console.log(`[buildSystemPrompt] persona="${persona.name}", role="${persona.personaRole}"`);
+      console.log(`[buildSystemPrompt] total_duration=${totalInterviewMinutes}min, style="${persona.interviewStyle || interviewStyle}", difficulty="${persona.questionDifficulty || questionDifficulty}"`);
+      console.log(`[buildSystemPrompt] q1="${q1Topic.substring(0, 80)}..."`);
+      console.log(`[buildSystemPrompt] mustCover1="${persona.mustCoverTopic1?.substring(0, 60)}", mustCover2="${persona.mustCoverTopic2?.substring(0, 60)}"`);
+      console.log(`[buildSystemPrompt] jdChars=${(timerContext?.jobDescription ?? '').length}, resumeChars=${(timerContext?.resume ?? '').length}`);
+
       return PromptManager.getInstance().getInterviewSystemPromptWithPersona({
         personaName: persona.name,
         personaRole: persona.personaRole ?? `Interviewer at ${company ?? 'the company'}`,
@@ -589,6 +658,10 @@ export class InterviewService {
     }
 
     // Fallback: generic prompt when no persona is available
+    console.log(`[buildSystemPrompt] PATH: fallback (no persona)`);
+    console.log(`[buildSystemPrompt] company="${company}", position="${position}", type="${interviewType}"`);
+    console.log(`[buildSystemPrompt] jdChars=${(timerContext?.jobDescription ?? '').length}, resumeChars=${(timerContext?.resume ?? '').length}, total_duration=${totalInterviewMinutes}min`);
+
     return PromptManager.getInstance().getInterviewSystemPromptFallback({
       interviewType: interviewType ?? '',
       position: position ?? '',

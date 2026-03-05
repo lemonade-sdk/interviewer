@@ -121,17 +121,23 @@ export class LemonadeClient {
       // We guarantee zero crashes by mathematically capping the input tokens before sending.
       // -----------------------------------------------------------------------
 
-      // Default to 4k context window if not specified (standard for smaller models)
-      const totalContextWindow = 4096;
-      
-      const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
-      
-      // Determine how much space we have for input (History + System Prompt)
-      // If caller specified a tighter input limit (e.g. for speed), use that.
-      // Otherwise, fill the remaining context window.
-      const maxInputTokens = options?.maxInputTokens ?? (totalContextWindow - maxOutputTokens);
+      // Input budget: model is loaded with ctx_size=16384. Default to 16000 to fully
+      // utilise the context window. Callers that need a tighter limit for TTFT
+      // (e.g. real-time chat) still pass maxInputTokens explicitly.
+      const maxInputTokens = options?.maxInputTokens ?? 16000;
 
       const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
+
+      const totalInputChars = conversationHistory.reduce((s, m) => s + m.content.length, 0);
+      const sentInputChars  = truncatedHistory.reduce((s, m) => s + m.content.length, 0);
+      const wasTruncated    = truncatedHistory.length < conversationHistory.length;
+
+      console.log(`[LLM:sendMessage] ── Request ─────────────────────────────────`);
+      console.log(`[LLM:sendMessage] model=${this.settings.modelName}`);
+      console.log(`[LLM:sendMessage] maxInputTokens=${maxInputTokens}, maxOutputTokens=${options?.maxTokens ?? this.settings.maxTokens}`);
+      console.log(`[LLM:sendMessage] messages: ${conversationHistory.length} total → ${truncatedHistory.length} sent${wasTruncated ? ' (TRUNCATED)' : ''}`);
+      console.log(`[LLM:sendMessage] input chars: ${totalInputChars} total → ${sentInputChars} sent (~${Math.round(sentInputChars/4)} tokens)`);
+      truncatedHistory.forEach((m, i) => console.log(`[LLM:sendMessage]   msg[${i}] role=${m.role}, chars=${m.content.length}`));
 
       const messages = truncatedHistory
         .filter(msg => msg.role !== 'system' || truncatedHistory.indexOf(msg) === 0)
@@ -189,12 +195,14 @@ export class LemonadeClient {
         }
       }
 
+      console.log(`[LLM:sendMessage] ── Response ────────────────────────────────`);
+      console.log(`[LLM:sendMessage] finish_reason=${choice?.finish_reason}, response chars=${responseContent?.length ?? 0}`);
+      if (responseContent) console.log(`[LLM:sendMessage] response preview: ${responseContent.substring(0, 200)}${responseContent.length > 200 ? '...' : ''}`);
+
       // If finish_reason is 'length', the model ran out of tokens.
-      // Log a warning so we can diagnose token-limit issues.
       if (choice?.finish_reason === 'length') {
         console.warn(
-          `Model hit max_tokens limit (${maxTokens}). Response may be truncated.`,
-          `content length=${responseContent?.length ?? 0}`,
+          `[LLM:sendMessage] WARNING: Model hit max_tokens limit (${maxTokens}). Response is TRUNCATED. content length=${responseContent?.length ?? 0}`,
         );
       }
 
@@ -285,14 +293,21 @@ export class LemonadeClient {
         }
       }
 
-      // Default to 4k context window if not specified
-      const totalContextWindow = 4096;
-      const maxOutputTokens = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
-      
-      // Determine how much space we have for input (History + System Prompt)
-      const maxInputTokens = options?.maxInputTokens ?? (totalContextWindow - maxOutputTokens);
+      // Same fix as sendMessage: use full 16K context by default.
+      const maxInputTokens = options?.maxInputTokens ?? 16000;
 
       const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
+
+      const totalInputCharsS  = conversationHistory.reduce((s, m) => s + m.content.length, 0);
+      const sentInputCharsS   = truncatedHistory.reduce((s, m) => s + m.content.length, 0);
+      const wasTruncatedS     = truncatedHistory.length < conversationHistory.length;
+
+      console.log(`[LLM:streaming] ── Request ──────────────────────────────────`);
+      console.log(`[LLM:streaming] model=${this.settings.modelName}`);
+      console.log(`[LLM:streaming] maxInputTokens=${maxInputTokens}, maxOutputTokens=${options?.maxTokens ?? this.settings.maxTokens}`);
+      console.log(`[LLM:streaming] messages: ${conversationHistory.length} total → ${truncatedHistory.length} sent${wasTruncatedS ? ' (TRUNCATED)' : ''}`);
+      console.log(`[LLM:streaming] input chars: ${totalInputCharsS} total → ${sentInputCharsS} sent (~${Math.round(sentInputCharsS/4)} tokens)`);
+      truncatedHistory.forEach((m, i) => console.log(`[LLM:streaming]   msg[${i}] role=${m.role}, chars=${m.content.length}`));
 
       const messages = truncatedHistory
         .filter(

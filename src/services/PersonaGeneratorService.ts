@@ -2,6 +2,7 @@ import { AgentPersona, InterviewStyle, InterviewType } from '../types';
 import { LemonadeClient } from './LemonadeClient';
 import { v4 as uuidv4 } from 'uuid';
 import { PromptManager } from './PromptManager';
+import { PipelineLogger } from './PipelineLogger';
 
 /**
  * PersonaGeneratorService
@@ -38,14 +39,12 @@ export class PersonaGeneratorService {
   }
 
   /* ── Token-budget safety ──
-   * Small local models typically load with 4-16K context. The prompt
-   * template itself is ~600 tokens, so we cap each document at ~4000
-   * characters (~1000-1200 tokens) to stay safely within a 4K window
-   * while still leaving room for the model's output. When the context
-   * is larger (16K+), truncation is rarely hit because real JDs/resumes
-   * seldom exceed 4K chars.
+   * Model is loaded with ctx_size=16384 (~4 chars per token → ~65K chars context).
+   * The persona system prompt is ~800 tokens (~3200 chars), leaving ~12K tokens
+   * (~48K chars) for the job description. We cap at 8000 chars to be conservative
+   * while capturing full real-world JDs (typically 2000-6000 chars).
    */
-  private static readonly MAX_DOC_CHARS = 4000;
+  private static readonly MAX_DOC_CHARS = 8000;
 
   private truncate(text: string, maxChars: number = PersonaGeneratorService.MAX_DOC_CHARS): string {
     if (text.length <= maxChars) return text;
@@ -59,25 +58,34 @@ export class PersonaGeneratorService {
    * output JSON directly. The resulting JSON is parsed and mapped to AgentPersona.
    */
   async generatePersona(input: PersonaGenerationInput): Promise<GeneratedPersonaResult> {
+    const jdOriginalLen = input.jobDescriptionText.length;
     const jd = this.truncate(input.jobDescriptionText);
-    const resume = this.truncate(input.resumeText);
     const numberOfQuestions = input.numberOfQuestions ?? 5;
 
+    const systemPromptContent = PromptManager.getInstance().getPersonaGenerationSystemPrompt();
     const userPrompt = PromptManager.getInstance().getPersonaGenerationUserPrompt({
       jobDescription: jd,
-      resume,
       interviewType: input.interviewType,
       company: input.company,
       position: input.position,
       numberOfQuestions,
     });
 
+    console.log(`[PersonaGen] ── Persona Generation ────────────────────────────`);
+    console.log(`[PersonaGen] Company: "${input.company}", Position: "${input.position}", Type: "${input.interviewType}"`);
+    console.log(`[PersonaGen] JD: ${jdOriginalLen} chars total, ${jd.length} chars after cap${jdOriginalLen > jd.length ? ' (TRUNCATED)' : ' (full)'}`);
+    console.log(`[PersonaGen] System prompt: ${systemPromptContent.length} chars`);
+    console.log(`[PersonaGen] User prompt:   ${userPrompt.length} chars`);
+    console.log(`[PersonaGen] Total input chars: ~${systemPromptContent.length + userPrompt.length}`);
+    console.log(`[PersonaGen] JD preview (first 300 chars):\n${jd.substring(0, 300)}...`);
+
+    const personaGenStart = Date.now();
     const rawResponse = await this.lemonadeClient.sendMessage(
       [
         {
           id: 'persona-gen-system',
           role: 'system',
-          content: PromptManager.getInstance().getPersonaGenerationSystemPrompt(),
+          content: systemPromptContent,
           timestamp: new Date().toISOString(),
         },
         {
@@ -90,14 +98,40 @@ export class PersonaGeneratorService {
       { maxTokens: 8192 },
     );
 
-    console.log('[PersonaGeneratorService] Raw response (first 500 chars):', rawResponse.substring(0, 500));
+    const personaGenDurationMs = Date.now() - personaGenStart;
+
+    console.log(`[PersonaGen] Raw response (${rawResponse.length} chars):\n${rawResponse.substring(0, 1000)}`);
+    if (rawResponse.length > 1000) console.log(`[PersonaGen] ...response continues (${rawResponse.length - 1000} more chars)`);
 
     const parsed = this.parseJSON(rawResponse);
 
     if (!parsed) {
-      console.warn('[PersonaGeneratorService] JSON parse failed — using fallback persona');
+      console.warn('[PersonaGen] JSON parse failed — all 3 strategies exhausted. Using fallback persona.');
+      try {
+        PipelineLogger.getInstance().log('persona-gen', {
+          stage: 'persona-generation',
+          model: 'unknown',
+          inputChars: systemPromptContent.length + userPrompt.length,
+          inputTokensEst: Math.round((systemPromptContent.length + userPrompt.length) / 4),
+          maxOutputTokens: 8192,
+          messageCount: 2,
+          systemChars: systemPromptContent.length,
+          userChars: userPrompt.length,
+          finishReason: 'parse-failed',
+          outputChars: rawResponse.length,
+          outputPreview: rawResponse.substring(0, 600),
+          extracted: { parsedOk: false },
+          meta: { company: input.company, position: input.position, interviewType: input.interviewType },
+          durationMs: personaGenDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+      } catch { /* non-fatal */ }
       return this.buildFallbackPersona(input);
     }
+
+    console.log(`[PersonaGen] JSON parsed OK. Fields: personaName="${parsed.personaName}", personaRole="${parsed.personaRole}", interviewStyle="${parsed.interviewStyle}", questionDifficulty="${parsed.questionDifficulty}"`);
+    console.log(`[PersonaGen] Q-topics: q1="${String(parsed.q1Topic).substring(0, 80)}...", q2="${String(parsed.q2Topic).substring(0, 60)}..."`);
+    console.log(`[PersonaGen] Must-cover: 1="${parsed.mustCoverTopic1}", 2="${parsed.mustCoverTopic2}", 3="${parsed.mustCoverTopic3}"`);
 
     const now = new Date().toISOString();
 
@@ -148,11 +182,47 @@ export class PersonaGeneratorService {
         : 'neutral',
     };
 
-    return {
+    const result = {
       persona,
       jobAnalysis: typeof parsed.jobAnalysis === 'string' ? parsed.jobAnalysis : '',
       resumeAnalysis: typeof parsed.resumeAnalysis === 'string' ? parsed.resumeAnalysis : '',
     };
+
+    try {
+      PipelineLogger.getInstance().log(persona.id, {
+        stage: 'persona-generation',
+        model: 'unknown',
+        inputChars: systemPromptContent.length + userPrompt.length,
+        inputTokensEst: Math.round((systemPromptContent.length + userPrompt.length) / 4),
+        maxOutputTokens: 8192,
+        messageCount: 2,
+        systemChars: systemPromptContent.length,
+        userChars: userPrompt.length,
+        finishReason: 'stop',
+        outputChars: rawResponse.length,
+        outputPreview: rawResponse.substring(0, 600),
+        extracted: {
+          parsedOk: true,
+          personaName: persona.name,
+          personaRole: persona.personaRole ?? null,
+          interviewStyle: persona.interviewStyle,
+          questionDifficulty: persona.questionDifficulty,
+          gender: persona.gender ?? null,
+        },
+        meta: {
+          personaId: persona.id,
+          company: input.company,
+          position: input.position,
+          interviewType: input.interviewType,
+          jdChars: jd.length,
+          jdOriginalChars: jdOriginalLen,
+        },
+        durationMs: personaGenDurationMs,
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-fatal */ }
+
+    return result;
   }
 
   /**

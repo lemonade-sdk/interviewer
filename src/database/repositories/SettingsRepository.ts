@@ -10,8 +10,16 @@ export class SettingsRepository {
     const settings = await this.storage.userSettings.get();
     
     if (!settings) {
-      // Create default settings if not exists
       return await this.createDefaultUserSettings();
+    }
+
+    // One-time migration: old code stored duration in seconds (e.g. 3600).
+    // Any value > 300 is almost certainly seconds — reset to 30 minutes.
+    if (settings.defaultInterviewDuration > 300) {
+      console.log(`[SettingsRepo] Migrating defaultInterviewDuration from ${settings.defaultInterviewDuration}s → 30 minutes`);
+      const migrated = { ...settings, defaultInterviewDuration: 30, updatedAt: new Date().toISOString() };
+      await this.storage.userSettings.set(migrated);
+      return migrated;
     }
     
     return settings;

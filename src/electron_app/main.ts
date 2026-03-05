@@ -13,6 +13,67 @@ import { InterviewService } from '../services/InterviewService';
 import { PersonaGeneratorService, PersonaGenerationInput } from '../services/PersonaGeneratorService';
 import { PromptManager } from '../services/PromptManager';
 import { StructuredExtractionService } from '../services/StructuredExtractionService';
+import { PipelineLogger } from '../services/PipelineLogger';
+
+// ─── File Logger ──────────────────────────────────────────────────────────────
+// Intercepts all console.* calls and mirrors them to a dated log file in
+// userData/logs/. This means every terminal log is also permanently saved
+// inside the Electron app's data folder — no terminal required to debug.
+
+function setupFileLogger(): string | null {
+  try {
+    const logDir = path.join(app.getPath('userData'), 'logs');
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const logFile = path.join(logDir, `app-${date}.log`);
+
+    // Open a write stream (append so multiple runs accumulate in the same day file)
+    const stream = fs.createWriteStream(logFile, { flags: 'a', encoding: 'utf8' });
+
+    const fmt = (level: string, args: unknown[]): string => {
+      const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+      const msg = args.map(a =>
+        typeof a === 'string' ? a : JSON.stringify(a, null, 0)
+      ).join(' ');
+      return `[${ts}] [${level}] ${msg}\n`;
+    };
+
+    const write = (line: string) => { try { stream.write(line); } catch { /* non-fatal */ } };
+
+    // Preserve originals for terminal output, then wrap
+    const origLog   = console.log.bind(console);
+    const origWarn  = console.warn.bind(console);
+    const origError = console.error.bind(console);
+    const origInfo  = console.info.bind(console);
+
+    console.log   = (...a) => { origLog(...a);   write(fmt('LOG',   a)); };
+    console.warn  = (...a) => { origWarn(...a);  write(fmt('WARN',  a)); };
+    console.error = (...a) => { origError(...a); write(fmt('ERROR', a)); };
+    console.info  = (...a) => { origInfo(...a);  write(fmt('INFO',  a)); };
+
+    // Session separator so runs are easy to distinguish inside the file
+    stream.write(`\n${'─'.repeat(80)}\n`);
+    stream.write(`[APP START] ${new Date().toISOString()}  |  Electron ${process.versions.electron}  |  Node ${process.version}\n`);
+    stream.write(`${'─'.repeat(80)}\n`);
+
+    app.on('before-quit', () => { try { stream.end(); } catch { /* non-fatal */ } });
+
+    return logFile;
+  } catch (err) {
+    // Never crash the app because of logging
+    console.error('Failed to set up file logger:', err);
+    return null;
+  }
+}
+
+// Start capturing immediately — before any other code runs
+const activeLogFile = setupFileLogger();
+if (activeLogFile) {
+  console.log(`[FileLogger] Writing all logs to: ${activeLogFile}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Define types for our repositories and services
 let mainWindow: BrowserWindow | null = null;
@@ -118,7 +179,10 @@ async function initializeApp(): Promise<void> {
     
     // Setup directories
     const userDataPath = app.getPath('userData');
-    
+
+    // Initialize pipeline logger (writes NDJSON session logs to userData/pipeline-logs/)
+    PipelineLogger.init(userDataPath);
+
     audioRecordingsPath = path.join(userDataPath, 'audio_recordings');
     if (!fs.existsSync(audioRecordingsPath)) {
       fs.mkdirSync(audioRecordingsPath, { recursive: true });
@@ -182,7 +246,7 @@ app.on('before-quit', () => {
 });
 
 // IPC Handlers - Interview Operations
-ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string) => {
+ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string, jobPostDocId?: string, resumeDocId?: string) => {
   try {
     const interview = await interviewRepo.create(config);
 
@@ -192,8 +256,34 @@ ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any
       persona = await personaRepo.findById(personaId);
     }
 
-    await interviewService.startInterview(interview.id, config, persona);
-    return interview;
+    // Read user-configured interview duration so the LLM prompt reflects the actual session length.
+    // Guard: old settings stored seconds (e.g. 3600) instead of minutes. Values above 300 (5 hours)
+    // are almost certainly seconds — convert by dividing by 60, capped to a reasonable 120 min.
+    const userSettings = await settingsRepo.getUserSettings();
+    const rawDuration = userSettings.defaultInterviewDuration ?? 30;
+    const totalInterviewMinutes = rawDuration > 300 ? Math.min(Math.round(rawDuration / 60), 120) : rawDuration;
+    if (rawDuration > 300) {
+      console.warn(`[InterviewStart] defaultInterviewDuration=${rawDuration} looks like seconds — treating as ${totalInterviewMinutes} minutes`);
+    }
+    const timerConfig = { totalInterviewMinutes, wrapUpThresholdMinutes: 5 };
+
+    // Fetch document text so the interview system prompt has real JD + resume content
+    let jobDescription = '';
+    let resume = '';
+    if (jobPostDocId) {
+      const jobDoc = await documentRepo.findById(jobPostDocId);
+      jobDescription = jobDoc?.extractedText ?? '';
+      console.log(`[InterviewStart] Job description loaded: ${jobDescription.length} chars from doc ${jobPostDocId}`);
+    }
+    if (resumeDocId) {
+      const resumeDoc = await documentRepo.findById(resumeDocId);
+      resume = resumeDoc?.extractedText ?? '';
+      console.log(`[InterviewStart] Resume loaded: ${resume.length} chars from doc ${resumeDocId}`);
+    }
+
+    const greeting = await interviewService.startInterview(interview.id, config, persona, timerConfig, { jobDescription, resume });
+    // Return interview record enriched with the greeting so the UI can display+speak it directly
+    return { ...interview, _greeting: greeting };
   } catch (error) {
     console.error('Failed to start interview:', error);
     throw error;
@@ -969,39 +1059,85 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     }
 
     const lemonadeClient = interviewService.getLemonadeClient();
-    // Truncate to ~4000 chars to keep prompt compact for small-context models
-    const jobText = doc.extractedText.substring(0, 4000);
-    console.log(`[document:extractJobDetails] Preparing to analyze job text. Length: ${jobText.length} chars. Preview: ${jobText.substring(0, 100)}...`);
+    // Use up to 8000 chars — model is loaded with 16K context so this is safe
+    const jobText = doc.extractedText.substring(0, 8000);
+    const systemPromptContent = PromptManager.getInstance().getDocumentExtractionSystemPrompt();
+    const userPromptContent = PromptManager.getInstance().getDocumentExtractionUserPrompt({ jobText });
 
-    const prompt = PromptManager.getInstance().getDocumentExtractionUserPrompt({
-      jobText
-    });
+    console.log(`[JobExtract] ── Stage 1 ──────────────────────────────────────`);
+    console.log(`[JobExtract] Full doc text: ${doc.extractedText.length} chars, using first ${jobText.length} chars`);
+    console.log(`[JobExtract] System prompt: ${systemPromptContent.length} chars`);
+    console.log(`[JobExtract] User prompt:   ${userPromptContent.length} chars (includes job text)`);
+    console.log(`[JobExtract] Total chars sent to LLM: ~${systemPromptContent.length + userPromptContent.length}`);
+    console.log(`[JobExtract] Job text preview (first 200 chars):\n${jobText.substring(0, 200)}...`);
 
     // Stage 1: Generate natural language analysis of the job posting
+    const stage1Start = Date.now();
     const analysisText = await lemonadeClient.sendMessage([
       {
         id: 'extract-system',
         role: 'system',
-        content: PromptManager.getInstance().getDocumentExtractionSystemPrompt(),
+        content: systemPromptContent,
         timestamp: new Date().toISOString(),
       },
       {
         id: 'extract-user',
         role: 'user',
-        content: prompt,
+        content: userPromptContent,
         timestamp: new Date().toISOString(),
       },
-    ], { maxTokens: 4096 });
+    ], { maxTokens: 1024 });
 
-    console.log(`[document:extractJobDetails] Stage 1 Analysis Result (first 200 chars): ${analysisText.substring(0, 200)}...`);
+    console.log(`[JobExtract] Stage 1 full result (${analysisText.length} chars):\n${analysisText}`);
+
+    const stage1DurationMs = Date.now() - stage1Start;
+    try {
+      PipelineLogger.getInstance().log(jobPostDocId, {
+        stage: 'job-extraction-stage1',
+        model: (await settingsRepo.getInterviewerSettings()).modelName,
+        inputChars: systemPromptContent.length + userPromptContent.length,
+        inputTokensEst: Math.round((systemPromptContent.length + userPromptContent.length) / 4),
+        maxOutputTokens: 1024,
+        messageCount: 2,
+        systemChars: systemPromptContent.length,
+        userChars: userPromptContent.length,
+        finishReason: 'stop',
+        outputChars: analysisText.length,
+        outputPreview: analysisText.substring(0, 600),
+        meta: { jobPostDocId, docTextLength: doc.extractedText.length, usedChars: jobText.length },
+        durationMs: stage1DurationMs,
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-fatal */ }
 
     // Stage 2: Extract structured fields from the analysis
+    console.log(`[JobExtract] ── Stage 2 (structured extraction) ──────────────`);
+    const stage2Start = Date.now();
     const extracted = await extractionService.extractJobDetails(jobText, analysisText);
 
     if (!extracted) {
-      console.error('Could not extract structured data from job analysis. Raw analysis (first 500 chars):', analysisText.slice(0, 500));
+      console.error('[JobExtract] Stage 2 failed — could not parse structured data from Stage 1 output.');
       throw new Error('Failed to extract structured job details from the analysis.');
     }
+
+    console.log(`[JobExtract] Stage 2 result:`, extracted);
+    try {
+      PipelineLogger.getInstance().log(jobPostDocId, {
+        stage: 'job-extraction-stage2',
+        model: (await settingsRepo.getInterviewerSettings()).modelName,
+        inputChars: analysisText.length,
+        inputTokensEst: Math.round(analysisText.length / 4),
+        maxOutputTokens: 512,
+        messageCount: 2,
+        finishReason: 'stop',
+        outputChars: JSON.stringify(extracted).length,
+        outputPreview: JSON.stringify(extracted),
+        extracted: { title: extracted.title, company: extracted.company, position: extracted.position, interviewType: extracted.interviewType },
+        meta: { jobPostDocId },
+        durationMs: Date.now() - stage2Start,
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-fatal */ }
 
     return {
       title: extracted.title,
@@ -1014,6 +1150,13 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
     throw error;
   }
 });
+
+// Returns paths to log files so the UI can surface them to the user
+ipcMain.handle('app:getLogPaths', () => ({
+  appLog: activeLogFile,
+  pipelineLogDir: path.join(app.getPath('userData'), 'pipeline-logs'),
+  userData: app.getPath('userData'),
+}));
 
 // IPC Handlers - MCP Operations
 ipcMain.handle('mcp:getServers', async () => {

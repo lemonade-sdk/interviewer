@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Interview operations
-  startInterview: (config: any, personaId?: string) => ipcRenderer.invoke('interview:start', config, personaId),
+  startInterview: (config: any, personaId?: string, jobPostDocId?: string, resumeDocId?: string) => ipcRenderer.invoke('interview:start', config, personaId, jobPostDocId, resumeDocId),
   endInterview: (interviewId: string) => ipcRenderer.invoke('interview:end', interviewId),
   sendMessage: (interviewId: string, message: string) => ipcRenderer.invoke('interview:sendMessage', interviewId, message),
   sendMessageStreaming: (interviewId: string, message: string) => ipcRenderer.invoke('interview:sendMessageStreaming', interviewId, message),

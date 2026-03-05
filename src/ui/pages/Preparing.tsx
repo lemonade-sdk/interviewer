@@ -382,12 +382,22 @@ const Preparing: React.FC = () => {
           interviewType: state.formData.interviewType,
         },
         personaId,
+        state.jobPostDocId ?? undefined,
+        state.resumeDocId ?? undefined,
       );
       if (!interview) { setPhase('error'); setErrorText('Failed to create interview.'); return; }
 
       setStatusText('Ready!');
       await new Promise(r => setTimeout(r, 350));
-      navigate(`/interview/${interview.id}`, { replace: true, state: { voiceEnabled: asrReady && ttsReady } });
+      navigate(`/interview/${interview.id}`, {
+        replace: true,
+        state: {
+          voiceEnabled: asrReady && ttsReady,
+          // Pass the pre-generated greeting so Interview.tsx can display+speak it directly
+          // without triggering a second LLM call that would skip the greeting phase.
+          greeting: (interview as any)._greeting ?? null,
+        },
+      });
     } catch (e: any) {
       setPhase('error');
       setErrorText(e.message || 'An unexpected error occurred.');

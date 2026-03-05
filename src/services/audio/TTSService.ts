@@ -16,7 +16,7 @@ export class TTSService {
   private baseURL: string;
   private model: string = 'kokoro-v1';
   private voice: string = 'shimmer'; // Default voice
-  private speed: number = 1.3; // Human-like conversational speed (natural, engaging pace)
+  private speed: number = 1.6; // Slightly faster conversational pace
   private responseFormat: 'mp3' | 'wav' | 'opus' | 'pcm' = 'mp3';
   private currentAudio: HTMLAudioElement | null = null;
 

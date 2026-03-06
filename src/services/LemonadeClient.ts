@@ -11,9 +11,16 @@ import { TextProcessingService } from './TextProcessingService';
  * LemonadeClient - Integration with Lemonade Server
  * Lemonade Server is a local LLM server that implements the OpenAI API standard
  * Running at http://localhost:8000/api/v1
- * 
+ *
  * Documentation: https://lemonade-server.ai/docs/
  */
+
+/**
+ * Exact context window size the Lemonade model is loaded with (ctx_size=16384).
+ * Update this constant when switching to a model loaded with a larger context.
+ * All input-token budgets are derived from this value so there is one place to change.
+ */
+const MODEL_CTX_WINDOW = 16384;
 export class LemonadeClient {
   private settings: InterviewerSettings;
   private client!: OpenAI;
@@ -121,10 +128,11 @@ export class LemonadeClient {
       // We guarantee zero crashes by mathematically capping the input tokens before sending.
       // -----------------------------------------------------------------------
 
-      // Input budget: model is loaded with ctx_size=16384. Default to 16000 to fully
-      // utilise the context window. Callers that need a tighter limit for TTFT
+      // Input budget = MODEL_CTX_WINDOW minus the output reservation so input + output
+      // never exceeds the model's context window. Callers that need a tighter limit
       // (e.g. real-time chat) still pass maxInputTokens explicitly.
-      const maxInputTokens = options?.maxInputTokens ?? 16000;
+      const effectiveMaxOutput = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
+      const maxInputTokens = options?.maxInputTokens ?? (MODEL_CTX_WINDOW - effectiveMaxOutput);
 
       const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
 
@@ -293,8 +301,9 @@ export class LemonadeClient {
         }
       }
 
-      // Same fix as sendMessage: use full 16K context by default.
-      const maxInputTokens = options?.maxInputTokens ?? 16000;
+      // Same formula as sendMessage: reserve output tokens, give the rest to input.
+      const effectiveMaxOutputS = options?.maxTokens ?? this.settings.maxTokens ?? 2048;
+      const maxInputTokens = options?.maxInputTokens ?? (MODEL_CTX_WINDOW - effectiveMaxOutputS);
 
       const truncatedHistory = truncateConversationHistory(conversationHistory, maxInputTokens);
 

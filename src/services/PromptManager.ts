@@ -74,9 +74,6 @@ export class PromptManager {
     timePerQuestionMinutes?: number;
     effectiveInterviewMinutes?: number;
   }): string {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fa1453ff-fde7-4d69-814f-b50075068d86',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fd611'},body:JSON.stringify({sessionId:'1fd611',location:'PromptManager.ts:getInterviewSystemPromptWithPersona',message:'Building withPersona prompt',data:{currentMinutesRemaining:variables.currentMinutesRemaining,totalDurationBeingInjected:variables.currentMinutesRemaining},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     // Bridge: the template uses both ${totalInterviewMinutes} (in the UCL SET directive)
     // and ${total_duration} (referenced later). Both map to the session duration at start.
     const enriched = {
@@ -104,9 +101,6 @@ export class PromptManager {
     timePerQuestionMinutes?: number;
     effectiveInterviewMinutes?: number;
   }): string {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fa1453ff-fde7-4d69-814f-b50075068d86',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fd611'},body:JSON.stringify({sessionId:'1fd611',location:'PromptManager.ts:getInterviewSystemPromptFallback',message:'Building fallback prompt',data:{currentMinutesRemaining:variables.currentMinutesRemaining,totalDurationBeingInjected:variables.currentMinutesRemaining},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     // Bridge: same aliases needed for fallback template
     const enriched = {
       ...variables,

@@ -76,7 +76,5 @@ export function truncateConversationHistory(
     selectedMessages.unshift(systemPrompt);
   }
 
-  // console.log(`Context truncated: ${messages.length} -> ${selectedMessages.length} messages. Tokens: ${totalTokens} -> ${calculateTotalTokens(selectedMessages)}`);
-
   return selectedMessages;
 }

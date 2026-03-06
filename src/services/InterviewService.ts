@@ -184,7 +184,8 @@ export class InterviewService {
     };
     session.messages.push(assistantMsg);
     session.questionCount++;
-    this.advancePhaseIfNeeded(session);
+    // Phase is advanced by buildMessagesWithInjections at the start of the NEXT turn.
+    // Calling advancePhaseIfNeeded here would pre-empt that check and prevent injections.
 
     return response;
   }
@@ -249,7 +250,7 @@ export class InterviewService {
     };
     session.messages.push(assistantMsg);
     session.questionCount++;
-    this.advancePhaseIfNeeded(session);
+    // Phase is advanced by buildMessagesWithInjections at the start of the NEXT turn.
 
     return response;
   }
@@ -528,6 +529,7 @@ export class InterviewService {
 
     // Phase update: inject a brief system message when the phase changes
     const newPhaseKeyword = this.getPhaseKeyword(session.questionCount);
+
     if (newPhaseKeyword !== session.currentPhaseKeyword) {
       messagesToSend.push({
         id: `phase-${Date.now()}`,

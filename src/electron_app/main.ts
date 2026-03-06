@@ -20,7 +20,7 @@ import { PipelineLogger } from '../services/PipelineLogger';
 // userData/logs/. This means every terminal log is also permanently saved
 // inside the Electron app's data folder — no terminal required to debug.
 
-function setupFileLogger(): string | null {
+function setupFileLogger(): { logFile: string; closeLog: () => void } | null {
   try {
     const logDir = path.join(app.getPath('userData'), 'logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
@@ -57,9 +57,10 @@ function setupFileLogger(): string | null {
     stream.write(`[APP START] ${new Date().toISOString()}  |  Electron ${process.versions.electron}  |  Node ${process.version}\n`);
     stream.write(`${'─'.repeat(80)}\n`);
 
-    app.on('before-quit', () => { try { stream.end(); } catch { /* non-fatal */ } });
-
-    return logFile;
+    // Return both the path and a close function — caller must invoke closeLog()
+    // AFTER all other shutdown work (DB, MCP, model unload) to avoid
+    // ERR_STREAM_WRITE_AFTER_END when console.log fires post-stream.end().
+    return { logFile, closeLog: () => { try { stream.end(); } catch { /* non-fatal */ } } };
   } catch (err) {
     // Never crash the app because of logging
     console.error('Failed to set up file logger:', err);
@@ -68,9 +69,9 @@ function setupFileLogger(): string | null {
 }
 
 // Start capturing immediately — before any other code runs
-const activeLogFile = setupFileLogger();
-if (activeLogFile) {
-  console.log(`[FileLogger] Writing all logs to: ${activeLogFile}`);
+const fileLogger = setupFileLogger();
+if (fileLogger) {
+  console.log(`[FileLogger] Writing all logs to: ${fileLogger.logFile}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,16 +249,21 @@ app.on('before-quit', (event) => {
   // before-quit is synchronous, so we preventDefault, do async cleanup,
   // then call app.exit(). A 3-second hard timeout prevents the app from
   // hanging if the server is unreachable.
+  // closeLog() is called last — after all console.log calls — to avoid
+  // ERR_STREAM_WRITE_AFTER_END from logging that fires during shutdown.
   if (interviewService) {
     event.preventDefault();
     const timer = setTimeout(() => {
       console.warn('[App] Model unload timed out — forcing exit');
+      fileLogger?.closeLog();
       app.exit(0);
     }, 3000);
     interviewService.getLemonadeClient().unloadModel()
       .then(() => console.log('[App] Models unloaded from Lemonade Server'))
       .catch((err) => console.error('[App] Failed to unload models on quit:', err))
-      .finally(() => { clearTimeout(timer); app.exit(0); });
+      .finally(() => { clearTimeout(timer); fileLogger?.closeLog(); app.exit(0); });
+  } else {
+    fileLogger?.closeLog();
   }
 });
 
@@ -1178,7 +1184,7 @@ ipcMain.handle('document:extractJobDetails', async (_event: IpcMainInvokeEvent, 
 
 // Returns paths to log files so the UI can surface them to the user
 ipcMain.handle('app:getLogPaths', () => ({
-  appLog: activeLogFile,
+  appLog: fileLogger?.logFile ?? null,
   pipelineLogDir: path.join(app.getPath('userData'), 'pipeline-logs'),
   userData: app.getPath('userData'),
 }));

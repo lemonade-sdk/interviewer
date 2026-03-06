@@ -1,6 +1,6 @@
 # Interviewer
 
-[![Main CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml)
+[![Main CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml/badge.svg)](https://github.com/lemonade-sdk/interviewer/actions/workflows/main-ci.yml)
 [![Python CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml)
 [![Node.js CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml)
 [![CodeQL](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml)
@@ -164,7 +164,7 @@ npm run build:electron
 
 ## 🧠 Unified Prompt System (UCL)
 
-The application uses a highly structured prompt architecture utilizing **Universal Control Language (UCL)** directives (e.g., `[[ENFORCE]]`, `[[REQUIRE]]`, `^^CONDITION^^`) to strictly guide the LLM's behavior:
+The application uses a highly structured prompt architecture utilizing **Universal Conditional Logic (UCL)** directives (e.g., `[[ENFORCE]]`, `[[REQUIRE]]`, `^^CONDITION^^`) to strictly guide the LLM's behavior:
 
 ### Phase-Aware Interview Flow (`src/data/prompts.json`)
 

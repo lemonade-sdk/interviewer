@@ -238,10 +238,26 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   closeDatabase();
   if (mcpManager) {
     mcpManager.shutdown();
+  }
+
+  // Unload all models from Lemonade Server so VRAM is freed immediately.
+  // before-quit is synchronous, so we preventDefault, do async cleanup,
+  // then call app.exit(). A 3-second hard timeout prevents the app from
+  // hanging if the server is unreachable.
+  if (interviewService) {
+    event.preventDefault();
+    const timer = setTimeout(() => {
+      console.warn('[App] Model unload timed out — forcing exit');
+      app.exit(0);
+    }, 3000);
+    interviewService.getLemonadeClient().unloadModel()
+      .then(() => console.log('[App] Models unloaded from Lemonade Server'))
+      .catch((err) => console.error('[App] Failed to unload models on quit:', err))
+      .finally(() => { clearTimeout(timer); app.exit(0); });
   }
 });
 

@@ -60,6 +60,7 @@ export class StructuredExtractionService {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 2048,
+        model: this.extractionModel,
       });
 
       console.log('[StructuredExtractionService] Feedback extraction raw response:', response.substring(0, 500));
@@ -135,6 +136,7 @@ export class StructuredExtractionService {
 
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 1024,
+        model: this.extractionModel,
       });
 
       const parsed = this.parseJSON(response);
@@ -206,6 +208,7 @@ export class StructuredExtractionService {
       // 2048 gives sufficient headroom for thinking + a compact JSON response.
       const response = await this.lemonadeClient.sendMessage(messages, {
         maxTokens: 2048,
+        model: this.extractionModel,
       });
 
       const parsed = this.parseJSON(response);

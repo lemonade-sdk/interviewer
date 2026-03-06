@@ -11,7 +11,9 @@ import {
   MicOff,
   Clock,
   User,
-  Bot
+  Bot,
+  PauseCircle,
+  PlayCircle,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
@@ -65,6 +67,7 @@ const Interview: React.FC = () => {
   const [transcriptionDelta, setTranscriptionDelta] = useState('');
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerDuration, setTimerDuration] = useState(1800);
@@ -525,7 +528,7 @@ const Interview: React.FC = () => {
   };
 
   const sendVoiceMessage = async (text: string) => {
-    if (!id) return;
+    if (!id || isPaused) return;
     setIsSending(true);
     await sendTextMessage(text);
     setIsSending(false);
@@ -564,6 +567,23 @@ const Interview: React.FC = () => {
     setIsMuted(!isMuted);
     if (voiceManagerRef.current?.getState().isSpeaking) {
       voiceManagerRef.current.stopSpeaking();
+    }
+  };
+
+  const handleTogglePause = async () => {
+    const manager = voiceManagerRef.current;
+    if (!manager) return;
+    if (!isPaused) {
+      manager.stopSpeaking();                 // halt TTS immediately + clear queue
+      manager.stopHandsFreeListening(false);  // halt VAD/ASR; _isHandsFreeMode stays true
+      setIsHandsFreeMode(false);
+      setIsListening(false);
+      setIsRecording(false);
+      setIsPaused(true);
+    } else {
+      await manager.resumeHandsFreeListening(); // restarts VAD + ASR
+      setIsHandsFreeMode(true);
+      setIsPaused(false);
     }
   };
 
@@ -699,6 +719,20 @@ const Interview: React.FC = () => {
             <Keyboard size={16} />
           </button>
 
+          {/* Pause / Resume */}
+          <button
+            onClick={handleTogglePause}
+            title={isPaused ? 'Resume interview' : 'Pause interview'}
+            className={cn(
+              "p-2 rounded-xl transition-colors",
+              isPaused
+                ? "bg-amber-500/15 text-amber-500 animate-pulse"
+                : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
+            )}
+          >
+            {isPaused ? <PlayCircle size={16} /> : <PauseCircle size={16} />}
+          </button>
+
           {/* Mute toggle */}
           <button
             onClick={handleToggleMute}
@@ -770,7 +804,14 @@ const Interview: React.FC = () => {
 
           {/* Mode indicator below orb */}
           <div className="mt-4 h-8 flex items-center justify-center">
-            {voiceReady && isHandsFreeMode && (
+            {isPaused && (
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span>Interview paused — press play to resume</span>
+              </div>
+            )}
+
+            {!isPaused && voiceReady && isHandsFreeMode && (
               <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>
@@ -785,7 +826,7 @@ const Interview: React.FC = () => {
               </div>
             )}
 
-            {voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
+            {!isPaused && voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
               <p className="text-[11px] text-gray-400 dark:text-white/30">
                 Starting hands-free mode...
               </p>

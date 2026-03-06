@@ -1,6 +1,6 @@
 # Interviewer
 
-[![Main CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml/badge.svg)](https://github.com/lemonade-sdk/interviewer/actions/workflows/main-ci.yml)
+[![Main CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml)
 [![Python CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml)
 [![Node.js CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml)
 [![CodeQL](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml)
@@ -9,9 +9,13 @@
 
 > **Note:** Replace `YOUR-USERNAME` in the badge URLs above with your actual GitHub username or organization name.
 
-An AI-powered interview practice application with **local-first privacy**. Practice technical and behavioral interviews with AI using your own hardware—no data leaves your machine.
+## Goal / Mission
 
-## 🚀 Features
+**Interviewer** is an AI-powered interview practice application designed to help software engineers and technical professionals prepare for real job interviews through ultra-realistic, voice-enabled mock sessions. Built on the principle of **local-first privacy**, it runs entirely on your own hardware—no data ever leaves your machine, no API keys required, no subscription fees.
+
+The application generates dynamic, context-aware interviewer personas based on actual job descriptions and your resume, conducts multi-phase technical and behavioral interviews with real-time voice interaction, and provides comprehensive, actionable feedback to help you improve.
+
+##  Features
 
 - **🎤 Voice-Enabled Interviews** - Realistic interview simulation with speech-to-text (ASR) and text-to-speech (TTS)
 - **🧠 Local AI Models** - Runs entirely on your hardware via Lemonade Server—no cloud dependencies
@@ -21,7 +25,7 @@ An AI-powered interview practice application with **local-first privacy**. Pract
 - **🔒 Privacy-First** - All data stored locally in JSON format
 - **🖥️ Cross-Platform Desktop App** - Electron-based for Windows, macOS, and Linux
 
-## 🏗️ Architecture Overview
+##  Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -62,7 +66,7 @@ An AI-powered interview practice application with **local-first privacy**. Pract
               └─────────────────────────┘
 ```
 
-## 📦 Project Structure
+##  Project Structure
 
 ```
 interviewer/
@@ -100,14 +104,12 @@ interviewer/
 - **Inference**: Vulkan/ROCm/CUDA/CPU backends
 
 ### Backend Integration
-- **API Client**: Python 3.9+ with Pydantic
 - **HTTP**: OpenAI client + Axios for Lemonade Server
 - **Documentation**: MkDocs Material
 
 ## 📋 Prerequisites
 
 - **Node.js** 18+ and npm
-- **Python** 3.9+
 - **Lemonade Server** ([Installation Guide](https://github.com/lemonade-sdk/lemonade-server))
 - **Git**
 
@@ -121,9 +123,6 @@ cd interviewer
 
 # Install Node.js dependencies
 npm install
-
-# Install Python dependencies
-pip install -r lemonade_api/requirements-dev.txt
 ```
 
 ### 2. Install Lemonade Server
@@ -145,9 +144,6 @@ lemonade-server
 ### Running Tests
 
 ```bash
-# Python tests
-pytest --cov=lemonade_api --cov-report=html
-
 # TypeScript tests
 npm test
 ```
@@ -161,23 +157,6 @@ npm run build
 # Build Electron app for distribution
 npm run build:electron
 ```
-
-## 🧠 Unified Prompt System (UCL)
-
-The application uses a highly structured prompt architecture utilizing **Universal Conditional Logic (UCL)** directives (e.g., `[[ENFORCE]]`, `[[REQUIRE]]`, `^^CONDITION^^`) to strictly guide the LLM's behavior:
-
-### Phase-Aware Interview Flow (`src/data/prompts.json`)
-
-1. **Greeting Phase** - Audio check, self-introduction, session overview
-2. **Q1 Active** - Warm-up baseline question
-3. **Q2 Active** - Core technical probe
-4. **Q3 Active** - Behavioral/leadership probe
-5. **Wrap-up** - Closing remarks and candidate questions
-
-### Extraction & Feedback
-- **Persona Generation**: Creates tailored 21+ field interviewer personas from job/resume
-- **Document Extraction**: Parses resumes and job descriptions for context
-- **Comprehensive Feedback**: Multi-stage analysis with structured Q&A grading
 
 ## 🎭 Interview Flow
 
@@ -204,10 +183,6 @@ The application uses a highly structured prompt architecture utilizing **Univers
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Guide](docs/ARCHITECTURE.md) | System architecture and flow diagrams |
-| [API Documentation](lemonade_api/docs/index.md) | Python client API reference |
-| [Variables Reference](docs/VARIABLES_REFERENCE.md) | Template variable documentation |
-| [Agent Persona Guide](docs/AGENT_PERSONA_GUIDE.md) | Interviewer persona system |
 | [Contributing Guide](docs/community/CONTRIBUTING.md) | How to contribute |
 
 ## 🔄 CI/CD Pipeline
@@ -247,4 +222,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for better interview preparation**
+**Made with ❤️ for better, private interview preparation**

@@ -1,248 +1,149 @@
 # Interviewer
 
-[![Main CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/main-ci.yml)
-[![Python CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/python-ci.yml)
-[![Node.js CI](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/nodejs-ci.yml)
-[![CodeQL](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/codeql-security.yml)
-[![Documentation](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/docs-deploy.yml/badge.svg)](https://github.com/YOUR-USERNAME/interviewer/actions/workflows/docs-deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Note:** Replace `YOUR-USERNAME` in the badge URLs above with your actual GitHub username or organization name.
+An AI-powered interview practice application built on the principles of being **Simple, Lovable, and Complete**. Practice technical and behavioral interviews with ultra-realistic AI using your own hardware—100% local, zero cloud dependencies, and complete privacy.
 
-An AI-powered interview practice application with Lemonade Server integration. Practice technical interviews with AI assistance using local language models.
+---
 
-## 🚀 Features
+## ✨ The SLC Philosophy
 
-- **Desktop Application**: Cross-platform Electron app for Windows, macOS, and Linux
-- **AI-Powered Interviews**: Practice with AI using local language models
-- **Python API Client**: Full-featured Python client for Lemonade Server
-- **Voice Features**: Audio processing for realistic interview simulation
-- **TypeScript/React UI**: Modern, responsive user interface
-- **Local Storage**: JSON-based storage architecture for privacy
-- **Comprehensive Documentation**: Built with MkDocs Material
+We built Interviewer to be **Simple, Lovable, and Complete** from day one.
 
-## 📦 Project Structure
+### 🟢 Simple
+- **Zero-Friction Setup**: Connects seamlessly to [Lemonade Server](https://github.com/lemonade-sdk/lemonade-server) for instant local AI inference.
+- **Intuitive Workflow**: Just drop in a job description and your resume. The app handles the rest.
+- **Clean UI**: A distraction-free, modern desktop interface that gets out of your way so you can focus on practicing.
 
-```
-interviewer/
-├── src/                      # TypeScript/React application
-│   ├── ui/                   # React UI components
-│   ├── electron_app/         # Electron main process
-│   ├── database/             # Database layer
-│   ├── services/             # Service layer
-│   └── types/                # TypeScript type definitions
-├── lemonade_api/             # Python API client
-│   ├── client.py             # Main client implementation
-│   ├── models.py             # Pydantic models
-│   ├── exceptions.py         # Custom exceptions
-│   └── docs/                 # API documentation
-├── tests/                    # Test suites
-│   ├── lemonade_api/         # Python tests
-│   └── __tests__/            # TypeScript/Jest tests
-├── docs/                     # Project documentation
-└── .github/                  # CI/CD workflows
+### 💖 Lovable
+- **Real-Time Voice**: Experience fluid, natural conversations with real-time Speech-to-Text (Whisper) and Text-to-Speech (Kokoro).
+- **Dynamic Personas**: The AI doesn't just ask generic questions; it creates a tailored, named interviewer persona based on the specific company and role you're applying for.
+- **Beautiful Design**: A polished React/Tailwind interface with smooth animations, dark mode, and thoughtful UX details.
 
+### 🚀 Complete
+- **End-to-End Lifecycle**: From document parsing to persona generation, through a dynamic multi-phase interview, all the way to comprehensive, graded post-interview feedback.
+- **100% Local & Private**: Your voice, your resume, and your data never leave your machine. No API keys, no subscriptions, no data harvesting.
+- **Cross-Platform**: A fully-featured Electron desktop app for Windows, macOS, and Linux.
+
+---
+
+## 🚀 Key Features
+
+- **🎤 Voice-Enabled Interviews** - Realistic interview simulation with low-latency ASR and TTS.
+- **🧠 Local AI Models** - Runs entirely on your hardware via Lemonade Server.
+- **📋 Smart Document Extraction** - AI-powered parsing of resumes and job descriptions.
+- **🎭 Dynamic Persona Generation** - Creates tailored interviewer personas based on the job/role.
+- **📊 Comprehensive Feedback** - Detailed performance analysis with actionable insights and Q&A grading.
+- **🔒 Privacy-First** - All data stored locally in JSON format.
+
+## 🏗️ Architecture Overview
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    INTERVIEWER APP                           │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │
+│  │  Electron   │  │    React    │  │  TypeScript     │   │
+│  │   (Main)    │  │    (UI)     │  │   Services      │   │
+│  └──────┬──────┘  └──────┬──────┘  └────────┬────────┘   │
+│         │                │                   │            │
+│         └────────────────┴───────────────────┘            │
+│                          │                                │
+│  ┌───────────────────────┼───────────────────────────┐     │
+│  │         UNIFIED PROMPT SYSTEM                     │     │
+│  │  ┌─────────────────┐  ┌─────────────────────┐   │     │
+│  │  │ prompts.json    │  │ StructuredExtraction│   │     │
+│  │  │ • 5 interview   │  │ • Document parsing  │   │     │
+│  │  │   phases        │  │ • Job extraction    │   │     │
+│  │  │ • Persona gen   │  │ • Feedback extract  │   │     │
+│  │  │ • Feedback      │  │                     │   │     │
+│  │  └─────────────────┘  └─────────────────────┘   │     │
+│  └───────────────────────┼───────────────────────────┘     │
+│                          │                                │
+│  ┌───────────────────────┼───────────────────────────┐     │
+│  │              PHASE-AWARE INTERVIEW FLOW          │     │
+│  │  Greeting → Q1 → Q2 → Q3 → Wrap-up               │     │
+│  └───────────────────────┼───────────────────────────┘     │
+│                          │                                │
+└──────────────────────────┼────────────────────────────────┘
+                           │
+              ┌────────────┴────────────┐
+              │    Lemonade Server      │
+              │  (Local LLM Inference)  │
+              │  • LLM (llama.cpp)      │
+              │  • ASR (Whisper)        │
+              │  • TTS (Kokoro)         │
+              └─────────────────────────┘
 ```
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
+### Frontend & Desktop
+- **Framework**: React 18 + TypeScript
 - **Desktop**: Electron
+- **Build**: Vite
+- **Styling**: Tailwind CSS
+- **State**: Zustand
 
-### Backend/API
-- **Language**: Python 3.9+
-- **Framework**: Pydantic for data validation
-- **HTTP Client**: httpx
-- **Documentation**: MkDocs Material
-
-### Testing
-- **Python**: pytest, pytest-cov
-- **TypeScript**: Jest
-- **Linting**: ESLint, Ruff, Black
-- **Type Checking**: TypeScript, MyPy
+### AI/ML (Local)
+- **Inference Engine**: [Lemonade Server](https://github.com/lemonade-sdk/lemonade-server)
+- **LLM**: Llama.cpp (GGUF models)
+- **ASR**: Whisper (speech-to-text)
+- **TTS**: Kokoro (text-to-speech)
 
 ## 📋 Prerequisites
 
 - **Node.js** 18+ and npm
-- **Python** 3.9+
+- **Lemonade Server** ([Installation Guide](https://github.com/lemonade-sdk/lemonade-server))
 - **Git**
 
-## 🔧 Installation
+## 🔧 Installation & Quick Start
 
-### 1. Clone the repository
+### 1. Install Lemonade Server
+Follow the [Lemonade Server installation guide](https://github.com/lemonade-sdk/lemonade-server) to set up local LLM inference. Ensure it is running before starting the app.
 
+### 2. Clone & Install Dependencies
 ```bash
-git clone https://github.com/YOUR-USERNAME/ai-interviewer.git
-cd ai-interviewer
-```
+git clone https://github.com/lemonade-sdk/interviewer.git
+cd interviewer
 
-### 2. Install Node.js dependencies
-
-```bash
+# Install Node.js dependencies
 npm install
 ```
 
-### 3. Install Python dependencies
-
+### 3. Run Development Mode
 ```bash
-pip install -r lemonade_api/requirements-dev.txt
-```
-
-## 🚀 Quick Start
-
-### Development Mode
-
-**Run React + Electron:**
-```bash
+# Start the development server (React + Electron)
 npm run dev
 ```
 
-**Run Python API tests:**
+### 4. Build for Production
 ```bash
-pytest
-```
-
-**View Documentation:**
-```bash
-cd lemonade_api
-mkdocs serve
-```
-
-### Building
-
-**Build React app:**
-```bash
-npm run build
-```
-
-**Build Electron app:**
-```bash
+# Build React app & Electron app for distribution
 npm run build:electron
 ```
 
-**Build Python package:**
-```bash
-python -m build
-```
+## 🧠 Unified Prompt System (UCL)
 
-## 🧪 Testing
+The application uses a highly structured prompt architecture utilizing **Universal Control Language (UCL)** directives (e.g., `[[ENFORCE]]`, `[[REQUIRE]]`, `^^CONDITION^^`) to strictly guide the LLM's behavior across different stages:
 
-### Run all tests
-
-**Python:**
-```bash
-pytest --cov=lemonade_api --cov-report=html
-```
-
-**TypeScript:**
-```bash
-npm test
-```
-
-### Linting
-
-**Python:**
-```bash
-black lemonade_api/
-ruff check lemonade_api/
-mypy lemonade_api/
-```
-
-**TypeScript:**
-```bash
-npm run lint
-```
-
-## 📚 Documentation
-
-- **[API Documentation](lemonade_api/docs/index.md)** - Python client API reference
-- **[CI/CD Documentation](.github/CI_CD_DOCUMENTATION.md)** - Comprehensive CI/CD guide
-- **[Workflows README](.github/workflows/README.md)** - GitHub Actions workflows
-- **[Contributing Guide](docs/guides/CONTRIBUTING.md)** - How to contribute
-- **[Deployment Guide](docs/guides/DEPLOYMENT_GUIDE.md)** - Deployment instructions
-
-## 🔄 CI/CD Pipeline
-
-This project uses a comprehensive GitHub Actions CI/CD pipeline:
-
-### Continuous Integration
-- ✅ **Python CI**: Linting (Black, Ruff), type checking (MyPy), testing (pytest)
-- ✅ **Node.js CI**: Linting (ESLint), TypeScript checks, testing (Jest), building
-- ✅ **CodeQL Security**: Automated vulnerability scanning
-- ✅ **Dependency Review**: Security checks for dependency changes
-
-### Continuous Deployment
-- 📦 **Documentation**: Auto-deploy to GitHub Pages on main branch
-- 🚀 **Electron Release**: Multi-platform builds on version tags
-- 🔄 **Dependabot**: Automated weekly dependency updates
-
-**[See full CI/CD documentation](.github/CI_CD_DOCUMENTATION.md)** for detailed information.
-
-## 🔐 Security
-
-- **CodeQL Analysis**: Automated security scanning on every PR
-- **Dependency Review**: Scans for vulnerable dependencies
-- **Dependabot**: Automated security updates
-- **Branch Protection**: Required status checks on main branch
-
-## 🏗️ Architecture
-
-### Modular Design
-- **Separation of Concerns**: Clear separation between UI, business logic, and data layers
-- **Type Safety**: Full TypeScript and Pydantic type definitions
-- **Testability**: Comprehensive test coverage with unit and integration tests
-- **Scalability**: Modular architecture supports easy feature additions
-
-### Storage
-- **JSON-based**: Privacy-focused local storage
-- **Repositories**: Clean data access patterns
-- **TypeScript Types**: Full type safety across the stack
+1. **Dynamic Persona Generation**: Analyzes job descriptions and resumes to create tailored interviewer personas.
+2. **Phase-Aware Interview Flow**: Seamlessly transitions between 5 distinct phases (Greeting → Q1 → Q2 → Q3 → Wrap-up), ensuring the AI maintains structure, tracks time, and avoids repetitive loops.
+3. **Comprehensive Feedback**: Multi-stage post-interview analysis that extracts structured grades, strengths, weaknesses, and actionable insights.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/guides/CONTRIBUTING.md) for details.
-
-### Development Workflow
-
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Make your changes
-4. Run tests and linting
-5. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-All PRs are automatically checked by our CI pipeline.
+4. Commit: `git commit -m 'feat: add amazing feature'`
+5. Push: `git push origin feature/amazing-feature`
+6. Open a Pull Request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- [Lemonade Server](https://github.com/lemonade-server/lemonade) - Unified API for local AI models
-- [Electron](https://www.electronjs.org/) - Desktop application framework
-- [React](https://react.dev/) - UI framework
-- [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) - Documentation theme
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/YOUR-USERNAME/interviewer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR-USERNAME/interviewer/discussions)
-- **Documentation**: [Project Docs](https://YOUR-USERNAME.github.io/interviewer/)
-
-## 🗺️ Roadmap
-
-- [ ] Enhanced voice features
-- [ ] More interview templates
-- [ ] Performance analytics
-- [ ] Cloud sync (optional)
-- [ ] Mobile app support
-
 ---
 
-**Made with ❤️ by the AI Interviewer Team**
+**Made with ❤️ for better, private interview preparation.**

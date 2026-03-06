@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Settings as SettingsIcon, Sparkles, Moon, Sun, Monitor, Globe, Clock, Bell, ShieldCheck, Cpu, Activity, RefreshCw } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Sparkles, Moon, Sun, Monitor, Clock, Bell, ShieldCheck, Activity, RefreshCw } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { InterviewerSettings, UserSettings } from '../../types';
 import { SystemInfoPanel } from '../components/SystemInfoPanel';

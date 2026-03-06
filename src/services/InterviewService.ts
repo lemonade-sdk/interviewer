@@ -306,7 +306,11 @@ export class InterviewService {
     const qaPairs: { question: string; answer: string }[] = [];
     for (let i = 0; i < transcript.length; i++) {
       const msg = transcript[i];
-      if (msg.role === 'assistant' && msg.content.trim()) {
+      // Skip meta turns (audio check, introduction) by requiring at least 2 prior
+      // user messages before an assistant message counts as a gradeable question.
+      // Works for both the new pre-generated greeting flow and the legacy "Hello." trigger.
+      const priorUserCount = transcript.slice(0, i).filter(m => m.role === 'user').length;
+      if (msg.role === 'assistant' && msg.content.trim() && priorUserCount >= 2) {
         const nextUser = transcript.slice(i + 1).find(m => m.role === 'user');
         if (nextUser) {
           qaPairs.push({ question: msg.content, answer: nextUser.content });

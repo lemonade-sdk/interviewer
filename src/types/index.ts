@@ -351,7 +351,7 @@ export interface ServerHealth {
 
 export interface IPC {
   // Interview operations
-  startInterview: (config: Partial<Interview>, personaId?: string) => Promise<Interview>;
+  startInterview: (config: Partial<Interview>, personaId?: string, jobPostDocId?: string, resumeDocId?: string) => Promise<Interview>;
   endInterview: (interviewId: string) => Promise<Interview>;
   sendMessage: (interviewId: string, message: string) => Promise<Message>;
   sendMessageStreaming: (interviewId: string, message: string) => Promise<Message>;

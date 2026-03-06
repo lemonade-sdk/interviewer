@@ -418,6 +418,15 @@ ipcMain.handle('feedback:generate', async (event: IpcMainInvokeEvent, interviewI
       throw new Error(`Interview ${interviewId} not found`);
     }
 
+    const existingFeedback = (interview as any).feedback;
+
+    // Return cached result if feedback was already generated — avoid burning LLM
+    // tokens on every page visit. The user can force regeneration if needed.
+    if (existingFeedback?.questionFeedbacks?.length > 0) {
+      console.log(`[feedback:generate] Cache hit — returning stored feedback (${existingFeedback.questionFeedbacks.length} questions). Skipping regeneration.`);
+      return existingFeedback;
+    }
+
     const feedback = await interviewService.generateDetailedFeedback(
       interviewId,
       interview.transcript,

@@ -35,9 +35,6 @@ const Layout: React.FC = () => {
             <span className="text-base font-bold tracking-tight text-black dark:text-white leading-none">
               interviewer
             </span>
-            <span className="text-[11px] font-semibold text-lemonade-accent-hover tracking-wide uppercase leading-none mt-1">
-              Lemonade AI
-            </span>
           </div>
         </div>
 

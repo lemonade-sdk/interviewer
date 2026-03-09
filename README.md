@@ -1,19 +1,14 @@
 # Interviewer
 
 <p align="center">
-  <a href="https://github.com/lemonade-sdk/interviewer/actions/workflows/nodejs-ci.yml">
-    <img src="https://github.com/lemonade-sdk/interviewer/actions/workflows/nodejs-ci.yml/badge.svg" alt="Node.js CI" /></a>
-  <a href="https://github.com/lemonade-sdk/interviewer/actions/workflows/electron-release.yml">
-    <img src="https://github.com/lemonade-sdk/interviewer/actions/workflows/electron-release.yml/badge.svg" alt="Electron Release" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D6?logo=windows&logoColor=white" alt="Windows" />
   <img src="https://img.shields.io/badge/macOS-DMG-999999?logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Linux-AppImage-FCC624?logo=linux&logoColor=black" alt="Linux" />
   <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white" alt="Node.js 20+" />
   <a href="https://github.com/lemonade-sdk/interviewer/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/Privacy-Local--First-7c3aed" alt="Privacy: Local-First" />
   <a href="https://github.com/lemonade-sdk/lemonade">
-    <img src="https://img.shields.io/badge/Powered%20by-Lemonade%20Server-FFD700" alt="Powered by Lemonade Server" /></a>
+    <img src="https://img.shields.io/badge/Powered%20by-Lemonade-FFD700" alt="Powered by Lemonade" /></a>
 </p>
 
 <p align="center">
@@ -24,7 +19,7 @@
 
 **Interviewer** is a Proof of Concept AI-powered interview practice application designed to help a candidate prepare for real job interviews through voice enabled mock sessions. Built on the principle of **local-first privacy**, it runs entirely on your own hardware. No data ever leaves your machine, no API keys required, no subscription fees.
 
-The application generates dynamic, context-aware interviewer personas based on actual job descriptions and your resume, conducts multi-phase technical and behavioral interviews with real-time voice interaction, and provides comprehensive, actionable feedback to help you improve. 
+The application generates dynamic, context aware interviewer personas based on actual job descriptions and your resume, conducts multi phase technical and behavioral interviews with real time voice interaction, and provides comprehensive, actionable feedback to help you improve. 
 
 - We are open to community contributions.
 - Tested on the Strix Halo with 128GB RAM.

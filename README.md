@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="public/application-interviewer-image-3.png?raw=true" alt="Interviewer Banner" />
+  <img src="public/application-interviewer-image-5.png?raw=true" alt="Interviewer Banner" />
 </p>
 
 ## Goal / Mission

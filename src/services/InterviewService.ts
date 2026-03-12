@@ -1,5 +1,5 @@
 import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, ModelConfig, Interview, AgentPersona } from '../types';
-import { LemonadeClient } from './LemonadeClient';
+import { LemonadeClient, INTERVIEW_MAX_INPUT_TOKENS, FEEDBACK_MAX_INPUT_TOKENS } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
 import { PromptManager } from './PromptManager';
 import { StructuredExtractionService } from './StructuredExtractionService';
@@ -174,7 +174,7 @@ export class InterviewService {
 
     const messagesToSend = this.buildMessagesWithInjections(session);
 
-    const response = await this.lemonadeClient.sendMessage(messagesToSend, { maxInputTokens: 3072 });
+    const response = await this.lemonadeClient.sendMessage(messagesToSend, { maxInputTokens: INTERVIEW_MAX_INPUT_TOKENS });
 
     const assistantMsg: Message = {
       id: (Date.now() + 1).toString(),
@@ -218,7 +218,7 @@ export class InterviewService {
     const response = await this.lemonadeClient.sendMessageStreaming(
       messagesToSend,
       onToken,
-      { maxInputTokens: 3072 },
+      { maxInputTokens: INTERVIEW_MAX_INPUT_TOKENS },
     );
 
     const turnDurationMs = Date.now() - turnStart;
@@ -274,7 +274,7 @@ export class InterviewService {
           timestamp: new Date().toISOString(),
         },
       ],
-      { maxInputTokens: 3072 },
+      { maxInputTokens: FEEDBACK_MAX_INPUT_TOKENS },
     );
 
     // Stage 2: Extract structured data from natural language feedback
@@ -588,10 +588,6 @@ export class InterviewService {
     return PHASE_KEYWORDS['5'];
   }
 
-  private advancePhaseIfNeeded(session: InterviewSession): void {
-    session.currentPhaseKeyword = this.getPhaseKeyword(session.questionCount);
-  }
-
   private buildSystemPrompt(
     config: Partial<Interview>,
     persona?: AgentPersona | null,
@@ -656,6 +652,7 @@ export class InterviewService {
         validateClaim2: persona.validateClaim2 ?? 'Leadership or ownership claims',
         watchSignal1: persona.watchSignal1 ?? 'Ownership vs. passive participation in projects',
         watchSignal2: persona.watchSignal2 ?? 'Ability to handle ambiguity and self-direct',
+        resume: timerContext?.resume ?? '',
         // v2: Time allocation for coherent UX
         greetingAllocationMinutes,
         timePerQuestionMinutes,

@@ -69,6 +69,7 @@ export class PromptManager {
     validateClaim2: string;
     watchSignal1: string;
     watchSignal2: string;
+    resume: string;
     // v2: Time allocation for coherent UX
     greetingAllocationMinutes?: number;
     timePerQuestionMinutes?: number;
@@ -128,6 +129,7 @@ export class PromptManager {
 
   getPersonaGenerationUserPrompt(variables: {
     jobDescription: string;
+    resume: string;
     interviewType: string;
     company: string;
     position: string;

@@ -16,11 +16,22 @@ import { TextProcessingService } from './TextProcessingService';
  */
 
 /**
- * Exact context window size the Lemonade model is loaded with (ctx_size=16384).
- * Update this constant when switching to a model loaded with a larger context.
- * All input-token budgets are derived from this value so there is one place to change.
+ * Exact context window size the Lemonade model is loaded with.
+ * Load the model with `ctx_size=32768` (or 65536 for 64K) to match.
+ * All input-token budgets are derived from this single constant.
+ *
+ * 32K math for this pipeline:
+ *   Persona gen input budget : 32768 - 8192 (output) = 24576T — full resume + JD trivially fit
+ *   Interview turn budget     : 32768 - 1024 (output) = 31744T — full resume (2000T) + 10-turn history (2000T) + sys prompt (1000T) = 5000T used
+ *   Feedback call budget      : 32768 - 2048 (output) = 30720T — full transcript never truncated
  */
-const MODEL_CTX_WINDOW = 16384;
+const MODEL_CTX_WINDOW = 32768;
+
+/** Maximum input tokens for a live interview turn (reserves 1024 tokens for the LLM response). */
+export const INTERVIEW_MAX_INPUT_TOKENS = MODEL_CTX_WINDOW - 1024;
+
+/** Maximum input tokens for the post-interview feedback call (reserves 2048 tokens for feedback output). */
+export const FEEDBACK_MAX_INPUT_TOKENS = MODEL_CTX_WINDOW - 2048;
 export class LemonadeClient {
   private settings: InterviewerSettings;
   private client!: OpenAI;

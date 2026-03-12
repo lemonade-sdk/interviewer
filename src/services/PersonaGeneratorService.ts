@@ -39,16 +39,59 @@ export class PersonaGeneratorService {
   }
 
   /* ── Token-budget safety ──
-   * Model is loaded with ctx_size=16384 (~4 chars per token → ~65K chars context).
-   * The persona system prompt is ~800 tokens (~3200 chars), leaving ~12K tokens
-   * (~48K chars) for the job description. We cap at 8000 chars to be conservative
-   * while capturing full real-world JDs (typically 2000-6000 chars).
+   * Model is loaded with ctx_size=32768. Persona gen input budget: 32768 - 8192 = 24576 tokens.
+   * System prompt ~800T + JD ~2000T + resume ~2000T = ~4800T — well within budget.
+   * Cap at 8000 chars per document to be conservative while covering full real-world docs.
    */
   private static readonly MAX_DOC_CHARS = 8000;
 
   private truncate(text: string, maxChars: number = PersonaGeneratorService.MAX_DOC_CHARS): string {
     if (text.length <= maxChars) return text;
     return text.slice(0, maxChars) + '\n[...truncated for length]';
+  }
+
+  /**
+   * Strip the candidate's name and contact details from the top of a resume.
+   *
+   * Standard resume headers place name, email, phone, and URLs in the first 4-6 lines.
+   * Removing them before sending to the LLM eliminates the primary vector for the
+   * name-confusion bug (where the LLM used the candidate's name as the interviewer's name).
+   *
+   * The function scans from the top and removes lines that match header patterns,
+   * stopping at the first line that looks like substantive content (job title, summary,
+   * section heading). It never strips more than 8 lines to avoid entering the resume body.
+   */
+  private stripResumeHeader(text: string): string {
+    const lines = text.split('\n');
+
+    const headerPatterns = [
+      /^[\w\s\-.']+$/,          // Name-only line: letters, spaces, hyphens, apostrophes
+      /[\w.+%-]+@[\w.-]+/,      // Email address
+      /(\+?[\d\s\-()+.]{7,})/,  // Phone number
+      /linkedin\.com\//i,        // LinkedIn URL
+      /github\.com\//i,          // GitHub URL
+      /^https?:\/\//i,           // Any URL
+      /^\s*$/,                   // Blank line
+    ];
+
+    // Content signals — if a line matches these, we've left the header
+    const contentPatterns = [
+      /\b(summary|objective|profile|experience|education|skills|projects|certifications|awards)\b/i,
+      /\d{4}\s*[-–]\s*(\d{4}|present)/i,  // Date range (employment/education entry)
+    ];
+
+    let headerEnd = 0;
+    for (let i = 0; i < Math.min(8, lines.length); i++) {
+      const line = lines[i].trim();
+      if (contentPatterns.some(p => p.test(line))) break;
+      if (headerPatterns.some(p => p.test(line))) {
+        headerEnd = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    return lines.slice(headerEnd).join('\n').trim();
   }
 
   /**
@@ -62,9 +105,17 @@ export class PersonaGeneratorService {
     const jd = this.truncate(input.jobDescriptionText);
     const numberOfQuestions = input.numberOfQuestions ?? 5;
 
+    // Strip candidate name/contact from resume header before sending to LLM.
+    // This is the primary defence against the name-confusion bug (commit 12485dd).
+    // The [[REQUIRE:]] safeguard in the system prompt acts as a secondary guard.
+    const resumeOriginalLen = input.resumeText.length;
+    const resumeStripped = this.stripResumeHeader(input.resumeText);
+    const resume = this.truncate(resumeStripped);
+
     const systemPromptContent = PromptManager.getInstance().getPersonaGenerationSystemPrompt();
     const userPrompt = PromptManager.getInstance().getPersonaGenerationUserPrompt({
       jobDescription: jd,
+      resume,
       interviewType: input.interviewType,
       company: input.company,
       position: input.position,
@@ -74,6 +125,7 @@ export class PersonaGeneratorService {
     console.log(`[PersonaGen] ── Persona Generation ────────────────────────────`);
     console.log(`[PersonaGen] Company: "${input.company}", Position: "${input.position}", Type: "${input.interviewType}"`);
     console.log(`[PersonaGen] JD: ${jdOriginalLen} chars total, ${jd.length} chars after cap${jdOriginalLen > jd.length ? ' (TRUNCATED)' : ' (full)'}`);
+    console.log(`[PersonaGen] Resume: ${resumeOriginalLen} chars original → ${resumeStripped.length} chars after header strip → ${resume.length} chars after cap${resumeOriginalLen > resume.length ? ' (TRUNCATED)' : ' (full)'}`);
     console.log(`[PersonaGen] System prompt: ${systemPromptContent.length} chars`);
     console.log(`[PersonaGen] User prompt:   ${userPrompt.length} chars`);
     console.log(`[PersonaGen] Total input chars: ~${systemPromptContent.length + userPrompt.length}`);
@@ -216,6 +268,8 @@ export class PersonaGeneratorService {
           interviewType: input.interviewType,
           jdChars: jd.length,
           jdOriginalChars: jdOriginalLen,
+          resumeChars: resume.length,
+          resumeOriginalChars: resumeOriginalLen,
         },
         durationMs: personaGenDurationMs,
         timestamp: new Date().toISOString(),

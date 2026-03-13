@@ -45,7 +45,7 @@ export class InterviewService {
     config: Partial<Interview>,
     persona?: AgentPersona | null,
     timerConfig?: { totalInterviewMinutes: number; wrapUpThresholdMinutes: number },
-    documents?: { jobDescription?: string; resume?: string },
+    documents?: { resume?: string },
   ): Promise<string> {
     const totalInterviewMinutes = timerConfig?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
     const wrapUpThresholdMinutes = timerConfig?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
@@ -65,13 +65,12 @@ export class InterviewService {
     console.log(`[Interview:start] ── Building session ─────────────────────────`);
     console.log(`[Interview:start] interviewId=${interviewId}, persona=${persona?.name ?? 'none (fallback)'}`);
     console.log(`[Interview:start] totalInterviewMinutes=${totalInterviewMinutes}, wrapUp=${wrapUpThresholdMinutes}min, effective=${effectiveInterviewMinutes}min`);
-    console.log(`[Interview:start] jobDescription: ${(documents?.jobDescription ?? '').length} chars, resume: ${(documents?.resume ?? '').length} chars`);
+    console.log(`[Interview:start] resume: ${(documents?.resume ?? '').length} chars`);
 
     const systemPrompt = this.buildSystemPrompt(config, persona, {
       totalInterviewMinutes,
       wrapUpThresholdMinutes,
       currentPhaseKeyword: initialPhaseKeyword,
-      jobDescription: documents?.jobDescription ?? '',
       resume: documents?.resume ?? '',
       // New timing variables for coherent UX
       greetingAllocationMinutes: GREETING_ALLOCATION_MINUTES,
@@ -111,7 +110,6 @@ export class InterviewService {
       // Stored for resume/rebuild support
       interviewConfig: config,
       persona: persona ?? null,
-      jobDescription: documents?.jobDescription ?? '',
       resume: documents?.resume ?? '',
     };
 
@@ -139,7 +137,6 @@ export class InterviewService {
         extracted: {
           personaName: persona?.name ?? null,
           totalInterviewMinutes,
-          hasJobDescription: (documents?.jobDescription ?? '').length > 0,
           hasResume: (documents?.resume ?? '').length > 0,
         },
         meta: { interviewId, personaId: persona?.id ?? null },
@@ -513,7 +510,6 @@ export class InterviewService {
         currentPhaseKeyword: this.getPhaseKeyword(questionCount),
         interviewConfig: {},
         persona: null,
-        jobDescription: '',
         resume: '',
       });
       console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages`);
@@ -595,7 +591,6 @@ export class InterviewService {
       totalInterviewMinutes: number;
       wrapUpThresholdMinutes: number;
       currentPhaseKeyword: string;
-      jobDescription: string;
       resume: string;
       // v2: Time allocation variables for coherent UX
       greetingAllocationMinutes?: number;
@@ -623,7 +618,7 @@ export class InterviewService {
       console.log(`[buildSystemPrompt] total_duration=${totalInterviewMinutes}min, style="${persona.interviewStyle || interviewStyle}", difficulty="${persona.questionDifficulty || questionDifficulty}"`);
       console.log(`[buildSystemPrompt] q1="${q1Topic.substring(0, 80)}..."`);
       console.log(`[buildSystemPrompt] mustCover1="${persona.mustCoverTopic1?.substring(0, 60)}", mustCover2="${persona.mustCoverTopic2?.substring(0, 60)}"`);
-      console.log(`[buildSystemPrompt] jdChars=${(timerContext?.jobDescription ?? '').length}, resumeChars=${(timerContext?.resume ?? '').length}`);
+      console.log(`[buildSystemPrompt] resumeChars=${(timerContext?.resume ?? '').length}`);
 
       return PromptManager.getInstance().getInterviewSystemPromptWithPersona({
         personaName: persona.name,
@@ -663,7 +658,7 @@ export class InterviewService {
     // Fallback: generic prompt when no persona is available
     console.log(`[buildSystemPrompt] PATH: fallback (no persona)`);
     console.log(`[buildSystemPrompt] company="${company}", position="${position}", type="${interviewType}"`);
-    console.log(`[buildSystemPrompt] jdChars=${(timerContext?.jobDescription ?? '').length}, resumeChars=${(timerContext?.resume ?? '').length}, total_duration=${totalInterviewMinutes}min`);
+    console.log(`[buildSystemPrompt] resumeChars=${(timerContext?.resume ?? '').length}, total_duration=${totalInterviewMinutes}min`);
 
     return PromptManager.getInstance().getInterviewSystemPromptFallback({
       interviewType: interviewType ?? '',
@@ -675,7 +670,6 @@ export class InterviewService {
       wrapUpThresholdMinutes,
       currentMinutesRemaining: totalInterviewMinutes,
       currentPhaseKeyword,
-      jobDescription: timerContext?.jobDescription ?? '',
       resume: timerContext?.resume ?? '',
       // v2: Time allocation for coherent UX
       greetingAllocationMinutes,
@@ -707,6 +701,5 @@ interface InterviewSession {
   // Stored for resume/rebuild support
   interviewConfig: Partial<Interview>;
   persona: AgentPersona | null;
-  jobDescription: string;
   resume: string;
 }

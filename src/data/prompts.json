@@ -199,11 +199,11 @@
         "[[ENFORCE: ≤ 3 sentences per response. No evaluative language.]]",
         "</output_control>",
         "",
-        "JOB DESCRIPTION:",
-        "${jobDescription}",
-        "",
-        "RESUME:",
-        "${resume}"
+        "<candidate_context>",
+        "  <ROLE>${position} at ${company}</ROLE>",
+        "  <TYPE>${interviewType}</TYPE>",
+        "  <RESUME>${resume}</RESUME>",
+        "</candidate_context>"
       ]
     },
     "feedback": {

@@ -95,7 +95,6 @@ export class PromptManager {
     wrapUpThresholdMinutes: number;
     currentMinutesRemaining: number;
     currentPhaseKeyword: string;
-    jobDescription: string;
     resume: string;
     // v2: Time allocation for coherent UX
     greetingAllocationMinutes?: number;

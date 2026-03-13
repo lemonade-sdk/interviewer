@@ -12,7 +12,9 @@
     "build:electron": "electron-builder",
     "build:electron:dir": "electron-builder --dir",
     "test": "jest",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "inspect": "node scripts/inspect-interview.js",
+    "inspect:log": "node scripts/inspect-interview.js --log"
   },
   "keywords": [
     "interview",

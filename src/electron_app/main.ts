@@ -310,6 +310,18 @@ ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any
   }
 });
 
+ipcMain.handle('interview:resume', async (_event: IpcMainInvokeEvent, interviewId: string) => {
+  try {
+    console.log(`[IPC:interview:resume] Resuming interview ${interviewId}`);
+    await interviewService.resumeInterview(interviewId);
+    console.log(`[IPC:interview:resume] Interview ${interviewId} resumed successfully`);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to resume interview:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('interview:end', async (_event: IpcMainInvokeEvent, interviewId: string) => {
   try {
     const feedback = await interviewService.endInterview(interviewId);

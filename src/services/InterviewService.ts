@@ -495,6 +495,7 @@ export class InterviewService {
 
       // Restore persona from stored personaId (fixes fallback bug)
       let persona: AgentPersona | null = null;
+      console.log(`[resumeInterview] interviewId=${interviewId}, stored personaId=${interview.personaId}`);
       if (interview.personaId) {
         try {
           persona = await this.personaRepo.findById(interview.personaId);

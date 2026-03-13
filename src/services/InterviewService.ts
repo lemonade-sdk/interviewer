@@ -1,6 +1,7 @@
 import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, ModelConfig, Interview, AgentPersona } from '../types';
 import { LemonadeClient, INTERVIEW_MAX_INPUT_TOKENS, FEEDBACK_MAX_INPUT_TOKENS } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
+import { PersonaRepository } from '../database/repositories/PersonaRepository';
 import { PromptManager } from './PromptManager';
 import { StructuredExtractionService } from './StructuredExtractionService';
 import { PipelineLogger } from './PipelineLogger';
@@ -28,10 +29,12 @@ export class InterviewService {
   private activeInterviews: Map<string, InterviewSession> = new Map();
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
+  private personaRepo: PersonaRepository;
 
-  constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository) {
+  constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository, personaRepo?: PersonaRepository) {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
+    this.personaRepo = personaRepo ?? new PersonaRepository();
     this.lemonadeClient = new LemonadeClient(settings);
     this.extractionService = new StructuredExtractionService(this.lemonadeClient, settings.extractionModelName);
   }
@@ -490,6 +493,17 @@ export class InterviewService {
       );
       const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
+      // Restore persona from stored personaId (fixes fallback bug)
+      let persona: AgentPersona | null = null;
+      if (interview.personaId) {
+        try {
+          persona = await this.personaRepo.findById(interview.personaId);
+          console.log(`[resumeInterview] Restored persona "${persona?.name}" for interview ${interviewId}`);
+        } catch (error) {
+          console.warn(`[resumeInterview] Failed to restore persona ${interview.personaId}: ${error}`);
+        }
+      }
+
       this.activeInterviews.set(interviewId, {
         interviewId,
         messages: interview.transcript,
@@ -509,10 +523,10 @@ export class InterviewService {
         // Phase tracking
         currentPhaseKeyword: this.getPhaseKeyword(questionCount),
         interviewConfig: {},
-        persona: null,
+        persona,  // Restored persona (may be null if not stored or fetch failed)
         resume: '',
       });
-      console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages`);
+      console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages, persona=${persona?.name ?? 'none'}`);
     }
   }
 

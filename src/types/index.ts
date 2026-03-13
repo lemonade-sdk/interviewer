@@ -3,6 +3,7 @@
 export interface Interview {
   id: string;
   jobId?: string;
+  personaId?: string;  // Stored to restore persona on interview resume
   title: string;
   company: string;
   position: string;

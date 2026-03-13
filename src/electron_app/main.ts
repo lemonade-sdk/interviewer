@@ -270,7 +270,11 @@ app.on('before-quit', (event) => {
 // IPC Handlers - Interview Operations
 ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string, _jobPostDocId?: string, resumeDocId?: string) => {
   try {
-    const interview = await interviewRepo.create(config);
+    // Create interview with personaId stored for resume functionality
+    const interview = await interviewRepo.create({
+      ...config,
+      personaId,  // Store personaId so we can restore persona on resume
+    });
 
     // If a persona ID is provided, look it up and pass it to the interview service
     let persona = null;

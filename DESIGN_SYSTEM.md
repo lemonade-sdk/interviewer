@@ -205,7 +205,7 @@ className="w-72 h-32 rounded-3xl border-2 border-dashed"
 | Page | Status | Notes |
 |------|--------|-------|
 | Landing.tsx | ✅ Complete | Full hero redesign, spacious form |
-| Preparing.tsx | 🔄 In Progress | Need wider sidebar, larger steps |
+| Preparing.tsx | ✅ Complete | Full spacing overhaul, bold typography |
 | Dashboard.tsx | ⏳ Pending | |
 | Interview.tsx | ⏳ Pending | |
 | Feedback.tsx | ⏳ Pending | |

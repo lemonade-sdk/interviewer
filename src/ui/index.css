@@ -31,7 +31,78 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
+
+/*
+  ═══════════════════════════════════════════════════════════════════
+  LEMONADE SPACING SYSTEM
+  ═══════════════════════════════════════════════════════════════════
+
+  INNER SPACING (Padding inside containers):
+  ───────────────────────────────────────────
+  px-4 py-2   → Buttons, small interactive elements
+  px-4 py-2.5 → Inputs, selects
+  px-4 py-3   → Message bubbles (minimum)
+  px-5 py-3.5 → Message bubbles (preferred)
+  p-4         → Cards with minimal content
+  p-5         → Cards with text content (Q/A, feedback)
+  p-6         → Card content areas
+  p-8         → Full card bodies (LemonCard default)
+
+  OUTER SPACING (Margins/Gaps between elements):
+  ──────────────────────────────────────────────
+  gap-1  (4px)  → Icon + text within same element
+  gap-1.5 (6px) → Icon + text (minimum)
+  gap-2  (8px)  → Related elements (badge gaps, button gaps)
+  gap-2.5 (10px) → Title + badge, header elements
+  gap-3  (12px) → Standard element separation
+  gap-3.5 (14px) → Icon + content (PersonaStep)
+  gap-4  (16px) → Card internal sections
+  gap-5  (20px) → Grid columns (minimum)
+  gap-6  (24px) → Grid columns (preferred), form groups
+
+  SECTION SPACING (space-y-*):
+  ────────────────────────────
+  space-y-2  (8px)  → Label → Input (tight forms)
+  space-y-3  (12px) → Label → Input (standard), subsections
+  space-y-4  (16px) → Related sections
+  space-y-5  (20px) → AVOID - inconsistent
+  space-y-6  (24px) → Major sections (Q/A, Feedback panels)
+
+  MARGIN SPACING (mt-* for subtitles, secondary text):
+  ────────────────────────────────────────────────────
+  mt-0.5 (2px)  → AVOID - too tight
+  mt-1   (4px)  → Subtitle below title, label below icon
+  mt-1.5 (6px)  → Meta text below content
+  mt-2   (8px)  → Standard element separation
+  mt-2.5 (10px) → Preferred for cards/panels
+  mt-3   (12px) → Major section separation
+
+  TEXT DENSITY (line-height):
+  ───────────────────────────
+  leading-tight     (1.25) → Short headers only
+  leading-snug      (1.375) → Compact headers
+  leading-normal    (1.5)  → Default
+  leading-relaxed   (1.625)→ Body text (STANDARD)
+  leading-[1.7]     (1.7)  → AVOID - use leading-relaxed
+
+  CARD HEADER SPACING:
+  ────────────────────
+  px-8 py-5 → LemonCard headers (consistent)
+  px-6 py-3 → Section headers (transcript, sidebar)
+
+  STATUS BAR SPACING:
+  ───────────────────
+  py-3 (12px) → Minimum vertical padding
+  px-6 (24px) → Horizontal padding
+
+  FORM SPACING:
+  ─────────────
+  mb-3 (12px) → Label → Input (standard)
+  space-y-3 → Form groups
+  gap-6 → Grid form fields (company/position)
+*/
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',

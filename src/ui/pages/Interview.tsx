@@ -677,15 +677,15 @@ const Interview: React.FC = () => {
             <ArrowLeft size={18} />
           </button>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <h1 className="text-sm font-semibold truncate">
                 {currentInterview.title}
               </h1>
-              <LemonBadge variant="outline">
+              <LemonBadge variant="outline" className="shrink-0">
                 {currentInterview.interviewType}
               </LemonBadge>
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
+            <p className="text-[11px] text-gray-500 dark:text-white/40 truncate mt-1">
               {currentInterview.company} &middot; {currentInterview.position}
             </p>
           </div>
@@ -844,7 +844,7 @@ const Interview: React.FC = () => {
         {/* ── Transcript Area ── */}
         <div className="h-[45%] min-h-[240px] flex flex-col border-t border-gray-200/50 dark:border-white/[0.08]">
           {/* Status bar */}
-          <div className="px-6 py-2.5 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
+          <div className="px-6 py-3 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
             <span className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Transcript
             </span>
@@ -859,7 +859,7 @@ const Interview: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
             {visibleMessages.length === 0 && !isThinking && (
               <div className="flex items-center justify-center h-full">
                 <p className="text-sm text-gray-400 dark:text-white/30">
@@ -999,7 +999,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       <div className="max-w-[75%] min-w-[80px]">
         <div
           className={cn(
-            "px-4 py-3 text-sm leading-[1.7]",
+            "px-5 py-3.5 text-sm leading-relaxed",
             isUser
               ? "bg-lemonade-accent text-black rounded-2xl rounded-br-sm"
               : "bg-gray-100 dark:bg-white/[0.05] text-black dark:text-white rounded-2xl rounded-bl-sm"
@@ -1007,7 +1007,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-1.5 px-1", isUser ? "text-right" : "text-left")}>
+        <p className={cn("text-[11px] text-gray-400 dark:text-white/30 mt-2 px-2", isUser ? "text-right" : "text-left")}>
           {format(new Date(message.timestamp), 'h:mm a')}
         </p>
       </div>

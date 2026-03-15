@@ -111,7 +111,7 @@ export const PersonaSelector: React.FC<Props> = ({
                   {persona.name}
                 </h3>
                 {persona.isDefault && (
-                  <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-primary-600 font-medium mt-1">
                     <Star size={12} fill="currentColor" />
                     Default
                   </span>

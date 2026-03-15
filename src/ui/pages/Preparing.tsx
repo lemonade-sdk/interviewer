@@ -423,7 +423,7 @@ const Preparing: React.FC = () => {
           </button>
           <div>
             <h1 className="text-sm font-semibold leading-tight">Prepare for your interview</h1>
-            <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
               {state.formData.title} &middot; {state.formData.company} &middot; {state.formData.position}
             </p>
           </div>
@@ -485,12 +485,12 @@ const Preparing: React.FC = () => {
               <div className="flex-1 overflow-y-auto">
                 <div className="px-8 pt-8 pb-5 space-y-6">
                   {/* Interview preferences */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
                       Interview Preferences
                     </h2>
                     <div className="grid grid-cols-2 gap-5">
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <label className="text-xs font-medium text-gray-500 dark:text-white/40">Style</label>
                         <LemonSelect
                           value={interviewStyle}
@@ -504,7 +504,7 @@ const Preparing: React.FC = () => {
                           ]}
                         />
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <label className="text-xs font-medium text-gray-500 dark:text-white/40">Difficulty</label>
                         <LemonSelect
                           value={questionDifficulty}
@@ -689,11 +689,11 @@ const Preparing: React.FC = () => {
                 The AI is reading your documents and crafting a personalized interviewer.
               </p>
 
-              <div className="space-y-5">
+              <div className="space-y-6">
                 <PersonaStep
                   isActive={personaGenStep === 'analyzing-job'}
                   isDone={personaGenStep !== 'analyzing-job'}
-                  icon={<FileText size={14} />}
+                  icon={<FileText size={15} />}
                   title="Reading job description"
                   subtitle="Understanding role requirements and expectations"
                   analysis={jobAnalysis && personaGenStep !== 'analyzing-job' ? jobAnalysis : null}
@@ -702,7 +702,7 @@ const Preparing: React.FC = () => {
                   isActive={personaGenStep === 'analyzing-resume'}
                   isDone={personaGenStep === 'crafting-persona' || personaGenStep === 'done'}
                   isPending={personaGenStep === 'analyzing-job'}
-                  icon={<User size={14} />}
+                  icon={<User size={15} />}
                   title="Analyzing your resume"
                   subtitle="Mapping your experience to the role"
                   analysis={(personaGenStep === 'crafting-persona' || personaGenStep === 'done') ? resumeAnalysis : null}
@@ -711,20 +711,20 @@ const Preparing: React.FC = () => {
                   isActive={personaGenStep === 'crafting-persona'}
                   isDone={personaGenStep === 'done'}
                   isPending={personaGenStep === 'analyzing-job' || personaGenStep === 'analyzing-resume'}
-                  icon={<Bot size={14} />}
+                  icon={<Bot size={15} />}
                   title="Crafting interviewer persona"
                   subtitle="Building a tailored interviewer for this role"
                   persona={personaGenStep === 'done' ? generatedPersona : null}
                 />
 
                 {personaGenStep === 'done' && (
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0 w-7 h-7 rounded-xl bg-lemonade-accent/15 flex items-center justify-center">
-                      <Loader2 size={14} className="animate-spin text-lemonade-accent-hover" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="shrink-0 w-8 h-8 rounded-xl bg-lemonade-accent/15 flex items-center justify-center">
+                      <Loader2 size={15} className="animate-spin text-lemonade-accent-hover" />
                     </div>
-                    <div className="pt-0.5">
+                    <div className="pt-1">
                       <p className="text-xs font-semibold">Starting interview...</p>
-                      <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">Almost there</p>
+                      <p className="text-xs text-gray-500 dark:text-white/40 mt-1">Almost there</p>
                     </div>
                   </div>
                 )}
@@ -783,31 +783,31 @@ const PersonaStep: React.FC<{
   analysis?: string | null;
   persona?: AgentPersona | null;
 }> = ({ isActive, isDone, isPending, icon, title, subtitle, analysis, persona }) => (
-  <div className="flex items-start gap-3">
-    <div className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+  <div className="flex items-start gap-3.5">
+    <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
       isActive ? 'bg-lemonade-accent/15' : isDone ? 'bg-green-100 dark:bg-green-500/15' : 'bg-gray-100 dark:bg-white/[0.04]'
     }`}>
-      {isActive ? <Loader2 size={14} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={14} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
+      {isActive ? <Loader2 size={15} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={15} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
     </div>
-    <div className="pt-0.5">
+    <div className="pt-1 flex-1">
       <p className={`text-xs font-semibold transition-colors ${
         isActive ? '' : isDone ? 'text-green-600 dark:text-green-400' : isPending ? 'text-gray-300 dark:text-white/20' : ''
       }`}>
         {title}
       </p>
-      <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{subtitle}</p>
+      <p className="text-xs text-gray-500 dark:text-white/40 mt-1">{subtitle}</p>
       {analysis && (
-        <p className="text-xs text-gray-500 dark:text-white/35 mt-1.5 bg-gray-50 dark:bg-white/[0.04] rounded-xl p-2.5 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-white/35 mt-2 bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3 leading-relaxed">
           {analysis}
         </p>
       )}
       {persona && (
-        <div className="mt-2 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-xl p-3.5">
+        <div className="mt-2.5 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-xl p-4">
           <p className="text-xs font-semibold">{persona.name}</p>
-          <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 leading-relaxed">{persona.description}</p>
-          <div className="flex gap-1.5 mt-2">
-            <span className="text-xs px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.interviewStyle}</span>
-            <span className="text-xs px-1.5 py-px bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.questionDifficulty}</span>
+          <p className="text-xs text-gray-500 dark:text-white/40 mt-1 leading-relaxed">{persona.description}</p>
+          <div className="flex gap-2 mt-2.5">
+            <span className="text-xs px-2 py-0.5 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.interviewStyle}</span>
+            <span className="text-xs px-2 py-0.5 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">{persona.questionDifficulty}</span>
           </div>
         </div>
       )}

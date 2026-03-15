@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
         {/* In Progress Interviews */}
         {inProgressInterviews.length > 0 && (
           <section className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-0.5">
               In Progress
             </h2>
             <div className="space-y-2">
@@ -84,7 +84,7 @@ const Dashboard: React.FC = () => {
 
         {/* Recent Interviews */}
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-1">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-0.5">
             Recent Activity
           </h2>
           
@@ -139,7 +139,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, highlight = fal
   return (
     <LemonCard className={highlight ? 'bg-lemonade-accent border-lemonade-accent text-black' : ''}>
       <div className="flex items-center gap-4">
-        <div className={highlight ? 'text-black/60' : 'w-10 h-10 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover'}>
+        <div className={highlight ? 'text-black/60' : 'w-12 h-12 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover'}>
           {highlight ? icon : <div className="flex items-center justify-center">{icon}</div>}
         </div>
         <div>
@@ -148,7 +148,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, highlight = fal
           }`}>
             {label}
           </p>
-          <p className="text-2xl font-bold mt-0.5">
+          <p className="text-2xl font-bold mt-1">
             {value}
           </p>
         </div>

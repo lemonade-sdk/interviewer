@@ -51,11 +51,11 @@ const InterviewHistory: React.FC = () => {
       <div className="p-8 max-w-5xl mx-auto space-y-6 pb-16">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">History</h1>
-          <p className="text-sm text-gray-500 dark:text-white/40 mt-1">Review your past interviews</p>
+          <p className="text-sm text-gray-500 dark:text-white/40 mt-1.5">Review your past interviews</p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
+        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-5 flex gap-3 items-center transition-colors duration-300">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={15} />
             <input
@@ -83,7 +83,7 @@ const InterviewHistory: React.FC = () => {
         </div>
 
         {/* Interviews List */}
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {filteredInterviews.length === 0 ? (
             <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-12 text-center transition-colors duration-300">
               <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
@@ -95,11 +95,11 @@ const InterviewHistory: React.FC = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold truncate text-gray-900 dark:text-white/90">{interview.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">
+                    <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
                       {interview.company} &middot; {interview.position}
                     </p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-white/30">
-                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
+                    <div className="flex items-center gap-3 mt-2.5 text-xs text-gray-400 dark:text-white/30">
+                      <span className="text-[11px] px-2 py-0.5 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
                         {interview.interviewType}
                       </span>
                       <span className="flex items-center gap-1">
@@ -111,7 +111,7 @@ const InterviewHistory: React.FC = () => {
                       )}
                     </div>
                     {interview.feedback && (
-                      <div className="mt-3 flex items-center gap-4">
+                      <div className="mt-3.5 flex items-center gap-4">
                         <span className={`text-xl font-bold ${getScoreColor(interview.feedback.overallScore)}`}>
                           {interview.feedback.overallScore}%
                         </span>
@@ -179,8 +179,8 @@ const InterviewHistory: React.FC = () => {
 
                     {selectedInterview.feedback.strengths.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Strengths</h4>
-                        <ul className="space-y-1">
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2.5">Strengths</h4>
+                        <ul className="space-y-1.5">
                           {selectedInterview.feedback.strengths.map((s, i) => (
                             <li key={i} className="text-sm flex items-start gap-2">
                               <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
@@ -193,8 +193,8 @@ const InterviewHistory: React.FC = () => {
 
                     {selectedInterview.feedback.weaknesses.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Areas for Improvement</h4>
-                        <ul className="space-y-1">
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2.5">Areas for Improvement</h4>
+                        <ul className="space-y-1.5">
                           {selectedInterview.feedback.weaknesses.map((w, i) => (
                             <li key={i} className="text-sm flex items-start gap-2">
                               <span className="text-yellow-500 dark:text-yellow-400 mt-0.5">!</span>
@@ -207,8 +207,8 @@ const InterviewHistory: React.FC = () => {
 
                     {selectedInterview.feedback.suggestions.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Suggestions</h4>
-                        <ul className="space-y-1">
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2.5">Suggestions</h4>
+                        <ul className="space-y-1.5">
                           {selectedInterview.feedback.suggestions.map((s, i) => (
                             <li key={i} className="text-sm flex items-start gap-2">
                               <span className="text-lemonade-accent-hover mt-0.5">&rarr;</span>
@@ -219,10 +219,10 @@ const InterviewHistory: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
+                    <div className="border-t border-gray-100/60 dark:border-white/[0.04] my-5" />
 
                     <div>
-                      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Detailed Feedback</h4>
+                      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2.5">Detailed Feedback</h4>
                       <p className="text-sm whitespace-pre-wrap leading-relaxed">
                         {selectedInterview.feedback.detailedFeedback}
                       </p>
@@ -257,13 +257,13 @@ const InterviewHistory: React.FC = () => {
                       .map((message) => (
                         <div
                           key={message.id}
-                          className={`p-3 rounded-xl text-sm ${
+                          className={`p-4 rounded-xl text-sm ${
                             message.role === 'user'
                               ? 'bg-lemonade-accent/10 ml-12'
                               : 'bg-lemonade-bg dark:bg-white/[0.03] mr-12'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-gray-500 dark:text-white/40">
                               {message.role === 'user' ? 'You' : 'Interviewer'}
                             </span>

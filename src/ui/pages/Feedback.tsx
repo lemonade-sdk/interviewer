@@ -153,7 +153,7 @@ const Feedback: React.FC = () => {
           </button>
           <div>
             <h1 className="text-sm font-semibold">Interview Feedback</h1>
-            <p className="text-[11px] text-gray-500 dark:text-white/40">
+            <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1">
               Question {currentQuestionIndex + 1} of {totalQuestions}
             </p>
           </div>
@@ -189,37 +189,37 @@ const Feedback: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <div className={`p-6 space-y-5 transition-all duration-300 ${
+            <div className={`p-6 space-y-6 transition-all duration-300 ${
               animatingIn ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
             }`}>
               {/* Question */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Question {currentQuestionIndex + 1}
                 </p>
-                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
+                <div className="p-5 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
                   <p className="text-sm leading-relaxed">{currentQF.question}</p>
                 </div>
               </div>
 
               {/* Answer */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Your Answer
                 </p>
-                <div className="p-4 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
+                <div className="p-5 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
                   <p className="text-sm leading-relaxed">{currentQF.answer}</p>
                 </div>
               </div>
 
               {/* Suggested Answer */}
               {currentQF.suggestedAnswer && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider flex items-center gap-1.5">
-                    <Zap className="w-3 h-3 text-lemonade-accent-hover" />
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-lemonade-accent-hover" />
                     Suggested Response
                   </p>
-                  <div className="p-4 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
+                  <div className="p-5 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
                     <p className="text-sm leading-relaxed">{currentQF.suggestedAnswer}</p>
                   </div>
                 </div>
@@ -230,29 +230,29 @@ const Feedback: React.FC = () => {
 
         {/* Right Side: Feedback & Suggestions */}
         <div className="w-[360px] flex flex-col">
-          <div className="px-6 py-2.5 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
+          <div className="px-6 py-3 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
             <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Feedback & Suggestions
             </p>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <div className={`p-6 space-y-5 transition-all duration-300 delay-100 ${
+            <div className={`p-6 space-y-6 transition-all duration-300 delay-100 ${
               animatingIn ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
             }`}>
               {/* Strengths */}
               {currentQF.strengths.length > 0 && (
                 <div className="bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-2xl overflow-hidden">
-                  <div className="px-4 pt-4 pb-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3 h-3" />
+                  <div className="px-5 pt-5 pb-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       Strengths
                     </h3>
                   </div>
-                  <div className="px-4 pb-4">
-                    <ul className="space-y-1.5">
+                  <div className="px-5 pb-5">
+                    <ul className="space-y-2">
                       {currentQF.strengths.map((s, i) => (
-                        <li key={i} className="text-sm text-green-800 dark:text-green-300 flex items-start gap-2">
+                        <li key={i} className="text-sm text-green-800 dark:text-green-300 flex items-start gap-2.5">
                           <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
                           <span>{s}</span>
                         </li>
@@ -269,18 +269,18 @@ const Feedback: React.FC = () => {
                     ? 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15'
                     : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15'
                 }`}>
-                  <div className="px-4 pt-4 pb-2">
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
+                  <div className="px-5 pt-5 pb-3">
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-2 ${
                       currentQF.rating === 'needs-improvement' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
                     }`}>
-                      <AlertTriangle className="w-3 h-3" />
+                      <AlertTriangle className="w-3.5 h-3.5" />
                       Areas to Improve
                     </h3>
                   </div>
-                  <div className="px-4 pb-4">
-                    <ul className="space-y-1.5">
+                  <div className="px-5 pb-5">
+                    <ul className="space-y-2">
                       {currentQF.improvements.map((imp, i) => (
-                        <li key={i} className={`text-sm flex items-start gap-2 ${
+                        <li key={i} className={`text-sm flex items-start gap-2.5 ${
                           currentQF.rating === 'needs-improvement' ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'
                         }`}>
                           <span className={currentQF.rating === 'needs-improvement' ? 'text-red-500 mt-0.5' : 'text-amber-500 mt-0.5'}>!</span>
@@ -295,11 +295,11 @@ const Feedback: React.FC = () => {
               <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
 
               {/* Question Navigator */}
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <p className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   All Questions
                 </p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2.5">
                   {feedback.questionFeedbacks.map((qf, idx) => (
                     <button
                       key={idx}

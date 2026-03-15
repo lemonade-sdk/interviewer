@@ -63,7 +63,7 @@ export const LemonTabs: React.FC<LemonTabsProps> = ({
               aria-selected={isActive}
               onClick={() => handleTabClick(tab.value)}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 -mb-px border-b-2',
+                'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 -mb-px border-b-2',
                 isActive
                   ? 'border-lemonade-accent text-black dark:text-white'
                   : 'border-transparent text-gray-500 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-gray-300 dark:hover:border-white/20'

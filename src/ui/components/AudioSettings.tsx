@@ -71,7 +71,7 @@ export const AudioSettings: React.FC<Props> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-6">
+      <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-5 w-5 border-2 border-lemonade-accent/30 border-t-lemonade-accent" />
       </div>
     );
@@ -79,9 +79,9 @@ export const AudioSettings: React.FC<Props> = ({
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl">
+      <div className="p-5 bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl">
         <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-        <button onClick={loadDevices} className="mt-2 text-sm text-red-600 dark:text-red-400 underline hover:no-underline">
+        <button onClick={loadDevices} className="mt-2.5 text-sm text-red-600 dark:text-red-400 underline hover:no-underline">
           Try again
         </button>
       </div>
@@ -89,46 +89,46 @@ export const AudioSettings: React.FC<Props> = ({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Settings size={14} className="text-gray-400 dark:text-white/40" />
+    <div className="space-y-6">
+      <div className="flex items-center gap-2.5">
+        <Settings size={15} className="text-gray-400 dark:text-white/40" />
         <h3 className="text-sm font-semibold text-gray-700 dark:text-white/90">Audio Settings</h3>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-white/40 font-medium">
-            <Mic size={12} /> Microphone
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-white/40 font-medium">
+            <Mic size={13} /> Microphone
           </label>
           <LemonSelect
             value={selectedInputId}
             onChange={handleInputChange}
             placeholder="Select microphone"
-            className="h-8 text-xs"
+            className="h-9 text-xs"
             options={inputDevices.map((device) => ({ value: device.deviceId, label: device.label }))}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <LemonSlider value={inputVolume} onChange={handleInputVolumeChange} min={0} max={100} step={1} className="flex-1" />
-            <span className="text-[11px] font-mono w-10 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-1.5 py-0.5">
+            <span className="text-xs font-mono w-12 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded-lg px-2 py-1">
               {inputVolume}%
             </span>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-white/40 font-medium">
-            <Speaker size={12} /> Speaker
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-white/40 font-medium">
+            <Speaker size={13} /> Speaker
           </label>
           <LemonSelect
             value={selectedOutputId}
             onChange={handleOutputChange}
             placeholder="Select speaker"
-            className="h-8 text-xs"
+            className="h-9 text-xs"
             options={outputDevices.map((device) => ({ value: device.deviceId, label: device.label }))}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <LemonSlider value={outputVolume} onChange={handleOutputVolumeChange} min={0} max={100} step={1} className="flex-1" />
-            <span className="text-[11px] font-mono w-10 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded px-1.5 py-0.5">
+            <span className="text-xs font-mono w-12 text-center text-gray-500 dark:text-white/40 bg-lemonade-bg dark:bg-white/[0.04] rounded-lg px-2 py-1">
               {outputVolume}%
             </span>
           </div>
@@ -137,12 +137,12 @@ export const AudioSettings: React.FC<Props> = ({
 
       <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
 
-      <div className="flex gap-2">
+      <div className="flex gap-2.5">
         <button
           onClick={loadDevices}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
         >
-          <RefreshCw size={11} />
+          <RefreshCw size={12} />
           Refresh
         </button>
         <button
@@ -151,9 +151,9 @@ export const AudioSettings: React.FC<Props> = ({
             audio.volume = outputVolume / 100;
             audio.play();
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500 dark:text-white/40 border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors"
         >
-          <Volume2 size={11} />
+          <Volume2 size={12} />
           Test Sound
         </button>
       </div>

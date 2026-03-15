@@ -45,19 +45,19 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <h3 className="font-semibold text-sm text-gray-900 dark:text-white/90 truncate group-hover:text-lemonade-accent-hover transition-colors">
               {interview.title}
             </h3>
-            <LemonBadge variant={getStatusVariant(interview.status)}>
+            <LemonBadge variant={getStatusVariant(interview.status)} className="shrink-0">
               {interview.status.replace('-', ' ')}
             </LemonBadge>
           </div>
-          
-          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
+
+          <p className="text-xs text-gray-500 dark:text-white/40 mt-1.5">
             {interview.company} &middot; {interview.position}
           </p>
-          
+
           <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400 dark:text-white/30">
             <span className="flex items-center gap-1">
               <Clock size={11} />

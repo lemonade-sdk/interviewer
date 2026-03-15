@@ -11,7 +11,7 @@ import { LemonSelect } from '../components/lemon/LemonSelect';
 
 const INPUT_CLASS =
   'w-full px-4 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none';
-const LABEL_CLASS = 'block text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5';
+const LABEL_CLASS = 'block text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-3';
 
 type Step = 'initial' | 'setup';
 
@@ -351,7 +351,7 @@ const Landing: React.FC = () => {
                 </label>
                 <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className={INPUT_CLASS} placeholder={isExtracting ? 'AI is generating...' : 'e.g., Senior Software Engineer Interview'} autoFocus={!isExtracting} />
               </div>
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className={LABEL_CLASS}>
                     <span className="flex items-center gap-2">Company <FieldStatusIcon isLoading={['analyzing', 'extracting-company'].includes(extractionStep) && !formData.company} isDone={!['idle', 'analyzing', 'extracting-company', 'error'].includes(extractionStep) && !!formData.company} /></span>

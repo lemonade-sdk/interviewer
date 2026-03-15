@@ -110,7 +110,7 @@ const GeneralSettings: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Language</label>
             <LemonSelect
               value={formData.language || 'en'}
@@ -285,21 +285,21 @@ const InterviewerSettingsPanel: React.FC = () => {
         )}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center",
+              "w-12 h-12 rounded-xl flex items-center justify-center",
               serverStatus.isRunning ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
             )}>
               <Activity size={20} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <span className="text-sm font-semibold text-gray-900 dark:text-white/90">Lemonade Server</span>
-                <LemonBadge variant={serverStatus.isRunning ? 'success' : 'warning'}>
+                <LemonBadge variant={serverStatus.isRunning ? 'success' : 'warning'} className="shrink-0">
                   {serverStatus.isRunning ? 'Online' : 'Offline'}
                 </LemonBadge>
               </div>
-              <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+              <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
                 {serverStatus.isRunning ? `Connected at ${serverStatus.url}` : 'Not running — start with: lemonade-server serve'}
               </p>
             </div>
@@ -394,7 +394,7 @@ const InterviewerSettingsPanel: React.FC = () => {
       {/* AI Parameters */}
       <LemonCard title="AI Parameters" subtitle="Fine-tune behavior and creativity.">
         <div className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Number of Questions</label>
             <input
               type="number"
@@ -429,7 +429,7 @@ const InterviewerSettingsPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Max Tokens</label>
             <input
               type="number"

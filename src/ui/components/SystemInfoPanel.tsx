@@ -25,8 +25,8 @@ export const SystemInfoPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-8 transition-colors duration-300">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-5">System Information</h3>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-5 w-5 border-2 border-lemonade-accent/30 border-t-lemonade-accent" />
         </div>
@@ -36,11 +36,11 @@ export const SystemInfoPanel: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
-        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-4">
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-8 transition-colors duration-300">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-5">System Information</h3>
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/15 rounded-xl p-5">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-          <button onClick={loadSystemInfo} className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline">
+          <button onClick={loadSystemInfo} className="mt-2.5 text-sm text-red-600 dark:text-red-400 hover:underline">
             Retry
           </button>
         </div>
@@ -50,8 +50,8 @@ export const SystemInfoPanel: React.FC = () => {
 
   if (!systemInfo) {
     return (
-      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-4">System Information</h3>
+      <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-8 transition-colors duration-300">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-5">System Information</h3>
         <p className="text-gray-500 dark:text-white/40 text-sm">
           System information not available. Make sure Lemonade Server is running.
         </p>
@@ -60,8 +60,8 @@ export const SystemInfoPanel: React.FC = () => {
   }
 
   return (
-    <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-6 transition-colors duration-300">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-8 transition-colors duration-300">
+      <div className="flex items-center justify-between mb-5">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">System Information</h3>
         <button
           onClick={loadSystemInfo}
@@ -71,13 +71,13 @@ export const SystemInfoPanel: React.FC = () => {
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Hardware Info */}
         <div>
-          <h4 className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2">
+          <h4 className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5">
             Hardware
           </h4>
-          <div className="space-y-1 text-sm">
+          <div className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500 dark:text-white/40">Processor:</span>
               <span className="font-mono text-xs">{systemInfo.processor}</span>
@@ -91,41 +91,41 @@ export const SystemInfoPanel: React.FC = () => {
 
         {/* Devices */}
         <div>
-          <h4 className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2">
+          <h4 className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5">
             Available Devices
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {systemInfo.devices.cpu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.cpu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full ${systemInfo.devices.cpu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">CPU</span>
                 </div>
                 <span className="text-xs text-gray-500 dark:text-white/40">{systemInfo.devices.cpu.cores} cores</span>
               </div>
             )}
             {systemInfo.devices.amd_igpu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.amd_igpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full ${systemInfo.devices.amd_igpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">AMD iGPU</span>
                 </div>
                 <span className="text-xs text-gray-500 dark:text-white/40">{systemInfo.devices.amd_igpu.vram_gb} GB VRAM</span>
               </div>
             )}
             {systemInfo.devices.nvidia_dgpu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.nvidia_dgpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full ${systemInfo.devices.nvidia_dgpu.available !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">NVIDIA GPU</span>
                 </div>
                 <span className="text-xs text-gray-500 dark:text-white/40">{systemInfo.devices.nvidia_dgpu.vram_gb} GB VRAM</span>
               </div>
             )}
             {systemInfo.devices.npu && (
-              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${systemInfo.devices.npu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div className="flex items-center justify-between bg-lemonade-bg dark:bg-white/[0.03] rounded-xl px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full ${systemInfo.devices.npu.available ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-sm font-medium">NPU</span>
                 </div>
                 <span className="text-xs text-gray-500 dark:text-white/40">AI Accelerator</span>
@@ -137,20 +137,20 @@ export const SystemInfoPanel: React.FC = () => {
         {/* Backends */}
         {systemInfo.recipes && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider mb-2.5">
               Available Backends
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {systemInfo.recipes.llamacpp && (
                 <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-white/40 mb-1">
+                  <div className="text-xs font-medium text-gray-500 dark:text-white/40 mb-2">
                     LLM (llama.cpp)
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {Object.entries(systemInfo.recipes.llamacpp.backends).map(([name, config]) => (
                       <span
                         key={name}
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${
                           config.available
                             ? 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-400'
                             : 'bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-white/30'
@@ -164,14 +164,14 @@ export const SystemInfoPanel: React.FC = () => {
               )}
               {systemInfo.recipes.whispercpp && (
                 <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-white/40 mb-1">
+                  <div className="text-xs font-medium text-gray-500 dark:text-white/40 mb-2">
                     ASR (whisper.cpp)
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {Object.entries(systemInfo.recipes.whispercpp.backends).map(([name, config]) => (
                       <span
                         key={name}
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${
                           config.available
                             ? 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-400'
                             : 'bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-white/30'

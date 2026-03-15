@@ -430,7 +430,7 @@ const Preparing: React.FC = () => {
         </div>
         {selectedModel && isWorking && (
           <span className="inline-flex items-center gap-3 px-4 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl text-gray-600 dark:text-white/60">
-            <Cpu size={16} className="text-lemonade-accent-hover" />
+            <Cpu size={20} className="text-lemonade-accent-hover" />
             <span className="text-sm font-semibold">{selectedModel.id}</span>
           </span>
         )}
@@ -450,7 +450,7 @@ const Preparing: React.FC = () => {
           ) : resumeText ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="flex items-center gap-4 mb-6 text-gray-500 dark:text-white/40">
-                <FileText size={20} />
+                <FileText size={22} />
                 <span className="text-base font-medium">{state.resumeFileName}</span>
               </div>
               <div className="max-h-[75vh] overflow-y-auto bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-3xl p-10">
@@ -559,7 +559,7 @@ const Preparing: React.FC = () => {
                               <div className="flex items-center gap-3 mt-2 flex-wrap">
                                 {model.suggested && (
                                   <span className="inline-flex items-center gap-1 text-sm px-3 py-1.5 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">
-                                    <Star size={12} className="fill-lemonade-accent text-lemonade-accent" />
+                                    <Star size={16} className="fill-lemonade-accent text-lemonade-accent" />
                                     Suggested
                                   </span>
                                 )}
@@ -575,11 +575,11 @@ const Preparing: React.FC = () => {
                               ) : null}
                               {model.downloaded ? (
                                 <span className="inline-flex items-center gap-1 text-sm px-3 py-1.5 bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400 rounded-full font-medium">
-                                  <HardDrive size={12} /> Ready
+                                  <HardDrive size={16} /> Ready
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-sm px-3 py-1.5 border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-white/40 rounded-full">
-                                  <Download size={12} /> Download
+                                  <Download size={16} /> Download
                                 </span>
                               )}
                             </div>
@@ -600,12 +600,12 @@ const Preparing: React.FC = () => {
                 >
                   {selectedModel && !selectedModel.downloaded ? (
                     <>
-                      <Download size={20} />
+                      <Download size={22} />
                       Download &amp; Start Interview
                     </>
                   ) : (
                     <>
-                      <ArrowRight size={20} />
+                      <ArrowRight size={22} />
                       Start Interview
                     </>
                   )}
@@ -618,7 +618,7 @@ const Preparing: React.FC = () => {
           {phase === 'downloading' && (
             <div className="flex-1 flex flex-col px-12 pt-12">
               <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center mb-8">
-                <Download size={28} className="text-lemonade-accent-hover animate-bounce" />
+                <Download size={24} className="text-lemonade-accent-hover animate-bounce" />
               </div>
 
               <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-3">Downloading</h2>
@@ -662,7 +662,7 @@ const Preparing: React.FC = () => {
             <div className="flex-1 flex flex-col items-center justify-center gap-8 px-12">
               <div className="relative">
                 <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center">
-                  <Zap size={32} className="text-lemonade-accent-hover" />
+                  <Zap size={24} className="text-lemonade-accent-hover" />
                 </div>
                 <div className="absolute -inset-4 rounded-2xl border-2 border-lemonade-accent/15 border-t-lemonade-accent animate-spin" />
               </div>
@@ -679,7 +679,7 @@ const Preparing: React.FC = () => {
           {phase === 'generating-persona' && (
             <div className="flex-1 flex flex-col px-12 pt-12">
               <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center mb-8">
-                <Sparkles size={28} className="text-lemonade-accent-hover" />
+                <Sparkles size={24} className="text-lemonade-accent-hover" />
               </div>
 
               <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-3">
@@ -693,7 +693,7 @@ const Preparing: React.FC = () => {
                 <PersonaStep
                   isActive={personaGenStep === 'analyzing-job'}
                   isDone={personaGenStep !== 'analyzing-job'}
-                  icon={<FileText size={18} />}
+                  icon={<FileText size={22} />}
                   title="Reading job description"
                   subtitle="Understanding role requirements and expectations"
                   analysis={jobAnalysis && personaGenStep !== 'analyzing-job' ? jobAnalysis : null}
@@ -702,7 +702,7 @@ const Preparing: React.FC = () => {
                   isActive={personaGenStep === 'analyzing-resume'}
                   isDone={personaGenStep === 'crafting-persona' || personaGenStep === 'done'}
                   isPending={personaGenStep === 'analyzing-job'}
-                  icon={<User size={18} />}
+                  icon={<User size={22} />}
                   title="Analyzing your resume"
                   subtitle="Mapping your experience to the role"
                   analysis={(personaGenStep === 'crafting-persona' || personaGenStep === 'done') ? resumeAnalysis : null}
@@ -711,7 +711,7 @@ const Preparing: React.FC = () => {
                   isActive={personaGenStep === 'crafting-persona'}
                   isDone={personaGenStep === 'done'}
                   isPending={personaGenStep === 'analyzing-job' || personaGenStep === 'analyzing-resume'}
-                  icon={<Bot size={18} />}
+                  icon={<Bot size={22} />}
                   title="Crafting interviewer persona"
                   subtitle="Building a tailored interviewer for this role"
                   persona={personaGenStep === 'done' ? generatedPersona : null}
@@ -720,7 +720,7 @@ const Preparing: React.FC = () => {
                 {personaGenStep === 'done' && (
                   <div className="flex items-start gap-5">
                     <div className="shrink-0 w-12 h-12 rounded-2xl bg-lemonade-accent/15 flex items-center justify-center">
-                      <Loader2 size={18} className="animate-spin text-lemonade-accent-hover" />
+                      <Loader2 size={22} className="animate-spin text-lemonade-accent-hover" />
                     </div>
                     <div className="pt-1">
                       <p className="text-base font-semibold">Starting interview...</p>
@@ -742,7 +742,7 @@ const Preparing: React.FC = () => {
               <div className="border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-3xl p-10">
                 <div className="flex items-start gap-5">
                   <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-500/15 flex items-center justify-center shrink-0">
-                    <AlertCircle size={24} className="text-red-500 dark:text-red-400" />
+                    <AlertCircle size={22} className="text-red-500 dark:text-red-400" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-bold text-red-600 dark:text-red-400 mb-3">Something went wrong</p>
@@ -787,7 +787,7 @@ const PersonaStep: React.FC<{
     <div className={`shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
       isActive ? 'bg-lemonade-accent/15 scale-110' : isDone ? 'bg-green-100 dark:bg-green-500/15' : 'bg-gray-100 dark:bg-white/[0.04]'
     }`}>
-      {isActive ? <Loader2 size={20} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={20} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
+      {isActive ? <Loader2 size={22} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={22} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
     </div>
     <div className="pt-1 flex-1">
       <p className={`text-base font-bold transition-colors ${

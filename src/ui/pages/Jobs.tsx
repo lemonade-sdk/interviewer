@@ -78,7 +78,7 @@ const Jobs: React.FC = () => {
             <div key={status}>
               {groupedJobs[status] && groupedJobs[status].length > 0 && (
                 <div>
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-4 px-1">
+                  <h2 className="text-base font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-4 px-1">
                     {status.replace('-', ' ')}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -151,10 +151,10 @@ const JobCard: React.FC<JobCardProps> = ({ job, onEdit, onDelete }) => {
         </div>
         <div className="flex gap-2">
           <button onClick={onEdit} className="p-2.5 rounded-xl text-gray-400 dark:text-white/30 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors" title="Edit">
-            <Edit size={18} />
+            <Edit size={20} />
           </button>
           <button onClick={onDelete} className="p-2.5 rounded-xl text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Delete">
-            <Trash2 size={18} />
+            <Trash2 size={20} />
           </button>
         </div>
       </div>

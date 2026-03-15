@@ -103,12 +103,12 @@ const InterviewHistory: React.FC = () => {
                         {interview.interviewType}
                       </span>
                       <span className="flex items-center gap-2">
-                        <Clock size={16} />
+                        <Clock size={20} />
                         {format(new Date(interview.startedAt), 'MMMM d, yyyy')}
                       </span>
                       {interview.duration && (
                         <span className="flex items-center gap-2">
-                          <MessageSquare size={16} />
+                          <MessageSquare size={20} />
                           {Math.round(interview.duration / 60)} min
                         </span>
                       )}

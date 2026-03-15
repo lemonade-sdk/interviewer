@@ -24,12 +24,12 @@ const Settings: React.FC = () => {
           tabs={[
             {
               value: 'general',
-              label: <div className="flex items-center gap-2"><SettingsIcon size={16} /> General</div>,
+              label: <div className="flex items-center gap-2"><SettingsIcon size={20} /> General</div>,
               content: <GeneralSettings />,
             },
             {
               value: 'interviewer',
-              label: <div className="flex items-center gap-2"><Sparkles size={16} /> Interviewer AI</div>,
+              label: <div className="flex items-center gap-2"><Sparkles size={20} /> Interviewer AI</div>,
               content: <InterviewerSettingsPanel />,
             },
           ]}
@@ -97,7 +97,7 @@ const GeneralSettings: React.FC = () => {
                     "w-11 h-11 rounded-xl flex items-center justify-center transition-colors",
                     formData.theme === value ? "bg-lemonade-accent text-black" : "bg-gray-100 dark:bg-white/[0.06] text-gray-400"
                   )}>
-                    <Icon size={20} />
+                    <Icon size={22} />
                   </div>
                   <span className={cn(
                     "text-sm font-medium",
@@ -132,7 +132,7 @@ const GeneralSettings: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-5">
             <div className="w-12 h-12 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover">
-              <Clock size={22} />
+              <Clock size={24} />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Default Duration</label>
@@ -163,7 +163,7 @@ const GeneralSettings: React.FC = () => {
           <div className="flex items-center justify-between px-6 py-5">
             <div className="flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                <Bell size={20} />
+                <Bell size={22} />
               </div>
               <div>
                 <p className="text-base font-medium text-gray-900 dark:text-white/90">Notifications</p>
@@ -178,7 +178,7 @@ const GeneralSettings: React.FC = () => {
           <div className="flex items-center justify-between px-6 py-5">
             <div className="flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
-                <ShieldCheck size={20} />
+                <ShieldCheck size={22} />
               </div>
               <div>
                 <p className="text-base font-medium text-gray-900 dark:text-white/90">Auto-save</p>
@@ -198,7 +198,7 @@ const GeneralSettings: React.FC = () => {
           onClick={handleSave}
           className="flex items-center gap-3 px-6 py-3.5 bg-lemonade-accent text-black font-semibold text-base rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
-          <Save size={18} />
+          <Save size={20} />
           {saved ? 'Saved!' : 'Save Changes'}
         </button>
       </div>
@@ -290,7 +290,7 @@ const InterviewerSettingsPanel: React.FC = () => {
               "w-14 h-14 rounded-xl flex items-center justify-center",
               serverStatus.isRunning ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
             )}>
-              <Activity size={22} />
+              <Activity size={24} />
             </div>
             <div>
               <div className="flex items-center gap-3">
@@ -308,7 +308,7 @@ const InterviewerSettingsPanel: React.FC = () => {
             onClick={checkServerStatus}
             className="p-3 rounded-xl border border-gray-200/60 dark:border-white/10 hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors"
           >
-            <RefreshCw size={18} className="text-gray-400" />
+            <RefreshCw size={20} className="text-gray-400" />
           </button>
         </div>
       </LemonCard>
@@ -331,7 +331,7 @@ const InterviewerSettingsPanel: React.FC = () => {
             disabled={loadingModels || !serverStatus.isRunning}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-200/60 dark:border-white/[0.08] rounded-xl hover:bg-lemonade-bg dark:hover:bg-white/[0.04] transition-colors disabled:opacity-40"
           >
-            <RefreshCw size={14} className={cn(loadingModels && "animate-spin")} />
+            <RefreshCw size={18} className={cn(loadingModels && "animate-spin")} />
             Refresh
           </button>
         }
@@ -475,7 +475,7 @@ const InterviewerSettingsPanel: React.FC = () => {
           onClick={handleSave}
           className="flex items-center gap-3 px-6 py-3.5 bg-lemonade-accent text-black font-semibold text-base rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
-          <Save size={18} />
+          <Save size={20} />
           {saved ? 'Saved!' : 'Save AI Settings'}
         </button>
       </div>

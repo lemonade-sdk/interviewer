@@ -143,7 +143,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, highlight = fal
           {highlight ? icon : <div className="flex items-center justify-center">{icon}</div>}
         </div>
         <div>
-          <p className={`text-xs font-semibold uppercase tracking-widest ${
+          <p className={`text-sm font-semibold uppercase tracking-widest ${
             highlight ? 'text-black/50' : 'text-gray-400 dark:text-white/30'
           }`}>
             {label}

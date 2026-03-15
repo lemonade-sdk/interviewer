@@ -638,7 +638,7 @@ const Interview: React.FC = () => {
             style={{ inset: '-8px', animation: 'spin 3s linear infinite' }}
           />
         </div>
-        <p className="text-lg font-medium text-gray-500 dark:text-white/50 tracking-wide">
+        <p className="text-xl font-medium text-gray-500 dark:text-white/50 tracking-wide">
           Preparing your interview...
         </p>
       </div>
@@ -678,7 +678,7 @@ const Interview: React.FC = () => {
           </button>
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <h1 className="text-lg font-semibold truncate">
+              <h1 className="text-2xl font-bold truncate">
                 {currentInterview.title}
               </h1>
               <LemonBadge variant="outline" className="shrink-0">
@@ -701,7 +701,7 @@ const Interview: React.FC = () => {
                 ? "border-yellow-400 text-yellow-600 dark:text-yellow-400"
                 : "border-gray-200/60 dark:border-white/10 text-gray-500 dark:text-white/50"
           )}>
-            <Clock size={18} />
+            <Clock size={20} />
             {formatTime(remainingTime)}
           </span>
 
@@ -766,7 +766,7 @@ const Interview: React.FC = () => {
             onClick={() => handleEndInterview(false)}
             className="ml-2 flex items-center gap-2 px-5 py-2.5 bg-red-500/10 dark:bg-red-500/15 text-red-600 dark:text-red-400 rounded-xl text-base font-semibold hover:bg-red-500/20 transition-colors"
           >
-            <StopCircle size={18} />
+            <StopCircle size={20} />
             End
           </button>
         </div>
@@ -834,7 +834,7 @@ const Interview: React.FC = () => {
 
             {!voiceReady && (
               <div className="flex items-center gap-2 text-base text-gray-400 dark:text-white/40">
-                <MicOff size={18} />
+                <MicOff size={20} />
                 <span>Voice unavailable — use text input</span>
               </div>
             )}
@@ -975,8 +975,8 @@ const StatusDot: React.FC<StatusDotProps> = ({ color, label }) => {
   };
 
   return (
-    <span className="flex items-center gap-2.5 text-sm font-medium text-gray-400 dark:text-white/40 uppercase tracking-wider">
-      <span className={cn("w-2.5 h-2.5 rounded-full animate-pulse", colorMap[color])} />
+    <span className="flex items-center gap-2.5 text-base font-medium text-gray-400 dark:text-white/40 uppercase tracking-wider">
+      <span className={cn("w-3 h-3 rounded-full animate-pulse", colorMap[color])} />
       {label}
     </span>
   );

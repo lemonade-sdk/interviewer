@@ -82,9 +82,9 @@ const Feedback: React.FC = () => {
 
   const getRatingIcon = (rating: string) => {
     switch (rating) {
-      case 'excellent': return <CheckCircle2 className="w-4 h-4 text-green-500 dark:text-green-400" />;
-      case 'good': return <AlertTriangle className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
-      case 'needs-improvement': return <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />;
+      case 'excellent': return <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400" />;
+      case 'good': return <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />;
+      case 'needs-improvement': return <XCircle className="w-5 h-5 text-red-500 dark:text-red-400" />;
       default: return null;
     }
   };
@@ -152,14 +152,14 @@ const Feedback: React.FC = () => {
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
-            <h1 className="text-xl font-semibold">Interview Feedback</h1>
-            <p className="text-base text-gray-500 dark:text-white/40 mt-1.5">
+            <h1 className="text-4xl font-bold">Interview Feedback</h1>
+            <p className="text-lg text-gray-500 dark:text-white/40 mt-2">
               Question {currentQuestionIndex + 1} of {totalQuestions}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6">
           <div className="text-right">
             <p className="text-sm text-gray-400 dark:text-white/30 uppercase tracking-wider font-medium">Overall</p>
             <p className={`text-4xl font-bold ${getScoreColor(feedback.overallScore)}`}>
@@ -167,7 +167,7 @@ const Feedback: React.FC = () => {
             </p>
           </div>
           <div className="w-16 h-16 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
-            <Trophy className={`w-7 h-7 ${getScoreColor(feedback.overallScore)}`} />
+            <Trophy className={`w-8 h-8 ${getScoreColor(feedback.overallScore)}`} />
           </div>
         </div>
       </header>
@@ -182,7 +182,7 @@ const Feedback: React.FC = () => {
               <span className={`text-base font-semibold px-4 py-1.5 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
                 {currentQF.rating.replace('-', ' ')}
               </span>
-              <span className={`text-2xl font-bold ml-auto ${getScoreColor(currentQF.score)}`}>
+              <span className={`text-3xl font-bold ml-auto ${getScoreColor(currentQF.score)}`}>
                 {currentQF.score}/100
               </span>
             </div>
@@ -216,7 +216,7 @@ const Feedback: React.FC = () => {
               {currentQF.suggestedAnswer && (
                 <div className="space-y-5">
                   <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider flex items-center gap-3">
-                    <Zap className="w-5 h-5 text-lemonade-accent-hover" />
+                    <Zap className="w-6 h-6 text-lemonade-accent-hover" />
                     Suggested Response
                   </p>
                   <div className="p-8 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
@@ -245,7 +245,7 @@ const Feedback: React.FC = () => {
                 <div className="bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-2xl overflow-hidden">
                   <div className="px-8 pt-8 pb-5">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5" />
+                      <CheckCircle2 className="w-6 h-6" />
                       Strengths
                     </h3>
                   </div>
@@ -273,7 +273,7 @@ const Feedback: React.FC = () => {
                     <h3 className={`text-sm font-semibold uppercase tracking-wider flex items-center gap-3 ${
                       currentQF.rating === 'needs-improvement' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
                     }`}>
-                      <AlertTriangle className="w-5 h-5" />
+                      <AlertTriangle className="w-6 h-6" />
                       Areas to Improve
                     </h3>
                   </div>

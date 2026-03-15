@@ -24,41 +24,41 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="h-full overflow-y-auto transition-colors duration-300">
-      <div className="p-8 max-w-5xl mx-auto space-y-8 pb-16">
+      <div className="p-12 max-w-6xl mx-auto space-y-12 pb-20">
         {/* Header */}
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">
+            <h1 className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white mb-3">
               Dashboard
             </h1>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
+            <p className="text-lg text-gray-500 dark:text-white/40 font-light">
               Welcome back. You have {completedInterviews.length} completed interview{completedInterviews.length !== 1 ? 's' : ''}.
             </p>
           </div>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+            className="flex items-center gap-3 px-8 py-4 bg-lemonade-accent text-black font-semibold text-base rounded-2xl hover:bg-lemonade-accent-hover hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
           >
-            <Plus size={16} />
+            <Plus size={20} />
             New Interview
           </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-3 gap-8">
           <StatCard
-            icon={<MessageSquare size={20} />}
+            icon={<MessageSquare size={24} />}
             label="Total Interviews"
             value={interviews.length}
           />
           <StatCard
-            icon={<Award size={20} />}
+            icon={<Award size={24} />}
             label="Average Score"
             value={`${averageScore}%`}
             highlight
           />
           <StatCard
-            icon={<BarChart3 size={20} />}
+            icon={<BarChart3 size={24} />}
             label="In Progress"
             value={inProgressInterviews.length}
           />
@@ -66,11 +66,11 @@ const Dashboard: React.FC = () => {
 
         {/* In Progress Interviews */}
         {inProgressInterviews.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-0.5">
+          <section className="space-y-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
               In Progress
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {inProgressInterviews.map(interview => (
                 <InterviewCard
                   key={interview.id}
@@ -83,22 +83,22 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Recent Interviews */}
-        <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30 px-0.5">
+        <section className="space-y-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400 dark:text-white/30">
             Recent Activity
           </h2>
-          
+
           <LemonCard noPadding>
             {recentInterviews.length === 0 ? (
-              <div className="text-center py-16">
-                <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white/80">No interviews yet</h3>
-                <p className="text-sm text-gray-500 dark:text-white/40 mt-1 mb-6 max-w-xs mx-auto">
-                  Start your first AI-powered interview to get detailed feedback.
+              <div className="text-center py-20">
+                <MessageSquare size={48} className="mx-auto text-gray-300 dark:text-white/15 mb-6" />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white/80">No interviews yet</h3>
+                <p className="text-base text-gray-500 dark:text-white/40 mt-3 mb-8 max-w-md mx-auto">
+                  Start your first AI-powered interview to get detailed feedback with personalized insights.
                 </p>
                 <button
                   onClick={() => navigate('/')}
-                  className="px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                  className="px-8 py-4 bg-lemonade-accent text-black font-semibold text-base rounded-2xl hover:bg-lemonade-accent-hover hover:shadow-lg transition-all duration-200"
                 >
                   Start Interview
                 </button>
@@ -138,17 +138,17 @@ interface StatCardProps {
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value, highlight = false }) => {
   return (
     <LemonCard className={highlight ? 'bg-lemonade-accent border-lemonade-accent text-black' : ''}>
-      <div className="flex items-center gap-4">
-        <div className={highlight ? 'text-black/60' : 'w-12 h-12 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover'}>
+      <div className="flex items-center gap-6">
+        <div className={highlight ? 'text-black/60' : 'w-14 h-14 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover'}>
           {highlight ? icon : <div className="flex items-center justify-center">{icon}</div>}
         </div>
         <div>
-          <p className={`text-xs font-medium uppercase tracking-wider ${
+          <p className={`text-sm font-medium uppercase tracking-wider ${
             highlight ? 'text-black/50' : 'text-gray-400 dark:text-white/30'
           }`}>
             {label}
           </p>
-          <p className="text-2xl font-bold mt-1">
+          <p className="text-3xl font-bold mt-2">
             {value}
           </p>
         </div>

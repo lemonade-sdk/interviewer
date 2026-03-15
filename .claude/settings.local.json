@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(git pull:*)",
+      "mcp__clear-thought-server__visualreasoning",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(npm start)",
+      "Bash(npm run dev)"
+    ]
+  }
+}

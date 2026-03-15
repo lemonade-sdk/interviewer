@@ -413,25 +413,25 @@ const Preparing: React.FC = () => {
     <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
 
       {/* ═══════ TOP BAR ═══════ */}
-      <header className="flex items-center justify-between px-16 py-8 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
-        <div className="flex items-center gap-6">
+      <header className="flex items-center justify-between px-20 py-10 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+        <div className="flex items-center gap-8">
           <button
             onClick={() => navigate('/')}
-            className="p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/[0.08] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
+            className="p-4 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/[0.08] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={24} />
           </button>
           <div>
-            <h1 className="text-4xl font-bold leading-tight">Prepare for your interview</h1>
-            <p className="text-lg text-gray-500 dark:text-white/40 mt-2">
+            <h1 className="text-5xl font-bold leading-tight">Prepare for your interview</h1>
+            <p className="text-xl text-gray-500 dark:text-white/40 mt-4">
               {state.formData.title} &middot; {state.formData.company} &middot; {state.formData.position}
             </p>
           </div>
         </div>
         {selectedModel && isWorking && (
-          <span className="inline-flex items-center gap-3 px-4 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl text-gray-600 dark:text-white/60">
-            <Cpu size={20} className="text-lemonade-accent-hover" />
-            <span className="text-sm font-semibold">{selectedModel.id}</span>
+          <span className="inline-flex items-center gap-4 px-6 py-3 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl text-gray-600 dark:text-white/60">
+            <Cpu size={22} className="text-lemonade-accent-hover" />
+            <span className="text-base font-semibold">{selectedModel.id}</span>
           </span>
         )}
       </header>
@@ -440,42 +440,42 @@ const Preparing: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ─── LEFT: Resume viewer ─── */}
-        <div className="flex-1 flex items-center justify-center p-16 bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
+        <div className="flex-1 flex items-center justify-center p-20 bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
           {pdfBlobUrl ? (
             <iframe
               src={pdfBlobUrl}
-              className="w-full h-full rounded-3xl border border-gray-200/50 dark:border-white/[0.08] bg-white dark:bg-lemonade-dark-surface"
+              className="w-full h-full rounded-[2rem] border border-gray-200/50 dark:border-white/[0.08] bg-white dark:bg-lemonade-dark-surface"
               title="Resume Preview"
             />
           ) : resumeText ? (
             <div className="w-full max-w-3xl mx-auto">
-              <div className="flex items-center gap-4 mb-6 text-gray-500 dark:text-white/40">
-                <FileText size={22} />
-                <span className="text-base font-medium">{state.resumeFileName}</span>
+              <div className="flex items-center gap-6 mb-8 text-gray-500 dark:text-white/40">
+                <FileText size={24} />
+                <span className="text-lg font-medium">{state.resumeFileName}</span>
               </div>
-              <div className="max-h-[75vh] overflow-y-auto bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-3xl p-10">
+              <div className="max-h-[75vh] overflow-y-auto bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-[2rem] p-12">
                 <p className="text-base whitespace-pre-wrap leading-relaxed dark:text-white/80">{resumeText}</p>
               </div>
             </div>
           ) : (
             <div className="text-center select-none">
-              <FileText size={64} className="mx-auto mb-8 text-gray-300 dark:text-white/15" />
-              <p className="text-base font-medium text-gray-500 dark:text-white/40">{state.resumeFileName || 'Your resume'}</p>
-              <p className="text-sm text-gray-400 dark:text-white/30 mt-3">Review while we get things ready</p>
+              <FileText size={72} className="mx-auto mb-10 text-gray-300 dark:text-white/15" />
+              <p className="text-lg font-medium text-gray-500 dark:text-white/40">{state.resumeFileName || 'Your resume'}</p>
+              <p className="text-base text-gray-400 dark:text-white/30 mt-4">Review while we get things ready</p>
             </div>
           )}
         </div>
 
         {/* ─── RIGHT: Panel ─── */}
-        <aside className="w-[650px] border-l border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface flex flex-col transition-colors duration-300">
+        <aside className="w-[700px] border-l border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface flex flex-col transition-colors duration-300">
 
           {/* ── loading list ── */}
           {phase === 'loading-list' && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-8 px-12">
-              <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center">
-                <Loader2 size={28} className="animate-spin text-lemonade-accent-hover" />
+            <div className="flex-1 flex flex-col items-center justify-center gap-10 px-16">
+              <div className="w-24 h-24 rounded-[2rem] bg-lemonade-accent/10 flex items-center justify-center">
+                <Loader2 size={32} className="animate-spin text-lemonade-accent-hover" />
               </div>
-              <p className="text-lg text-gray-500 dark:text-white/40 font-medium">{statusText}</p>
+              <p className="text-xl text-gray-500 dark:text-white/40 font-medium">{statusText}</p>
             </div>
           )}
 
@@ -483,19 +483,19 @@ const Preparing: React.FC = () => {
           {phase === 'select' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto">
-                <div className="px-12 pt-12 pb-8 space-y-10">
+                <div className="px-16 pt-16 pb-10 space-y-12">
                   {/* Interview preferences */}
-                  <div className="space-y-8">
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-white/30">
+                  <div className="space-y-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 dark:text-white/30">
                       Interview Preferences
                     </h2>
-                    <div className="grid grid-cols-2 gap-8">
-                      <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-10">
+                      <div className="space-y-6">
                         <label className="text-sm font-medium text-gray-500 dark:text-white/40">Style</label>
                         <LemonSelect
                           value={interviewStyle}
                           onChange={(v) => setInterviewStyle(v as InterviewStyle)}
-                          className="h-12 text-base"
+                          className="h-14 text-base"
                           options={[
                             { value: 'conversational', label: 'Conversational' },
                             { value: 'formal', label: 'Formal' },
@@ -504,12 +504,12 @@ const Preparing: React.FC = () => {
                           ]}
                         />
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <label className="text-sm font-medium text-gray-500 dark:text-white/40">Difficulty</label>
                         <LemonSelect
                           value={questionDifficulty}
                           onChange={(v) => setQuestionDifficulty(v as 'easy' | 'medium' | 'hard')}
-                          className="h-12 text-base"
+                          className="h-14 text-base"
                           options={[
                             { value: 'easy', label: 'Easy' },
                             { value: 'medium', label: 'Medium' },
@@ -523,8 +523,8 @@ const Preparing: React.FC = () => {
                   <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
 
                   {/* Model Selection */}
-                  <div className="space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-white/30">
+                  <div className="space-y-8">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 dark:text-white/30">
                       Choose a model
                     </h2>
                     <p className="text-base text-gray-500 dark:text-white/40 leading-relaxed">
@@ -534,52 +534,52 @@ const Preparing: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {llmModels.map(model => {
                       const selected = model.id === selectedModelId;
                       return (
                         <button
                           key={model.id}
                           onClick={() => setSelectedModelId(model.id)}
-                          className={`group w-full text-left px-6 py-5 rounded-2xl border transition-all duration-200 ${
+                          className={`group w-full text-left px-8 py-6 rounded-[2rem] border transition-all duration-200 ${
                             selected
                               ? 'border-lemonade-accent bg-lemonade-accent/[0.06]'
                               : 'border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-white/[0.04] hover:border-gray-300 dark:hover:border-white/[0.12] hover:bg-gray-50 dark:hover:bg-white/[0.06]'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-6">
-                            <div className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          <div className="flex items-center justify-between gap-8">
+                            <div className={`shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
                               selected ? 'border-lemonade-accent' : 'border-gray-300 dark:border-white/20'
                             }`}>
-                              {selected && <div className="w-3 h-3 rounded-full bg-lemonade-accent" />}
+                              {selected && <div className="w-4 h-4 rounded-full bg-lemonade-accent" />}
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <p className="text-base font-semibold truncate leading-tight">{model.id}</p>
-                              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                              <p className="text-lg font-semibold truncate leading-tight">{model.id}</p>
+                              <div className="flex items-center gap-4 mt-3 flex-wrap">
                                 {model.suggested && (
-                                  <span className="inline-flex items-center gap-1 text-sm px-3 py-1.5 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">
-                                    <Star size={16} className="fill-lemonade-accent text-lemonade-accent" />
+                                  <span className="inline-flex items-center gap-2 text-base px-4 py-2 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-medium">
+                                    <Star size={18} className="fill-lemonade-accent text-lemonade-accent" />
                                     Suggested
                                   </span>
                                 )}
                                 {model.labels.filter(l => l !== 'llm').map(l => (
-                                  <span key={l} className="text-sm px-3 py-1.5 border border-gray-200/50 dark:border-white/[0.08] rounded-full text-gray-500 dark:text-white/40">{l}</span>
+                                  <span key={l} className="text-base px-4 py-2 border border-gray-200/50 dark:border-white/[0.08] rounded-full text-gray-500 dark:text-white/40">{l}</span>
                                 ))}
                               </div>
                             </div>
 
-                            <div className="shrink-0 flex flex-col items-end gap-3">
+                            <div className="shrink-0 flex flex-col items-end gap-4">
                               {model.size ? (
-                                <span className="text-sm font-medium text-gray-400 dark:text-white/30">{formatSize(model.size)}</span>
+                                <span className="text-base font-medium text-gray-400 dark:text-white/30">{formatSize(model.size)}</span>
                               ) : null}
                               {model.downloaded ? (
-                                <span className="inline-flex items-center gap-1 text-sm px-3 py-1.5 bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400 rounded-full font-medium">
-                                  <HardDrive size={16} /> Ready
+                                <span className="inline-flex items-center gap-2 text-base px-4 py-2 bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400 rounded-full font-medium">
+                                  <HardDrive size={18} /> Ready
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-sm px-3 py-1.5 border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-white/40 rounded-full">
-                                  <Download size={16} /> Download
+                                <span className="inline-flex items-center gap-2 text-base px-4 py-2 border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-white/40 rounded-full">
+                                  <Download size={18} /> Download
                                 </span>
                               )}
                             </div>
@@ -592,20 +592,20 @@ const Preparing: React.FC = () => {
               </div>
 
               {/* action bar */}
-              <div className="px-12 py-8 border-t border-gray-100/60 dark:border-white/[0.04]">
+              <div className="px-16 py-10 border-t border-gray-100/60 dark:border-white/[0.04]">
                 <button
                   onClick={handleContinue}
                   disabled={!selectedModelId}
-                  className="w-full flex items-center justify-center gap-4 py-5 bg-lemonade-accent text-black font-semibold text-lg rounded-2xl hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                  className="w-full flex items-center justify-center gap-4 py-6 bg-lemonade-accent text-black font-semibold text-lg rounded-[2rem] hover:bg-lemonade-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                 >
                   {selectedModel && !selectedModel.downloaded ? (
                     <>
-                      <Download size={22} />
+                      <Download size={24} />
                       Download &amp; Start Interview
                     </>
                   ) : (
                     <>
-                      <ArrowRight size={22} />
+                      <ArrowRight size={24} />
                       Start Interview
                     </>
                   )}
@@ -616,15 +616,15 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ DOWNLOADING PHASE ═══════ */}
           {phase === 'downloading' && (
-            <div className="flex-1 flex flex-col px-12 pt-12">
-              <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center mb-8">
-                <Download size={24} className="text-lemonade-accent-hover animate-bounce" />
+            <div className="flex-1 flex flex-col px-16 pt-16">
+              <div className="w-24 h-24 rounded-[2rem] bg-lemonade-accent/10 flex items-center justify-center mb-10">
+                <Download size={28} className="text-lemonade-accent-hover animate-bounce" />
               </div>
 
-              <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-3">Downloading</h2>
-              <p className="text-lg font-bold text-gray-600 dark:text-white/50 mb-8">{selectedModel?.id}</p>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 dark:text-white/30 mb-4">Downloading</h2>
+              <p className="text-xl font-bold text-gray-600 dark:text-white/50 mb-10">{selectedModel?.id}</p>
 
-              <div className="w-full h-4 bg-gray-200/60 dark:bg-white/[0.08] rounded-full overflow-hidden mb-5">
+              <div className="w-full h-5 bg-gray-200/60 dark:bg-white/[0.08] rounded-full overflow-hidden mb-6">
                 <div
                   className="h-full bg-gradient-to-r from-lemonade-accent to-lemonade-accent-hover rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${dlProgress?.percent ?? 0}%` }}
@@ -637,13 +637,13 @@ const Preparing: React.FC = () => {
                     ? `${formatBytes(dlProgress.bytesDownloaded)} / ${formatBytes(dlProgress.bytesTotal)}`
                     : 'Preparing...'}
                 </span>
-                <span className="text-2xl font-bold tabular-nums">
-                  {dlProgress?.percent ?? 0}<span className="text-base font-medium text-gray-400 dark:text-white/30">%</span>
+                <span className="text-3xl font-bold tabular-nums">
+                  {dlProgress?.percent ?? 0}<span className="text-lg font-medium text-gray-400 dark:text-white/30">%</span>
                 </span>
               </div>
 
               {dlProgress?.file && (
-                <p className="text-base text-gray-400 dark:text-white/30 truncate mt-4">
+                <p className="text-base text-gray-400 dark:text-white/30 truncate mt-6">
                   {dlProgress.file}
                   {dlProgress.totalFiles && dlProgress.totalFiles > 1
                     ? ` (file ${dlProgress.fileIndex} of ${dlProgress.totalFiles})`
@@ -651,7 +651,7 @@ const Preparing: React.FC = () => {
                 </p>
               )}
 
-              <p className="text-base text-gray-400 dark:text-white/30 mt-auto pb-12">
+              <p className="text-base text-gray-400 dark:text-white/30 mt-auto pb-14">
                 Review your resume while the model downloads.
               </p>
             </div>
@@ -659,16 +659,16 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ LOADING MODEL PHASE ═══════ */}
           {phase === 'loading-model' && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-8 px-12">
+            <div className="flex-1 flex flex-col items-center justify-center gap-10 px-16">
               <div className="relative">
-                <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center">
-                  <Zap size={24} className="text-lemonade-accent-hover" />
+                <div className="w-24 h-24 rounded-[2rem] bg-lemonade-accent/10 flex items-center justify-center">
+                  <Zap size={28} className="text-lemonade-accent-hover" />
                 </div>
-                <div className="absolute -inset-4 rounded-2xl border-2 border-lemonade-accent/15 border-t-lemonade-accent animate-spin" />
+                <div className="absolute -inset-6 rounded-[2rem] border-2 border-lemonade-accent/15 border-t-lemonade-accent animate-spin" />
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold">{statusText}</p>
-                <p className="text-base text-gray-500 dark:text-white/40 mt-3">
+                <p className="text-xl font-bold">{statusText}</p>
+                <p className="text-lg text-gray-500 dark:text-white/40 mt-4">
                   Warming up the model — this can take a moment
                 </p>
               </div>
@@ -677,23 +677,23 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ GENERATING PERSONA PHASE ═══════ */}
           {phase === 'generating-persona' && (
-            <div className="flex-1 flex flex-col px-12 pt-12">
-              <div className="w-20 h-20 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center mb-8">
-                <Sparkles size={24} className="text-lemonade-accent-hover" />
+            <div className="flex-1 flex flex-col px-16 pt-16">
+              <div className="w-24 h-24 rounded-[2rem] bg-lemonade-accent/10 flex items-center justify-center mb-10">
+                <Sparkles size={28} className="text-lemonade-accent-hover" />
               </div>
 
-              <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-white/30 mb-3">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 dark:text-white/30 mb-4">
                 Preparing Your Interview
               </h2>
-              <p className="text-base text-gray-500 dark:text-white/40 mb-12 leading-relaxed">
+              <p className="text-base text-gray-500 dark:text-white/40 mb-14 leading-relaxed">
                 The AI is reading your documents and crafting a personalized interviewer.
               </p>
 
-              <div className="space-y-10">
+              <div className="space-y-12">
                 <PersonaStep
                   isActive={personaGenStep === 'analyzing-job'}
                   isDone={personaGenStep !== 'analyzing-job'}
-                  icon={<FileText size={22} />}
+                  icon={<FileText size={24} />}
                   title="Reading job description"
                   subtitle="Understanding role requirements and expectations"
                   analysis={jobAnalysis && personaGenStep !== 'analyzing-job' ? jobAnalysis : null}
@@ -702,7 +702,7 @@ const Preparing: React.FC = () => {
                   isActive={personaGenStep === 'analyzing-resume'}
                   isDone={personaGenStep === 'crafting-persona' || personaGenStep === 'done'}
                   isPending={personaGenStep === 'analyzing-job'}
-                  icon={<User size={22} />}
+                  icon={<User size={24} />}
                   title="Analyzing your resume"
                   subtitle="Mapping your experience to the role"
                   analysis={(personaGenStep === 'crafting-persona' || personaGenStep === 'done') ? resumeAnalysis : null}
@@ -711,26 +711,26 @@ const Preparing: React.FC = () => {
                   isActive={personaGenStep === 'crafting-persona'}
                   isDone={personaGenStep === 'done'}
                   isPending={personaGenStep === 'analyzing-job' || personaGenStep === 'analyzing-resume'}
-                  icon={<Bot size={22} />}
+                  icon={<Bot size={24} />}
                   title="Crafting interviewer persona"
                   subtitle="Building a tailored interviewer for this role"
                   persona={personaGenStep === 'done' ? generatedPersona : null}
                 />
 
                 {personaGenStep === 'done' && (
-                  <div className="flex items-start gap-5">
-                    <div className="shrink-0 w-12 h-12 rounded-2xl bg-lemonade-accent/15 flex items-center justify-center">
-                      <Loader2 size={22} className="animate-spin text-lemonade-accent-hover" />
+                  <div className="flex items-start gap-6">
+                    <div className="shrink-0 w-14 h-14 rounded-[2rem] bg-lemonade-accent/15 flex items-center justify-center">
+                      <Loader2 size={24} className="animate-spin text-lemonade-accent-hover" />
                     </div>
-                    <div className="pt-1">
-                      <p className="text-base font-semibold">Starting interview...</p>
-                      <p className="text-base text-gray-500 dark:text-white/40 mt-2">Almost there</p>
+                    <div className="pt-1.5">
+                      <p className="text-lg font-semibold">Starting interview...</p>
+                      <p className="text-base text-gray-500 dark:text-white/40 mt-3">Almost there</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              <p className="text-base text-gray-400 dark:text-white/30 mt-auto pb-12">
+              <p className="text-base text-gray-400 dark:text-white/30 mt-auto pb-14">
                 This ensures your interview is tailored to the exact role and your background.
               </p>
             </div>
@@ -738,27 +738,27 @@ const Preparing: React.FC = () => {
 
           {/* ═══════ ERROR PHASE ═══════ */}
           {phase === 'error' && (
-            <div className="flex-1 flex flex-col justify-center px-12">
-              <div className="border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-3xl p-10">
-                <div className="flex items-start gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-500/15 flex items-center justify-center shrink-0">
-                    <AlertCircle size={22} className="text-red-500 dark:text-red-400" />
+            <div className="flex-1 flex flex-col justify-center px-16">
+              <div className="border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-[2rem] p-12">
+                <div className="flex items-start gap-6">
+                  <div className="w-16 h-16 rounded-[2rem] bg-red-100 dark:bg-red-500/15 flex items-center justify-center shrink-0">
+                    <AlertCircle size={24} className="text-red-500 dark:text-red-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-base font-bold text-red-600 dark:text-red-400 mb-3">Something went wrong</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400 mb-4">Something went wrong</p>
                     <p className="text-base text-red-500/80 dark:text-red-400/60 whitespace-pre-wrap leading-relaxed">{errorText}</p>
                   </div>
                 </div>
-                <div className="flex gap-4 mt-8 ml-16">
+                <div className="flex gap-4 mt-10 ml-20">
                   <button
                     onClick={() => { setErrorText(null); setPhase('select'); }}
-                    className="px-8 py-4 text-base font-semibold border border-gray-200/60 dark:border-white/[0.08] rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+                    className="px-10 py-5 text-base font-semibold border border-gray-200/60 dark:border-white/[0.08] rounded-[2rem] hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
                   >
                     Try again
                   </button>
                   <button
                     onClick={() => navigate('/')}
-                    className="px-8 py-4 text-base font-semibold text-gray-500 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
+                    className="px-10 py-5 text-base font-semibold text-gray-500 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
                   >
                     Go back
                   </button>
@@ -783,31 +783,31 @@ const PersonaStep: React.FC<{
   analysis?: string | null;
   persona?: AgentPersona | null;
 }> = ({ isActive, isDone, isPending, icon, title, subtitle, analysis, persona }) => (
-  <div className="flex items-start gap-6">
-    <div className={`shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
+  <div className="flex items-start gap-8">
+    <div className={`shrink-0 w-16 h-16 rounded-[2rem] flex items-center justify-center transition-all ${
       isActive ? 'bg-lemonade-accent/15 scale-110' : isDone ? 'bg-green-100 dark:bg-green-500/15' : 'bg-gray-100 dark:bg-white/[0.04]'
     }`}>
-      {isActive ? <Loader2 size={22} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={22} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
+      {isActive ? <Loader2 size={24} className="animate-spin text-lemonade-accent-hover" /> : isDone ? <Check size={24} className="text-green-500" /> : <span className="text-gray-300 dark:text-white/15">{icon}</span>}
     </div>
-    <div className="pt-1 flex-1">
-      <p className={`text-base font-bold transition-colors ${
+    <div className="pt-1.5 flex-1">
+      <p className={`text-lg font-bold transition-colors ${
         isActive ? '' : isDone ? 'text-green-600 dark:text-green-400' : isPending ? 'text-gray-300 dark:text-white/20' : ''
       }`}>
         {title}
       </p>
-      <p className="text-base text-gray-500 dark:text-white/40 mt-3">{subtitle}</p>
+      <p className="text-base text-gray-500 dark:text-white/40 mt-4">{subtitle}</p>
       {analysis && (
-        <p className="text-base text-gray-500 dark:text-white/35 mt-5 bg-gray-50 dark:bg-white/[0.04] rounded-3xl p-6 leading-relaxed">
+        <p className="text-base text-gray-500 dark:text-white/35 mt-6 bg-gray-50 dark:bg-white/[0.04] rounded-[2rem] p-8 leading-relaxed">
           {analysis}
         </p>
       )}
       {persona && (
-        <div className="mt-5 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-3xl p-8">
-          <p className="text-base font-bold">{persona.name}</p>
-          <p className="text-base text-gray-500 dark:text-white/40 mt-3 leading-relaxed">{persona.description}</p>
-          <div className="flex gap-4 mt-5">
-            <span className="text-base px-4 py-2 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-semibold">{persona.interviewStyle}</span>
-            <span className="text-base px-4 py-2 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-semibold">{persona.questionDifficulty}</span>
+        <div className="mt-6 border border-lemonade-accent/15 bg-lemonade-accent/[0.04] rounded-[2rem] p-10">
+          <p className="text-lg font-bold">{persona.name}</p>
+          <p className="text-base text-gray-500 dark:text-white/40 mt-4 leading-relaxed">{persona.description}</p>
+          <div className="flex gap-4 mt-6">
+            <span className="text-base px-5 py-2.5 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-semibold">{persona.interviewStyle}</span>
+            <span className="text-base px-5 py-2.5 bg-lemonade-accent/15 text-lemonade-accent-hover rounded-full font-semibold">{persona.questionDifficulty}</span>
           </div>
         </div>
       )}

@@ -638,7 +638,7 @@ const Interview: React.FC = () => {
             style={{ inset: '-8px', animation: 'spin 3s linear infinite' }}
           />
         </div>
-        <p className="text-base font-medium text-gray-500 dark:text-white/50 tracking-wide">
+        <p className="text-lg font-medium text-gray-500 dark:text-white/50 tracking-wide">
           Preparing your interview...
         </p>
       </div>
@@ -649,13 +649,13 @@ const Interview: React.FC = () => {
   const visibleMessages = messages.filter((m) => m.role !== 'system');
 
   return (
-    <div className="flex flex-col h-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white overflow-hidden transition-colors duration-300">
+    <div className="flex flex-col h-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white overflow-hidden px-16 transition-colors duration-300">
       {/* Persona Selector Dialog */}
       <LemonDialog
         open={showPersonaSelector}
         onClose={() => setShowPersonaSelector(false)}
         title="Select Interviewer Persona"
-        subtitle={<span className="text-xs text-gray-500">Choose the personality and style of your interviewer.</span>}
+        subtitle={<span className="text-sm text-gray-500">Choose the personality and style of your interviewer.</span>}
         className="max-w-4xl"
       >
         <div className="p-6">
@@ -668,7 +668,7 @@ const Interview: React.FC = () => {
       </LemonDialog>
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-8 py-5 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <header className="flex items-center justify-between px-12 py-6 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
@@ -678,14 +678,14 @@ const Interview: React.FC = () => {
           </button>
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <h1 className="text-base font-semibold truncate">
+              <h1 className="text-lg font-semibold truncate">
                 {currentInterview.title}
               </h1>
               <LemonBadge variant="outline" className="shrink-0">
                 {currentInterview.interviewType}
               </LemonBadge>
             </div>
-            <p className="text-sm text-gray-500 dark:text-white/40 truncate mt-1.5">
+            <p className="text-base text-gray-500 dark:text-white/40 truncate mt-1.5">
               {currentInterview.company} &middot; {currentInterview.position}
             </p>
           </div>
@@ -694,14 +694,14 @@ const Interview: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Timer */}
           <span className={cn(
-            "inline-flex items-center gap-2 px-4 py-2 border rounded-xl font-mono text-sm tabular-nums transition-colors",
+            "inline-flex items-center gap-2 px-4 py-2 border rounded-xl font-mono text-base tabular-nums transition-colors",
             isTimerExpired
               ? "border-red-500 text-red-500 dark:text-red-400 animate-pulse"
               : isTimerWarning
                 ? "border-yellow-400 text-yellow-600 dark:text-yellow-400"
                 : "border-gray-200/60 dark:border-white/10 text-gray-500 dark:text-white/50"
           )}>
-            <Clock size={14} />
+            <Clock size={18} />
             {formatTime(remainingTime)}
           </span>
 
@@ -710,13 +710,13 @@ const Interview: React.FC = () => {
             onClick={() => setShowTextInput(!showTextInput)}
             title="Toggle text input"
             className={cn(
-              "p-2.5 rounded-xl transition-colors",
+              "p-3 rounded-xl transition-colors",
               showTextInput
                 ? "bg-lemonade-accent/15 text-lemonade-accent-hover"
                 : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
             )}
           >
-            <Keyboard size={18} />
+            <Keyboard size={20} />
           </button>
 
           {/* Pause / Resume */}
@@ -724,13 +724,13 @@ const Interview: React.FC = () => {
             onClick={handleTogglePause}
             title={isPaused ? 'Resume interview' : 'Pause interview'}
             className={cn(
-              "p-2.5 rounded-xl transition-colors",
+              "p-3 rounded-xl transition-colors",
               isPaused
                 ? "bg-amber-500/15 text-amber-500 animate-pulse"
                 : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
             )}
           >
-            {isPaused ? <PlayCircle size={18} /> : <PauseCircle size={18} />}
+            {isPaused ? <PlayCircle size={20} /> : <PauseCircle size={20} />}
           </button>
 
           {/* Mute toggle */}
@@ -738,13 +738,13 @@ const Interview: React.FC = () => {
             onClick={handleToggleMute}
             title={isMuted ? 'Unmute' : 'Mute'}
             className={cn(
-              "p-2.5 rounded-xl transition-colors",
+              "p-3 rounded-xl transition-colors",
               isMuted
                 ? "bg-red-500/15 text-red-500"
                 : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
             )}
           >
-            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
 
           {/* Audio Settings */}
@@ -752,21 +752,21 @@ const Interview: React.FC = () => {
             onClick={() => setShowAudioSettings(!showAudioSettings)}
             title="Audio settings"
             className={cn(
-              "p-2.5 rounded-xl transition-colors",
+              "p-3 rounded-xl transition-colors",
               showAudioSettings
                 ? "bg-lemonade-accent/15 text-lemonade-accent-hover"
                 : "text-gray-400 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white"
             )}
           >
-            <Settings size={18} />
+            <Settings size={20} />
           </button>
 
           {/* End Interview */}
           <button
             onClick={() => handleEndInterview(false)}
-            className="ml-2 flex items-center gap-2 px-4 py-2 bg-red-500/10 dark:bg-red-500/15 text-red-600 dark:text-red-400 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition-colors"
+            className="ml-2 flex items-center gap-2 px-5 py-2.5 bg-red-500/10 dark:bg-red-500/15 text-red-600 dark:text-red-400 rounded-xl text-base font-semibold hover:bg-red-500/20 transition-colors"
           >
-            <StopCircle size={16} />
+            <StopCircle size={18} />
             End
           </button>
         </div>
@@ -774,7 +774,7 @@ const Interview: React.FC = () => {
 
       {/* Audio Settings Panel */}
       {showAudioSettings && (
-        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-8 py-6 transition-colors duration-300">
+        <div className="border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface px-12 py-8 transition-colors duration-300">
           <AudioSettings />
         </div>
       )}
@@ -805,14 +805,14 @@ const Interview: React.FC = () => {
           {/* Mode indicator below orb */}
           <div className="mt-6 h-10 flex items-center justify-center">
             {isPaused && (
-              <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 font-medium">
+              <div className="flex items-center gap-2 text-base text-amber-600 dark:text-amber-400 font-medium">
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                 <span>Interview paused — press play to resume</span>
               </div>
             )}
 
             {!isPaused && voiceReady && isHandsFreeMode && (
-              <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+              <div className="flex items-center gap-2 text-base text-emerald-600 dark:text-emerald-400 font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>
                   {isListening
@@ -827,14 +827,14 @@ const Interview: React.FC = () => {
             )}
 
             {!isPaused && voiceReady && !isHandsFreeMode && !isRecording && !isSpeaking && !isThinking && (
-              <p className="text-sm text-gray-400 dark:text-white/30">
+              <p className="text-base text-gray-400 dark:text-white/30">
                 Starting hands-free mode...
               </p>
             )}
 
             {!voiceReady && (
-              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-white/40">
-                <MicOff size={14} />
+              <div className="flex items-center gap-2 text-base text-gray-400 dark:text-white/40">
+                <MicOff size={18} />
                 <span>Voice unavailable — use text input</span>
               </div>
             )}
@@ -844,11 +844,11 @@ const Interview: React.FC = () => {
         {/* ── Transcript Area ── */}
         <div className="h-[50%] min-h-[280px] flex flex-col border-t border-gray-200/50 dark:border-white/[0.08]">
           {/* Status bar */}
-          <div className="px-8 py-4 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
-            <span className="text-sm font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wider">
+          <div className="px-12 py-6 flex items-center justify-between border-b border-gray-100/60 dark:border-white/[0.04]">
+            <span className="text-base font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Transcript
             </span>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               {isHandsFreeMode && <StatusDot color="green" label="Hands-free" />}
               {isListening && <StatusDot color="yellow" label="Listening" />}
               {isRecording && !isHandsFreeMode && <StatusDot color="red" label="Recording" />}
@@ -859,10 +859,10 @@ const Interview: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          <div className="flex-1 overflow-y-auto px-12 py-8 space-y-8">
             {visibleMessages.length === 0 && !isThinking && (
               <div className="flex items-center justify-center h-full">
-                <p className="text-base text-gray-400 dark:text-white/30">
+                <p className="text-lg text-gray-400 dark:text-white/30">
                   Your conversation will appear here
                 </p>
               </div>
@@ -875,8 +875,8 @@ const Interview: React.FC = () => {
             {/* Real-time transcription delta */}
             {transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="max-w-[75%] bg-lemonade-accent/10 dark:bg-lemonade-accent/5 border border-lemonade-accent/20 dark:border-lemonade-accent/10 rounded-2xl rounded-br-sm px-5 py-3.5">
-                  <p className="text-base text-lemonade-accent-hover dark:text-lemonade-accent/60 italic">{transcriptionDelta}</p>
+                <div className="max-w-[75%] bg-lemonade-accent/10 dark:bg-lemonade-accent/5 border border-lemonade-accent/20 dark:border-lemonade-accent/10 rounded-2xl rounded-br-sm px-6 py-4">
+                  <p className="text-lg text-lemonade-accent-hover dark:text-lemonade-accent/60 italic">{transcriptionDelta}</p>
                 </div>
               </div>
             )}
@@ -884,20 +884,20 @@ const Interview: React.FC = () => {
             {/* Transcribing indicator */}
             {isTranscribing && !transcriptionDelta && (
               <div className="flex justify-end">
-                <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-sm px-5 py-3.5 flex items-center gap-3">
+                <div className="bg-lemonade-accent/10 border border-lemonade-accent/20 rounded-2xl rounded-br-sm px-6 py-4 flex items-center gap-4">
                   <div className="flex items-center gap-1">
                     {[0, 1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="w-1 h-2 bg-lemonade-accent/50 rounded-full"
+                        className="w-1.5 h-3 bg-lemonade-accent/50 rounded-full"
                         style={{
-                          height: `${10 + i * 3}px`,
+                          height: `${12 + i * 4}px`,
                           animation: `pulse 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
                         }}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-lemonade-accent-hover dark:text-lemonade-accent/70">Processing speech...</span>
+                  <span className="text-base text-lemonade-accent-hover dark:text-lemonade-accent/70">Processing speech...</span>
                 </div>
               </div>
             )}
@@ -905,17 +905,17 @@ const Interview: React.FC = () => {
             {/* Thinking indicator */}
             {isThinking && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 dark:bg-white/[0.04] rounded-2xl rounded-bl-sm px-5 py-3.5 flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
+                <div className="bg-gray-100 dark:bg-white/[0.04] rounded-2xl rounded-bl-sm px-6 py-4 flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     {[0, 1, 2].map((i) => (
                       <div
                         key={i}
-                        className="w-2 h-2 bg-gray-400 dark:bg-white/30 rounded-full animate-bounce"
+                        className="w-2.5 h-2.5 bg-gray-400 dark:bg-white/30 rounded-full animate-bounce"
                         style={{ animationDelay: `${i * 0.15}s` }}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-500 dark:text-white/50">Thinking...</span>
+                  <span className="text-base text-gray-500 dark:text-white/50">Thinking...</span>
                 </div>
               </div>
             )}
@@ -933,7 +933,7 @@ const Interview: React.FC = () => {
                   setTextInput('');
                 }
               }}
-              className="px-8 py-5 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-3"
+              className="px-12 py-8 border-t border-gray-100/60 dark:border-white/[0.04] flex items-center gap-4"
             >
               <input
                 type="text"
@@ -941,14 +941,14 @@ const Interview: React.FC = () => {
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
-                className="flex-1 px-5 py-3.5 text-base bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
+                className="flex-1 px-6 py-4 text-lg bg-lemonade-bg/50 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/10 rounded-2xl text-black dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 disabled:opacity-40 transition-colors"
               />
               <button
                 type="submit"
                 disabled={isSending || !textInput.trim()}
-                className="p-3.5 bg-lemonade-accent text-black rounded-2xl hover:bg-lemonade-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-4 bg-lemonade-accent text-black rounded-2xl hover:bg-lemonade-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
-                <Send size={18} />
+                <Send size={20} />
               </button>
             </form>
           )}
@@ -975,8 +975,8 @@ const StatusDot: React.FC<StatusDotProps> = ({ color, label }) => {
   };
 
   return (
-    <span className="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-white/40 uppercase tracking-wider">
-      <span className={cn("w-2 h-2 rounded-full animate-pulse", colorMap[color])} />
+    <span className="flex items-center gap-2.5 text-sm font-medium text-gray-400 dark:text-white/40 uppercase tracking-wider">
+      <span className={cn("w-2.5 h-2.5 rounded-full animate-pulse", colorMap[color])} />
       {label}
     </span>
   );
@@ -990,16 +990,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={cn("flex gap-4", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex gap-6", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0 mt-0.5 text-gray-400">
-          <Bot size={18} />
+        <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0 mt-0.5 text-gray-400">
+          <Bot size={20} />
         </div>
       )}
       <div className="max-w-[75%] min-w-[80px]">
         <div
           className={cn(
-            "px-6 py-4 text-base leading-relaxed",
+            "px-8 py-5 text-lg leading-relaxed",
             isUser
               ? "bg-lemonade-accent text-black rounded-2xl rounded-br-sm"
               : "bg-gray-100 dark:bg-white/[0.05] text-black dark:text-white rounded-2xl rounded-bl-sm"
@@ -1007,13 +1007,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-        <p className={cn("text-xs text-gray-400 dark:text-white/30 mt-2 px-2", isUser ? "text-right" : "text-left")}>
+        <p className={cn("text-sm text-gray-400 dark:text-white/30 mt-2 px-2", isUser ? "text-right" : "text-left")}>
           {format(new Date(message.timestamp), 'h:mm a')}
         </p>
       </div>
       {isUser && (
-        <div className="w-10 h-10 rounded-xl bg-lemonade-accent flex items-center justify-center shrink-0 mt-0.5 text-black">
-          <User size={18} />
+        <div className="w-12 h-12 rounded-xl bg-lemonade-accent flex items-center justify-center shrink-0 mt-0.5 text-black">
+          <User size={20} />
         </div>
       )}
     </div>

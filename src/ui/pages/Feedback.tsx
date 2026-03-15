@@ -99,30 +99,30 @@ const Feedback: React.FC = () => {
   if (phase === 'loading') {
     return (
       <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col items-center justify-center transition-colors duration-300">
-        <div className="w-full max-w-lg px-8 flex flex-col items-center gap-8">
-          <div className="w-20 h-20 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
-            <Loader2 className="w-10 h-10 text-lemonade-accent-hover animate-spin" />
+        <div className="w-full max-w-2xl px-16 flex flex-col items-center gap-12">
+          <div className="w-28 h-28 rounded-3xl bg-lemonade-accent/10 flex items-center justify-center">
+            <Loader2 className="w-14 h-14 text-lemonade-accent-hover animate-spin" />
           </div>
 
-          <div className="text-center space-y-3">
-            <h2 className="text-2xl font-bold">Analyzing Your Interview</h2>
-            <p className="text-base text-gray-500 dark:text-white/40">{progressInfo.status}</p>
+          <div className="text-center space-y-5">
+            <h2 className="text-4xl font-bold">Analyzing Your Interview</h2>
+            <p className="text-lg text-gray-500 dark:text-white/40">{progressInfo.status}</p>
           </div>
 
-          <div className="w-full space-y-3">
-            <div className="w-full h-3 bg-gray-200/60 dark:bg-white/10 rounded-full overflow-hidden">
+          <div className="w-full space-y-4">
+            <div className="w-full h-4 bg-gray-200/60 dark:bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-lemonade-accent to-lemonade-accent-hover rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <p className="text-sm text-gray-400 dark:text-white/30 text-center">
+            <p className="text-base text-gray-400 dark:text-white/30 text-center">
               {progressInfo.questionIndex} of {progressInfo.totalQuestions} questions graded
             </p>
           </div>
 
           {error && (
-            <div className="w-full border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-2xl p-6 text-base text-red-600 dark:text-red-400">
+            <div className="w-full border border-red-200/60 dark:border-red-500/15 bg-red-50 dark:bg-red-500/10 rounded-2xl p-8 text-lg text-red-600 dark:text-red-400">
               {error}
             </div>
           )}
@@ -143,31 +143,31 @@ const Feedback: React.FC = () => {
   return (
     <div className="h-screen w-full bg-lemonade-bg dark:bg-lemonade-dark-bg text-black dark:text-white flex flex-col overflow-hidden transition-colors duration-300">
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-5 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
-        <div className="flex items-center gap-4">
+      <header className="flex items-center justify-between px-12 py-6 border-b border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+        <div className="flex items-center gap-6">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-3 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
+            className="p-3.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors text-gray-400 hover:text-black dark:hover:text-white"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
-            <h1 className="text-base font-semibold">Interview Feedback</h1>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
+            <h1 className="text-xl font-semibold">Interview Feedback</h1>
+            <p className="text-base text-gray-500 dark:text-white/40 mt-1.5">
               Question {currentQuestionIndex + 1} of {totalQuestions}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <div className="text-right">
-            <p className="text-xs text-gray-400 dark:text-white/30 uppercase tracking-wider font-medium">Overall</p>
-            <p className={`text-2xl font-bold ${getScoreColor(feedback.overallScore)}`}>
+            <p className="text-sm text-gray-400 dark:text-white/30 uppercase tracking-wider font-medium">Overall</p>
+            <p className={`text-4xl font-bold ${getScoreColor(feedback.overallScore)}`}>
               {feedback.overallScore}%
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-lemonade-accent/10 flex items-center justify-center">
-            <Trophy className={`w-5 h-5 ${getScoreColor(feedback.overallScore)}`} />
+          <div className="w-16 h-16 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
+            <Trophy className={`w-7 h-7 ${getScoreColor(feedback.overallScore)}`} />
           </div>
         </div>
       </header>
@@ -176,51 +176,51 @@ const Feedback: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side: Q/A */}
         <div className="flex-1 border-r border-gray-200/50 dark:border-white/[0.08] flex flex-col">
-          <div className="px-8 py-4 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
-            <div className="flex items-center gap-3">
+          <div className="px-12 py-6 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
+            <div className="flex items-center gap-4">
               {getRatingIcon(currentQF.rating)}
-              <span className={`text-sm font-semibold px-3 py-1 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
+              <span className={`text-base font-semibold px-4 py-1.5 rounded-full border ${getRatingBg(currentQF.rating)} ${getRatingColor(currentQF.rating)}`}>
                 {currentQF.rating.replace('-', ' ')}
               </span>
-              <span className={`text-lg font-bold ml-auto ${getScoreColor(currentQF.score)}`}>
+              <span className={`text-2xl font-bold ml-auto ${getScoreColor(currentQF.score)}`}>
                 {currentQF.score}/100
               </span>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <div className={`p-8 space-y-8 transition-all duration-300 ${
+            <div className={`px-12 py-10 space-y-10 transition-all duration-300 ${
               animatingIn ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
             }`}>
               {/* Question */}
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Question {currentQuestionIndex + 1}
                 </p>
-                <div className="p-6 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
-                  <p className="text-base leading-relaxed">{currentQF.question}</p>
+                <div className="p-8 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
+                  <p className="text-lg leading-relaxed">{currentQF.question}</p>
                 </div>
               </div>
 
               {/* Answer */}
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   Your Answer
                 </p>
-                <div className="p-6 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
-                  <p className="text-base leading-relaxed">{currentQF.answer}</p>
+                <div className="p-8 rounded-2xl bg-lemonade-bg dark:bg-white/[0.03] border border-gray-200/50 dark:border-white/[0.08]">
+                  <p className="text-lg leading-relaxed">{currentQF.answer}</p>
                 </div>
               </div>
 
               {/* Suggested Answer */}
               {currentQF.suggestedAnswer && (
-                <div className="space-y-4">
-                  <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-lemonade-accent-hover" />
+                <div className="space-y-5">
+                  <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider flex items-center gap-3">
+                    <Zap className="w-5 h-5 text-lemonade-accent-hover" />
                     Suggested Response
                   </p>
-                  <div className="p-6 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
-                    <p className="text-base leading-relaxed">{currentQF.suggestedAnswer}</p>
+                  <div className="p-8 rounded-2xl bg-lemonade-accent/[0.04] border border-lemonade-accent/15">
+                    <p className="text-lg leading-relaxed">{currentQF.suggestedAnswer}</p>
                   </div>
                 </div>
               )}
@@ -230,27 +230,27 @@ const Feedback: React.FC = () => {
 
         {/* Right Side: Feedback & Suggestions */}
         <div className="w-[450px] flex flex-col">
-          <div className="px-8 py-4 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
+          <div className="px-12 py-6 bg-lemonade-bg dark:bg-white/[0.02] border-b border-gray-100/60 dark:border-white/[0.04]">
             <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
               Feedback & Suggestions
             </p>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <div className={`p-8 space-y-8 transition-all duration-300 delay-100 ${
+            <div className={`px-12 py-10 space-y-10 transition-all duration-300 delay-100 ${
               animatingIn ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
             }`}>
               {/* Strengths */}
               {currentQF.strengths.length > 0 && (
                 <div className="bg-green-50 dark:bg-green-500/10 border border-green-200/60 dark:border-green-500/15 rounded-2xl overflow-hidden">
-                  <div className="px-6 pt-6 pb-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4" />
+                  <div className="px-8 pt-8 pb-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 flex items-center gap-3">
+                      <CheckCircle2 className="w-5 h-5" />
                       Strengths
                     </h3>
                   </div>
-                  <div className="px-6 pb-6">
-                    <ul className="space-y-3">
+                  <div className="px-8 pb-8">
+                    <ul className="space-y-4">
                       {currentQF.strengths.map((s, i) => (
                         <li key={i} className="text-base text-green-800 dark:text-green-300 flex items-start gap-3">
                           <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
@@ -269,16 +269,16 @@ const Feedback: React.FC = () => {
                     ? 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/15'
                     : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/15'
                 }`}>
-                  <div className="px-6 pt-6 pb-4">
-                    <h3 className={`text-sm font-semibold uppercase tracking-wider flex items-center gap-2 ${
+                  <div className="px-8 pt-8 pb-5">
+                    <h3 className={`text-sm font-semibold uppercase tracking-wider flex items-center gap-3 ${
                       currentQF.rating === 'needs-improvement' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
                     }`}>
-                      <AlertTriangle className="w-4 h-4" />
+                      <AlertTriangle className="w-5 h-5" />
                       Areas to Improve
                     </h3>
                   </div>
-                  <div className="px-6 pb-6">
-                    <ul className="space-y-3">
+                  <div className="px-8 pb-8">
+                    <ul className="space-y-4">
                       {currentQF.improvements.map((imp, i) => (
                         <li key={i} className={`text-base flex items-start gap-3 ${
                           currentQF.rating === 'needs-improvement' ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'
@@ -292,19 +292,19 @@ const Feedback: React.FC = () => {
                 </div>
               )}
 
-              <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
+              <div className="border-t border-gray-100/60 dark:border-white/[0.04] my-8" />
 
               {/* Question Navigator */}
-              <div className="space-y-5">
+              <div className="space-y-6">
                 <p className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">
                   All Questions
                 </p>
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-5 gap-4">
                   {feedback.questionFeedbacks.map((qf, idx) => (
                     <button
                       key={idx}
                       onClick={() => goToQuestion(idx)}
-                      className={`w-full aspect-square rounded-xl text-sm font-semibold transition-all flex items-center justify-center border ${
+                      className={`w-full aspect-square rounded-xl text-base font-semibold transition-all flex items-center justify-center border ${
                         idx === currentQuestionIndex
                           ? 'bg-lemonade-accent text-black border-lemonade-accent scale-105'
                           : getRatingBg(qf.rating) + ' hover:scale-105'
@@ -321,25 +321,25 @@ const Feedback: React.FC = () => {
       </div>
 
       {/* Footer Navigation */}
-      <footer className="flex items-center justify-between px-8 py-5 border-t border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
+      <footer className="flex items-center justify-between px-12 py-6 border-t border-gray-200/50 dark:border-white/[0.08] bg-lemonade-bg dark:bg-lemonade-dark-surface transition-colors duration-300">
         <button
           onClick={() => goToQuestion(currentQuestionIndex - 1)}
           disabled={currentQuestionIndex === 0}
-          className="flex items-center gap-2 px-5 py-3 text-base font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex items-center gap-3 px-6 py-4 text-base font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-6 h-6" />
           Previous
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {feedback.questionFeedbacks.map((_, idx) => (
             <button
               key={idx}
               onClick={() => goToQuestion(idx)}
-              className={`h-2.5 rounded-full transition-all ${
+              className={`h-3 rounded-full transition-all ${
                 idx === currentQuestionIndex
-                  ? 'bg-lemonade-accent w-8'
-                  : 'bg-gray-300 dark:bg-white/15 w-2.5 hover:bg-gray-400 dark:hover:bg-white/30'
+                  ? 'bg-lemonade-accent w-10'
+                  : 'bg-gray-300 dark:bg-white/15 w-3 hover:bg-gray-400 dark:hover:bg-white/30'
               }`}
             />
           ))}
@@ -348,18 +348,18 @@ const Feedback: React.FC = () => {
         {currentQuestionIndex < totalQuestions - 1 ? (
           <button
             onClick={() => goToQuestion(currentQuestionIndex + 1)}
-            className="flex items-center gap-2 px-5 py-3 text-base font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+            className="flex items-center gap-3 px-6 py-4 text-base font-semibold border border-gray-200/50 dark:border-white/[0.08] rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
           >
             Next
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-6 h-6" />
           </button>
         ) : (
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 px-6 py-3 text-base font-semibold bg-lemonade-accent text-black rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+            className="flex items-center gap-3 px-7 py-4 text-base font-semibold bg-lemonade-accent text-black rounded-xl hover:bg-lemonade-accent-hover transition-colors"
           >
             Done
-            <CheckCircle2 className="w-5 h-5" />
+            <CheckCircle2 className="w-6 h-6" />
           </button>
         )}
       </footer>

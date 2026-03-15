@@ -209,7 +209,7 @@ const Landing: React.FC = () => {
       {step === 'initial' && (
         <div className="flex-1 flex flex-col items-center justify-center px-16">
           {/* Hero Section */}
-          <div className="flex flex-col items-center mb-20">
+          <div className="flex flex-col items-center mb-24">
             <img src="/logo.png" alt="lemonade" className="w-24 h-24 mb-8 drop-shadow-lg" />
             <h1 className="text-6xl font-bold tracking-tight mb-4">interviewer</h1>
             <p className="text-lg text-gray-500 dark:text-white/40 font-light">
@@ -218,7 +218,7 @@ const Landing: React.FC = () => {
           </div>
 
           {/* Upload Section */}
-          <div className="flex items-center gap-12 mb-16">
+          <div className="flex items-center gap-16 mb-20">
             <UploadButton
               onClick={() => resumeInputRef.current?.click()}
               isUploading={isUploadingResume}
@@ -238,7 +238,7 @@ const Landing: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-6 mb-8">
+          <div className="flex items-center gap-8 mb-10">
             <button
               onClick={handleBeginClick}
               disabled={!canBegin}
@@ -266,32 +266,32 @@ const Landing: React.FC = () => {
           )}
 
           {startError && (
-            <div className="mt-12 p-8 bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/20 rounded-3xl flex flex-col gap-4 text-red-700 dark:text-red-400 text-base max-w-xl shadow-lg">
-              <div className="flex items-center gap-4">
-                <AlertCircle size={20} className="shrink-0" />
-                <p className="font-medium">{startError}</p>
+            <div className="mt-12 p-10 bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/20 rounded-3xl flex flex-col gap-5 text-red-700 dark:text-red-400 text-base max-w-xl shadow-lg">
+              <div className="flex items-center gap-5">
+                <AlertCircle size={24} className="shrink-0" />
+                <p className="font-medium text-lg">{startError}</p>
               </div>
               {lemonadeInstalled === false && (
-                <div className="ml-9 space-y-3">
+                <div className="ml-10 space-y-4">
                   <a
                     href="https://lemonade-server.ai/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-3 px-6 py-3 bg-lemonade-accent hover:bg-lemonade-accent-hover text-black font-semibold rounded-2xl transition-colors"
                   >
-                    <ExternalLink size={14} />
+                    <ExternalLink size={16} />
                     Download Lemonade Server
                   </a>
                   <p className="text-sm text-gray-500 dark:text-white/40">After installing, restart this application.</p>
                 </div>
               )}
               {lemonadeInstalled === true && !serverRunning && (
-                <div className="ml-9 p-4 bg-gray-900 text-green-400 rounded-2xl font-mono text-sm flex items-center gap-3">
-                  <Terminal size={14} className="shrink-0 text-gray-500" />
+                <div className="ml-10 p-5 bg-gray-900 text-green-400 rounded-2xl font-mono text-sm flex items-center gap-3">
+                  <Terminal size={16} className="shrink-0 text-gray-500" />
                   <code>lemonade-server serve</code>
                 </div>
               )}
-              <button onClick={performBackgroundChecks} className="text-sm font-semibold hover:underline text-left ml-9">
+              <button onClick={performBackgroundChecks} className="text-sm font-semibold hover:underline text-left ml-10">
                 Retry Connection
               </button>
             </div>
@@ -303,10 +303,10 @@ const Landing: React.FC = () => {
       {step === 'setup' && (
         <div className="flex-1 flex flex-col items-center justify-center px-16 py-12">
           {/* Header */}
-          <div className="flex flex-col items-center mb-16">
+          <div className="flex flex-col items-center mb-20">
             <button
               onClick={() => setStep('initial')}
-              className="flex items-center gap-2 text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-8"
+              className="flex items-center gap-2 text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-10"
             >
               <ChevronLeft size={20} />
               <span className="text-sm font-medium">Back</span>
@@ -320,10 +320,10 @@ const Landing: React.FC = () => {
           <div className="w-full max-w-5xl">
             {/* AI Extraction Progress */}
             {isExtracting && (
-              <div className="mb-12 p-8 bg-white dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/[0.08] rounded-3xl shadow-sm">
-                <div className="flex items-center gap-5 mb-8">
-                  <div className="w-16 h-16 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
-                    <Sparkles size={28} className="text-lemonade-accent-hover" />
+              <div className="mb-16 p-10 bg-white dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/[0.08] rounded-3xl shadow-sm">
+                <div className="flex items-center gap-6 mb-8">
+                  <div className="w-20 h-20 rounded-2xl bg-lemonade-accent/10 flex items-center justify-center">
+                    <Sparkles size={32} className="text-lemonade-accent-hover" />
                   </div>
                   <div>
                     <p className="text-xl font-semibold">AI is reading your job post</p>
@@ -331,10 +331,10 @@ const Landing: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <ExtractionStepRow icon={<FileText size={16} />} label="Analyzing job posting" isActive={extractionStep === 'analyzing'} isDone={extractionStep !== 'analyzing'} />
-                  <ExtractionStepRow icon={<Building2 size={16} />} label="Extracting company" isActive={extractionStep === 'extracting-company'} isDone={extractionStep === 'extracting-position' || extractionStep === 'extracting-title'} />
-                  <ExtractionStepRow icon={<User size={16} />} label="Extracting position" isActive={extractionStep === 'extracting-position'} isDone={extractionStep === 'extracting-title'} />
-                  <ExtractionStepRow icon={<Tag size={16} />} label="Generating title" isActive={extractionStep === 'extracting-title'} isDone={false} />
+                  <ExtractionStepRow icon={<FileText size={20} />} label="Analyzing job posting" isActive={extractionStep === 'analyzing'} isDone={extractionStep !== 'analyzing'} />
+                  <ExtractionStepRow icon={<Building2 size={20} />} label="Extracting company" isActive={extractionStep === 'extracting-company'} isDone={extractionStep === 'extracting-position' || extractionStep === 'extracting-title'} />
+                  <ExtractionStepRow icon={<User size={20} />} label="Extracting position" isActive={extractionStep === 'extracting-position'} isDone={extractionStep === 'extracting-title'} />
+                  <ExtractionStepRow icon={<Tag size={20} />} label="Generating title" isActive={extractionStep === 'extracting-title'} isDone={false} />
                 </div>
               </div>
             )}
@@ -362,8 +362,8 @@ const Landing: React.FC = () => {
             )}
 
             {/* Form */}
-            <div className="bg-white dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/[0.08] rounded-3xl p-10 shadow-sm">
-              <div className="space-y-8">
+            <div className="bg-white dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/[0.08] rounded-3xl p-12 shadow-sm">
+              <div className="space-y-10">
                 <div>
                   <label className={LABEL_CLASS}>
                     <span className="flex items-center gap-2">Job Title <FieldStatusIcon isLoading={isExtracting && !formData.title} isDone={extractionStep === 'done' && !!formData.title} /></span>
@@ -371,7 +371,7 @@ const Landing: React.FC = () => {
                   <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className={INPUT_CLASS} placeholder={isExtracting ? 'AI is generating...' : 'e.g., Senior Software Engineer Interview'} autoFocus={!isExtracting} />
                 </div>
 
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-2 gap-10">
                   <div>
                     <label className={LABEL_CLASS}>
                       <span className="flex items-center gap-2">Company <FieldStatusIcon isLoading={['analyzing', 'extracting-company'].includes(extractionStep) && !formData.company} isDone={!['idle', 'analyzing', 'extracting-company', 'error'].includes(extractionStep) && !!formData.company} /></span>

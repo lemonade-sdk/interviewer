@@ -85,31 +85,6 @@ export class PromptManager {
     return this.interpolate(prompts.interview.systemPrompt.withPersona as string | string[], enriched);
   }
 
-  getInterviewSystemPromptFallback(variables: {
-    interviewType: string;
-    position: string;
-    company: string;
-    interviewStyle: string;
-    questionDifficulty: string;
-    numberOfQuestions: number;
-    wrapUpThresholdMinutes: number;
-    currentMinutesRemaining: number;
-    currentPhaseKeyword: string;
-    resume: string;
-    // v2: Time allocation for coherent UX
-    greetingAllocationMinutes?: number;
-    timePerQuestionMinutes?: number;
-    effectiveInterviewMinutes?: number;
-  }): string {
-    // Bridge: same aliases needed for fallback template
-    const enriched = {
-      ...variables,
-      totalInterviewMinutes: variables.currentMinutesRemaining,
-      total_duration: variables.currentMinutesRemaining,
-    };
-    return this.interpolate(prompts.interview.systemPrompt.fallback as string | string[], enriched);
-  }
-
   getFeedbackComprehensivePrompt(): string {
     const p = prompts.interview.feedback.comprehensive as string | string[];
     return Array.isArray(p) ? p.join('\n') : p;
@@ -141,19 +116,6 @@ export class PromptManager {
   getPersonaGenerationSystemPrompt(): string {
     const p = prompts.persona.generation.systemPrompt as string | string[];
     return Array.isArray(p) ? p.join('\n') : p;
-  }
-
-  getPersonaGenerationFallbackPrompt(variables: {
-    interviewType: string;
-    position: string;
-    company: string;
-    jobDescription: string;
-    resume: string;
-    toneInstruction: string;
-    currentPhaseKeyword: string;
-    currentMinutesRemaining: number;
-  }): string {
-    return this.interpolate(prompts.persona.generation.fallback as string | string[], variables);
   }
 
   getDocumentExtractionUserPrompt(variables: {

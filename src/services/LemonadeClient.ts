@@ -115,7 +115,7 @@ export class LemonadeClient {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number; maxInputTokens?: number }): Promise<string> {
+  async sendMessage(conversationHistory: Message[], options?: { maxTokens?: number; maxInputTokens?: number; model?: string }): Promise<string> {
     try {
       // Check server connection first
       if (!this.isConnected) {
@@ -151,8 +151,10 @@ export class LemonadeClient {
       const sentInputChars  = truncatedHistory.reduce((s, m) => s + m.content.length, 0);
       const wasTruncated    = truncatedHistory.length < conversationHistory.length;
 
+      const modelToUse = options?.model ?? this.settings.modelName;
+
       console.log(`[LLM:sendMessage] ── Request ─────────────────────────────────`);
-      console.log(`[LLM:sendMessage] model=${this.settings.modelName}`);
+      console.log(`[LLM:sendMessage] model=${modelToUse}`);
       console.log(`[LLM:sendMessage] maxInputTokens=${maxInputTokens}, maxOutputTokens=${options?.maxTokens ?? this.settings.maxTokens}`);
       console.log(`[LLM:sendMessage] messages: ${conversationHistory.length} total → ${truncatedHistory.length} sent${wasTruncated ? ' (TRUNCATED)' : ''}`);
       console.log(`[LLM:sendMessage] input chars: ${totalInputChars} total → ${sentInputChars} sent (~${Math.round(sentInputChars/4)} tokens)`);
@@ -170,7 +172,7 @@ export class LemonadeClient {
       // consume tokens for chain-of-thought before producing visible content.
       const maxTokens = options?.maxTokens ?? this.settings.maxTokens;
       const completion = await this.client.chat.completions.create({
-        model: this.settings.modelName,
+        model: modelToUse,
         messages: messages,
         temperature: this.settings.temperature,
         max_tokens: maxTokens,

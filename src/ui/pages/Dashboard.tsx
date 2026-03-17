@@ -75,7 +75,10 @@ const Dashboard: React.FC = () => {
                 <InterviewCard
                   key={interview.id}
                   interview={interview}
-                  onClick={() => navigate(`/interview/${interview.id}`)}
+                  onClick={async () => {
+                    await window.electronAPI.resumeInterview(interview.id);
+                    navigate(`/interview/${interview.id}`);
+                  }}
                 />
               ))}
             </div>
@@ -110,8 +113,9 @@ const Dashboard: React.FC = () => {
                     key={interview.id}
                     interview={interview}
                     className="rounded-none border-none hover:bg-lemonade-bg/60 dark:hover:bg-white/[0.03]"
-                    onClick={() => {
+                    onClick={async () => {
                       if (interview.status === 'in-progress') {
+                        await window.electronAPI.resumeInterview(interview.id);
                         navigate(`/interview/${interview.id}`);
                       } else if (interview.feedback) {
                         navigate(`/feedback/${interview.id}`);

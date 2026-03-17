@@ -120,13 +120,16 @@ export class VoiceInterviewManager extends EventEmitter {
    */
   async initialize(personaGender?: 'male' | 'female' | 'neutral'): Promise<void> {
     if (this.isInitialized) {
-      console.warn('VoiceInterviewManager already initialized');
+      console.warn('[VoiceInterviewManager:initialize] Already initialized');
       return;
     }
 
     try {
+      console.log('[VoiceInterviewManager:initialize] Starting initialization...');
+      
       // Initialize TTS voices
       await this.ttsService.getVoices();
+      console.log('[VoiceInterviewManager:initialize] TTS voices loaded');
       
       // Set voice based on persona gender, or default to alloy
       if (personaGender) {
@@ -134,11 +137,26 @@ export class VoiceInterviewManager extends EventEmitter {
       } else {
         await this.ttsService.setVoice('alloy'); // Default to Alloy
       }
+      console.log(`[VoiceInterviewManager:initialize] Voice set to ${personaGender || 'alloy'}`);
+      
+      // Check AudioContext state for debugging
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log(`[VoiceInterviewManager:initialize] AudioContext state: ${audioCtx.state}`);
+        if (audioCtx.state === 'suspended') {
+          console.log('[VoiceInterviewManager:initialize] Attempting to resume AudioContext...');
+          await audioCtx.resume();
+          console.log(`[VoiceInterviewManager:initialize] AudioContext resumed, new state: ${audioCtx.state}`);
+        }
+        await audioCtx.close();
+      } catch (audioErr) {
+        console.warn('[VoiceInterviewManager:initialize] Could not check AudioContext state:', audioErr);
+      }
       
       this.isInitialized = true;
-      console.log(`VoiceInterviewManager initialized with ${personaGender || 'neutral'} voice`);
+      console.log('[VoiceInterviewManager:initialize] Initialization complete');
     } catch (error) {
-      console.error('Failed to initialize VoiceInterviewManager:', error);
+      console.error('[VoiceInterviewManager:initialize] Failed to initialize:', error);
       throw error;
     }
   }
@@ -818,28 +836,36 @@ export class VoiceInterviewManager extends EventEmitter {
       throw new Error('VoiceInterviewManager not initialized');
     }
 
+    console.log(`[VoiceInterviewManager:speak] Called with text (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+
     if (this.isSpeaking) {
-      console.warn('Already speaking, stopping previous speech');
+      console.warn('[VoiceInterviewManager:speak] Already speaking, stopping previous speech');
       this.ttsService.stop();
     }
 
     try {
       this.isSpeaking = true;
       this.emit('speaking-started');
+      console.log('[VoiceInterviewManager:speak] Emitting speaking-started event');
 
       // Try streaming first for faster time-to-first-audio
       try {
+        console.log('[VoiceInterviewManager:speak] Attempting streaming TTS...');
         await this.ttsService.speakStreaming(text, () => {
-          console.log('TTS streaming: first chunk playing');
+          console.log('[VoiceInterviewManager:speak] TTS streaming: first chunk playing');
         });
+        console.log('[VoiceInterviewManager:speak] Streaming TTS completed successfully');
       } catch (streamErr: any) {
-        console.warn('TTS streaming failed, falling back to non-streaming:', streamErr.message);
+        console.warn('[VoiceInterviewManager:speak] TTS streaming failed, falling back to non-streaming:', streamErr.message);
         await this.ttsService.speak(text);
+        console.log('[VoiceInterviewManager:speak] Non-streaming TTS completed successfully');
       }
 
       this.isSpeaking = false;
       this.emit('speaking-stopped');
+      console.log('[VoiceInterviewManager:speak] Emitting speaking-stopped event');
     } catch (error: any) {
+      console.error('[VoiceInterviewManager:speak] TTS error:', error);
       this.isSpeaking = false;
       this.emit('speaking-stopped');
       this.emit('error', error);

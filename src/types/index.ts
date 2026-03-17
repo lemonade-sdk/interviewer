@@ -3,6 +3,7 @@
 export interface Interview {
   id: string;
   jobId?: string;
+  personaId?: string;  // Stored to restore persona on interview resume
   title: string;
   company: string;
   position: string;
@@ -352,6 +353,7 @@ export interface ServerHealth {
 export interface IPC {
   // Interview operations
   startInterview: (config: Partial<Interview>, personaId?: string, jobPostDocId?: string, resumeDocId?: string) => Promise<Interview>;
+  resumeInterview: (interviewId: string) => Promise<void>;
   endInterview: (interviewId: string) => Promise<Interview>;
   sendMessage: (interviewId: string, message: string) => Promise<Message>;
   sendMessageStreaming: (interviewId: string, message: string) => Promise<Message>;

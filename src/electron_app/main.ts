@@ -268,9 +268,13 @@ app.on('before-quit', (event) => {
 });
 
 // IPC Handlers - Interview Operations
-ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string, jobPostDocId?: string, resumeDocId?: string) => {
+ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any, personaId?: string, _jobPostDocId?: string, resumeDocId?: string) => {
   try {
-    const interview = await interviewRepo.create(config);
+    // Create interview with personaId stored for resume functionality
+    const interview = await interviewRepo.create({
+      ...config,
+      personaId,  // Store personaId so we can restore persona on resume
+    });
 
     // If a persona ID is provided, look it up and pass it to the interview service
     let persona = null;
@@ -289,25 +293,31 @@ ipcMain.handle('interview:start', async (_event: IpcMainInvokeEvent, config: any
     }
     const timerConfig = { totalInterviewMinutes, wrapUpThresholdMinutes: 5 };
 
-    // Fetch document text so the interview system prompt has real JD + resume content
-    let jobDescription = '';
+    // Fetch resume for interview system prompt (JD not needed — persona fields encode JD intelligence)
     let resume = '';
-    if (jobPostDocId) {
-      const jobDoc = await documentRepo.findById(jobPostDocId);
-      jobDescription = jobDoc?.extractedText ?? '';
-      console.log(`[InterviewStart] Job description loaded: ${jobDescription.length} chars from doc ${jobPostDocId}`);
-    }
     if (resumeDocId) {
       const resumeDoc = await documentRepo.findById(resumeDocId);
       resume = resumeDoc?.extractedText ?? '';
       console.log(`[InterviewStart] Resume loaded: ${resume.length} chars from doc ${resumeDocId}`);
     }
 
-    const greeting = await interviewService.startInterview(interview.id, config, persona, timerConfig, { jobDescription, resume });
+    const greeting = await interviewService.startInterview(interview.id, config, persona, timerConfig, { resume });
     // Return interview record enriched with the greeting so the UI can display+speak it directly
     return { ...interview, _greeting: greeting };
   } catch (error) {
     console.error('Failed to start interview:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('interview:resume', async (_event: IpcMainInvokeEvent, interviewId: string) => {
+  try {
+    console.log(`[IPC:interview:resume] Resuming interview ${interviewId}`);
+    await interviewService.resumeInterview(interviewId);
+    console.log(`[IPC:interview:resume] Interview ${interviewId} resumed successfully`);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to resume interview:', error);
     throw error;
   }
 });

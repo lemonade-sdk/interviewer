@@ -21,7 +21,10 @@ export class InterviewRepository {
       createdAt: now,
       updatedAt: now,
       jobId: interview.jobId,
+      personaId: interview.personaId,  // Persist so persona can be restored on resume
     };
+
+    console.log(`[InterviewRepository:create] input personaId=${interview.personaId}, saved personaId=${newInterview.personaId}`);
 
     return await this.store.create(newInterview);
   }

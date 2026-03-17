@@ -1,6 +1,7 @@
 import { InterviewerSettings, Message, InterviewFeedback, QuestionFeedback, ModelConfig, Interview, AgentPersona } from '../types';
-import { LemonadeClient } from './LemonadeClient';
+import { LemonadeClient, INTERVIEW_MAX_INPUT_TOKENS, FEEDBACK_MAX_INPUT_TOKENS } from './LemonadeClient';
 import { InterviewRepository } from '../database/repositories/InterviewRepository';
+import { PersonaRepository } from '../database/repositories/PersonaRepository';
 import { PromptManager } from './PromptManager';
 import { StructuredExtractionService } from './StructuredExtractionService';
 import { PipelineLogger } from './PipelineLogger';
@@ -28,10 +29,12 @@ export class InterviewService {
   private activeInterviews: Map<string, InterviewSession> = new Map();
   private settings: InterviewerSettings;
   private interviewRepo: InterviewRepository;
+  private personaRepo: PersonaRepository;
 
-  constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository) {
+  constructor(settings: InterviewerSettings, interviewRepo: InterviewRepository, personaRepo?: PersonaRepository) {
     this.settings = settings;
     this.interviewRepo = interviewRepo;
+    this.personaRepo = personaRepo ?? new PersonaRepository();
     this.lemonadeClient = new LemonadeClient(settings);
     this.extractionService = new StructuredExtractionService(this.lemonadeClient, settings.extractionModelName);
   }
@@ -45,7 +48,7 @@ export class InterviewService {
     config: Partial<Interview>,
     persona?: AgentPersona | null,
     timerConfig?: { totalInterviewMinutes: number; wrapUpThresholdMinutes: number },
-    documents?: { jobDescription?: string; resume?: string },
+    documents?: { resume?: string },
   ): Promise<string> {
     const totalInterviewMinutes = timerConfig?.totalInterviewMinutes ?? DEFAULT_TOTAL_MINUTES;
     const wrapUpThresholdMinutes = timerConfig?.wrapUpThresholdMinutes ?? DEFAULT_WRAP_UP_MINUTES;
@@ -65,13 +68,12 @@ export class InterviewService {
     console.log(`[Interview:start] ── Building session ─────────────────────────`);
     console.log(`[Interview:start] interviewId=${interviewId}, persona=${persona?.name ?? 'none (fallback)'}`);
     console.log(`[Interview:start] totalInterviewMinutes=${totalInterviewMinutes}, wrapUp=${wrapUpThresholdMinutes}min, effective=${effectiveInterviewMinutes}min`);
-    console.log(`[Interview:start] jobDescription: ${(documents?.jobDescription ?? '').length} chars, resume: ${(documents?.resume ?? '').length} chars`);
+    console.log(`[Interview:start] resume: ${(documents?.resume ?? '').length} chars`);
 
     const systemPrompt = this.buildSystemPrompt(config, persona, {
       totalInterviewMinutes,
       wrapUpThresholdMinutes,
       currentPhaseKeyword: initialPhaseKeyword,
-      jobDescription: documents?.jobDescription ?? '',
       resume: documents?.resume ?? '',
       // New timing variables for coherent UX
       greetingAllocationMinutes: GREETING_ALLOCATION_MINUTES,
@@ -111,7 +113,6 @@ export class InterviewService {
       // Stored for resume/rebuild support
       interviewConfig: config,
       persona: persona ?? null,
-      jobDescription: documents?.jobDescription ?? '',
       resume: documents?.resume ?? '',
     };
 
@@ -139,7 +140,6 @@ export class InterviewService {
         extracted: {
           personaName: persona?.name ?? null,
           totalInterviewMinutes,
-          hasJobDescription: (documents?.jobDescription ?? '').length > 0,
           hasResume: (documents?.resume ?? '').length > 0,
         },
         meta: { interviewId, personaId: persona?.id ?? null },
@@ -154,6 +154,11 @@ export class InterviewService {
       content: greeting,
       timestamp: new Date().toISOString(),
     });
+
+    // Save initial transcript with system prompt to database for resume support
+    // System prompt is included so it can be restored on resume without rebuilding
+    await this.interviewRepo.updateTranscript(interviewId, session.messages);
+    console.log(`[Interview:start] Saved initial transcript with system prompt (${session.messages.length} messages) to database`);
 
     return greeting;
   }
@@ -174,7 +179,7 @@ export class InterviewService {
 
     const messagesToSend = this.buildMessagesWithInjections(session);
 
-    const response = await this.lemonadeClient.sendMessage(messagesToSend, { maxInputTokens: 3072 });
+    const response = await this.lemonadeClient.sendMessage(messagesToSend, { maxInputTokens: INTERVIEW_MAX_INPUT_TOKENS });
 
     const assistantMsg: Message = {
       id: (Date.now() + 1).toString(),
@@ -218,7 +223,7 @@ export class InterviewService {
     const response = await this.lemonadeClient.sendMessageStreaming(
       messagesToSend,
       onToken,
-      { maxInputTokens: 3072 },
+      { maxInputTokens: INTERVIEW_MAX_INPUT_TOKENS },
     );
 
     const turnDurationMs = Date.now() - turnStart;
@@ -274,7 +279,7 @@ export class InterviewService {
           timestamp: new Date().toISOString(),
         },
       ],
-      { maxInputTokens: 3072 },
+      { maxInputTokens: FEEDBACK_MAX_INPUT_TOKENS },
     );
 
     // Stage 2: Extract structured data from natural language feedback
@@ -493,9 +498,65 @@ export class InterviewService {
       );
       const timePerQuestionMinutes = effectiveInterviewMinutes / (this.settings.numberOfQuestions || 10);
 
+      // Restore persona from stored personaId (fixes fallback bug)
+      let persona: AgentPersona | null = null;
+      console.log(`[resumeInterview] interviewId=${interviewId}, stored personaId=${interview.personaId}`);
+      if (interview.personaId) {
+        try {
+          persona = await this.personaRepo.findById(interview.personaId);
+          console.log(`[resumeInterview] Restored persona "${persona?.name}" for interview ${interviewId}`);
+        } catch (error) {
+          console.warn(`[resumeInterview] Failed to restore persona ${interview.personaId}: ${error}`);
+        }
+      }
+
+      // Check if transcript already has system prompt (new interviews) or needs rebuild (legacy)
+      const systemMsgs = interview.transcript.filter(m => m.role === 'system');
+      console.log(`[resumeInterview] Found ${systemMsgs.length} system message(s) in transcript:`);
+      systemMsgs.forEach((m, i) => {
+        console.log(`[resumeInterview]   System msg ${i+1}: ${m.content?.length ?? 0} chars, id=${m.id}`);
+      });
+      
+      const hasSystemPrompt = systemMsgs.length > 0;
+      let messagesWithSystem: Message[];
+      
+      if (hasSystemPrompt) {
+        // Use existing system prompt from stored transcript - no rebuild needed
+        // If multiple system prompts exist, use the first one (shouldn't happen)
+        messagesWithSystem = [...interview.transcript];
+        const systemMsg = systemMsgs[0];
+        console.log(`[resumeInterview] Using stored system prompt (${systemMsg?.content?.length ?? 0} chars) from transcript`);
+      } else {
+        // Legacy interview: rebuild system prompt from restored persona
+        console.log(`[resumeInterview] No system prompt in transcript - rebuilding (legacy interview)`);
+        const systemPrompt = persona 
+          ? this.buildSystemPrompt(interview, persona, {
+              totalInterviewMinutes: DEFAULT_TOTAL_MINUTES,
+              wrapUpThresholdMinutes: DEFAULT_WRAP_UP_MINUTES,
+              currentPhaseKeyword: this.getPhaseKeyword(questionCount),
+              resume: '',
+              timePerQuestionMinutes,
+              effectiveInterviewMinutes,
+            })
+          : '';
+        
+        messagesWithSystem = systemPrompt 
+          ? [{
+              id: `sys-resume-${now}`,
+              role: 'system',
+              content: systemPrompt,
+              timestamp: new Date(now).toISOString(),
+            }, ...interview.transcript]
+          : [...interview.transcript];
+        
+        // Save the rebuilt system prompt back to the database for future resumes
+        await this.interviewRepo.updateTranscript(interviewId, messagesWithSystem);
+        console.log(`[resumeInterview] Rebuilt and saved system prompt (${systemPrompt.length} chars) to transcript`);
+      }
+
       this.activeInterviews.set(interviewId, {
         interviewId,
-        messages: interview.transcript,
+        messages: messagesWithSystem,
         questionCount,
         sessionStartMs: now,
         totalInterviewMinutes: DEFAULT_TOTAL_MINUTES,
@@ -512,11 +573,10 @@ export class InterviewService {
         // Phase tracking
         currentPhaseKeyword: this.getPhaseKeyword(questionCount),
         interviewConfig: {},
-        persona: null,
-        jobDescription: '',
+        persona,  // Restored persona (may be null if not stored or fetch failed)
         resume: '',
       });
-      console.log(`Resumed interview ${interviewId} with ${interview.transcript.length} messages`);
+      console.log(`[resumeInterview] Session active with persona="${persona?.name ?? 'none'}", messages=${messagesWithSystem.length}`);
     }
   }
 
@@ -588,10 +648,6 @@ export class InterviewService {
     return PHASE_KEYWORDS['5'];
   }
 
-  private advancePhaseIfNeeded(session: InterviewSession): void {
-    session.currentPhaseKeyword = this.getPhaseKeyword(session.questionCount);
-  }
-
   private buildSystemPrompt(
     config: Partial<Interview>,
     persona?: AgentPersona | null,
@@ -599,7 +655,6 @@ export class InterviewService {
       totalInterviewMinutes: number;
       wrapUpThresholdMinutes: number;
       currentPhaseKeyword: string;
-      jobDescription: string;
       resume: string;
       // v2: Time allocation variables for coherent UX
       greetingAllocationMinutes?: number;
@@ -627,7 +682,7 @@ export class InterviewService {
       console.log(`[buildSystemPrompt] total_duration=${totalInterviewMinutes}min, style="${persona.interviewStyle || interviewStyle}", difficulty="${persona.questionDifficulty || questionDifficulty}"`);
       console.log(`[buildSystemPrompt] q1="${q1Topic.substring(0, 80)}..."`);
       console.log(`[buildSystemPrompt] mustCover1="${persona.mustCoverTopic1?.substring(0, 60)}", mustCover2="${persona.mustCoverTopic2?.substring(0, 60)}"`);
-      console.log(`[buildSystemPrompt] jdChars=${(timerContext?.jobDescription ?? '').length}, resumeChars=${(timerContext?.resume ?? '').length}`);
+      console.log(`[buildSystemPrompt] resumeChars=${(timerContext?.resume ?? '').length}`);
 
       return PromptManager.getInstance().getInterviewSystemPromptWithPersona({
         personaName: persona.name,
@@ -656,6 +711,7 @@ export class InterviewService {
         validateClaim2: persona.validateClaim2 ?? 'Leadership or ownership claims',
         watchSignal1: persona.watchSignal1 ?? 'Ownership vs. passive participation in projects',
         watchSignal2: persona.watchSignal2 ?? 'Ability to handle ambiguity and self-direct',
+        resume: timerContext?.resume ?? '',
         // v2: Time allocation for coherent UX
         greetingAllocationMinutes,
         timePerQuestionMinutes,
@@ -663,28 +719,8 @@ export class InterviewService {
       });
     }
 
-    // Fallback: generic prompt when no persona is available
-    console.log(`[buildSystemPrompt] PATH: fallback (no persona)`);
-    console.log(`[buildSystemPrompt] company="${company}", position="${position}", type="${interviewType}"`);
-    console.log(`[buildSystemPrompt] jdChars=${(timerContext?.jobDescription ?? '').length}, resumeChars=${(timerContext?.resume ?? '').length}, total_duration=${totalInterviewMinutes}min`);
-
-    return PromptManager.getInstance().getInterviewSystemPromptFallback({
-      interviewType: interviewType ?? '',
-      position: position ?? '',
-      company: company ?? '',
-      interviewStyle,
-      questionDifficulty,
-      numberOfQuestions,
-      wrapUpThresholdMinutes,
-      currentMinutesRemaining: totalInterviewMinutes,
-      currentPhaseKeyword,
-      jobDescription: timerContext?.jobDescription ?? '',
-      resume: timerContext?.resume ?? '',
-      // v2: Time allocation for coherent UX
-      greetingAllocationMinutes,
-      timePerQuestionMinutes,
-      effectiveInterviewMinutes,
-    });
+    // Persona is required - no fallback
+    throw new Error(`[buildSystemPrompt] Persona is required but not provided for interview (${company} - ${position}). Cannot proceed without persona.`);
   }
 }
 
@@ -710,6 +746,5 @@ interface InterviewSession {
   // Stored for resume/rebuild support
   interviewConfig: Partial<Interview>;
   persona: AgentPersona | null;
-  jobDescription: string;
   resume: string;
 }

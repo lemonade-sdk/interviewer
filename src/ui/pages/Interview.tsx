@@ -185,7 +185,16 @@ const Interview: React.FC = () => {
         if (!isMuted) {
           setIsSpeaking(true);
           try {
+            // Add a short delay before first TTS to allow audio system warmup
+            // This fixes the issue where the first greeting can't be heard
+            console.log('[Interview:handleTTSInitiation] Waiting 800ms for audio warmup before TTS...');
+            await new Promise(r => setTimeout(r, 800));
+            console.log(`[Interview:handleTTSInitiation] Starting TTS for greeting (${greetingFromStart.length} chars)`);
             await manager.speak(greetingFromStart);
+            console.log('[Interview:handleTTSInitiation] TTS completed successfully');
+          } catch (ttsError) {
+            console.error('[Interview:handleTTSInitiation] TTS failed:', ttsError);
+            throw ttsError;
           } finally {
             setIsSpeaking(false);
           }

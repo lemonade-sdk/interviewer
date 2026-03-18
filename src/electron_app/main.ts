@@ -220,6 +220,12 @@ async function initializeApp(): Promise<void> {
     interviewService.getLemonadeClient().preloadAudioModels().catch((err) => {
       console.error('Background audio model preload failed:', err);
     });
+
+    // Pre-load LLM model on startup so it's ready for interviews without initial loading delay.
+    // Uses the configured model name from settings — runs in background, does not block window.
+    interviewService.getLemonadeClient().loadModel(interviewerSettings.modelName).catch((err) => {
+      console.error('Background LLM model preload failed:', err);
+    });
   } catch (error) {
     console.error('Failed to initialize application:', error);
   }

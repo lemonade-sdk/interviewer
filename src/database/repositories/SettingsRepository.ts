@@ -80,8 +80,8 @@ export class SettingsRepository {
   private async createDefaultInterviewerSettings(): Promise<InterviewerSettings> {
     const defaults: InterviewerSettings = {
       modelProvider: 'lemonade-server',
-      modelName: 'gpt-oss-mxp4',
-      extractionModelName: 'gpt-oss-mxp4',
+      modelName: 'qwen3-coder-30b-a3b-instruct',
+      extractionModelName: 'qwen3-coder-30b-a3b-instruct',
       temperature: 0.7,
       maxTokens: 2000,
       interviewStyle: 'conversational',

@@ -207,7 +207,7 @@ const Landing: React.FC = () => {
 
       {/* Logo + Title */}
       <div className="flex flex-col items-center mb-10">
-        <img src="/logo.png" alt="lemonade" className="w-16 h-16 mb-4" />
+        <img src="./logo.png" alt="lemonade" className="w-16 h-16 mb-4" />
         <h1 className="text-2xl font-bold tracking-tight">interviewer</h1>
         <p className={`mt-2 text-sm text-gray-500 dark:text-white/40 transition-all duration-500 ${
           step !== 'initial' ? 'opacity-100' : 'opacity-0 pointer-events-none'

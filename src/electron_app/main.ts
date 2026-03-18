@@ -142,18 +142,22 @@ function createWindow(): void {
       console.error('Failed to load dev server:', err);
     });
   } else {
-    // __dirname is: dist/electron/src/electron_app/
-    // Go up 4 levels to app root, then into dist/renderer/
-    const htmlPath = path.join(__dirname, '..', '..', '..', '..', 'dist', 'renderer', 'index.html');
+    // In production, __dirname is inside app.asar
+    // The dist/renderer folder IS inside the asar, so we can use a relative path
+    // __dirname = resources/app.asar/dist/electron/src/electron_app
+    // We need: resources/app.asar/dist/renderer/index.html
+    // Go up 3 levels to reach app.asar/dist, then down to renderer/index.html
+    const htmlPath = path.join(__dirname, '..', '..', '..', 'renderer', 'index.html');
     console.log('Loading production HTML from:', htmlPath);
     console.log('App is packaged:', app.isPackaged);
     console.log('Resolved path:', path.resolve(htmlPath));
-    
+
     if (!fs.existsSync(htmlPath)) {
       console.error('ERROR: Production HTML not found at:', htmlPath);
       console.error('__dirname is:', __dirname);
+      console.error('Resolved path is:', path.resolve(htmlPath));
     }
-    
+
     mainWindow.loadFile(htmlPath);
   }
 

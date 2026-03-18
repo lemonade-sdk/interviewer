@@ -38,19 +38,19 @@ export const LemonCard: React.FC<LemonCardProps> = ({
     >
       {(title || subtitle || headerAction) && (
         <div className="px-8 py-5 border-b border-gray-100/60 dark:border-white/[0.04] flex items-center justify-between">
-          <div>
+          <div className="flex-1 pr-4">
             {title && (
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+              <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
                 {subtitle}
               </p>
             )}
           </div>
-          {headerAction && <div>{headerAction}</div>}
+          {headerAction && <div className="shrink-0">{headerAction}</div>}
         </div>
       )}
 

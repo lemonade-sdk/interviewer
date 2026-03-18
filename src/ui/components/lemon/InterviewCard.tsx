@@ -32,51 +32,51 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({
     <div
       onClick={onClick}
       className={cn(
-        'group flex items-center justify-between p-4 rounded-2xl',
+        'group flex items-center justify-between p-6 rounded-2xl',
         'border border-transparent hover:border-gray-200/60 dark:hover:border-white/5',
         'hover:bg-lemonade-bg dark:hover:bg-white/[0.03]',
         'cursor-pointer transition-all duration-200',
         className
       )}
     >
-      <div className="flex-1 min-w-0 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover shrink-0">
-          <Briefcase size={18} />
+      <div className="flex-1 min-w-0 flex items-center gap-6">
+        <div className="w-12 h-12 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover shrink-0">
+          <Briefcase size={20} />
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm text-gray-900 dark:text-white/90 truncate group-hover:text-lemonade-accent-hover transition-colors">
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold text-base text-gray-900 dark:text-white/90 truncate group-hover:text-lemonade-accent-hover transition-colors">
               {interview.title}
             </h3>
-            <LemonBadge variant={getStatusVariant(interview.status)}>
+            <LemonBadge variant={getStatusVariant(interview.status)} className="shrink-0">
               {interview.status.replace('-', ' ')}
             </LemonBadge>
           </div>
-          
-          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
+
+          <p className="text-sm text-gray-500 dark:text-white/40 mt-2">
             {interview.company} &middot; {interview.position}
           </p>
-          
-          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400 dark:text-white/30">
-            <span className="flex items-center gap-1">
-              <Clock size={11} />
+
+          <div className="flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-white/30">
+            <span className="flex items-center gap-1.5">
+              <Clock size={12} />
               {format(new Date(interview.startedAt), 'MMM d, yyyy')}
             </span>
-            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-white/5 rounded text-[11px]">
+            <span className="px-2 py-1 bg-gray-100 dark:bg-white/5 rounded text-xs">
               {interview.interviewType}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 pl-4">
+      <div className="flex items-center gap-6 pl-6">
         {interview.status === 'completed' && interview.feedback && (
-          <span className={cn('text-xl font-bold', getScoreColor(interview.feedback.overallScore))}>
+          <span className={cn('text-2xl font-bold', getScoreColor(interview.feedback.overallScore))}>
             {interview.feedback.overallScore}%
           </span>
         )}
-        <ChevronRight size={18} className="text-gray-300 dark:text-white/10 group-hover:text-lemonade-accent-hover transition-colors" />
+        <ChevronRight size={20} className="text-gray-300 dark:text-white/10 group-hover:text-lemonade-accent-hover transition-colors" />
       </div>
     </div>
   );

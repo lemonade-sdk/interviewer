@@ -10,26 +10,26 @@ import { cn } from '@ui/lib';
 const Settings: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto transition-colors duration-300">
-      <div className="p-8 max-w-3xl mx-auto space-y-8 pb-16">
+      <div className="p-12 max-w-4xl mx-auto space-y-10 pb-20">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">Settings</h1>
-          <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">Settings</h1>
+          <p className="text-base text-gray-500 dark:text-white/40 mt-3">
             Configure your interview experience.
           </p>
         </div>
 
         <LemonTabs
           defaultValue="general"
-          contentClassName="mt-6"
+          contentClassName="mt-8"
           tabs={[
             {
               value: 'general',
-              label: <div className="flex items-center gap-2"><SettingsIcon size={14} /> General</div>,
+              label: <div className="flex items-center gap-2"><SettingsIcon size={20} /> General</div>,
               content: <GeneralSettings />,
             },
             {
               value: 'interviewer',
-              label: <div className="flex items-center gap-2"><Sparkles size={14} /> Interviewer AI</div>,
+              label: <div className="flex items-center gap-2"><Sparkles size={20} /> Interviewer AI</div>,
               content: <InterviewerSettingsPanel />,
             },
           ]}
@@ -71,13 +71,13 @@ const GeneralSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Theme */}
       <LemonCard title="Appearance" subtitle="Choose how the app looks and feels.">
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Theme</label>
-            <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Theme</label>
+            <div className="grid grid-cols-3 gap-4">
               {([
                 { value: 'light', label: 'Light', icon: Sun },
                 { value: 'dark', label: 'Dark', icon: Moon },
@@ -87,20 +87,20 @@ const GeneralSettings: React.FC = () => {
                   key={value}
                   onClick={() => handleThemeChange(value)}
                   className={cn(
-                    "flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all duration-200",
+                    "flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                     formData.theme === value
                       ? "border-lemonade-accent bg-lemonade-accent/5"
                       : "border-gray-200/60 dark:border-white/[0.08] hover:border-lemonade-accent/40"
                   )}
                 >
                   <div className={cn(
-                    "w-9 h-9 rounded-xl flex items-center justify-center transition-colors",
+                    "w-11 h-11 rounded-xl flex items-center justify-center transition-colors",
                     formData.theme === value ? "bg-lemonade-accent text-black" : "bg-gray-100 dark:bg-white/[0.06] text-gray-400"
                   )}>
-                    <Icon size={18} />
+                    <Icon size={22} />
                   </div>
                   <span className={cn(
-                    "text-xs font-medium",
+                    "text-sm font-medium",
                     formData.theme === value ? "text-black dark:text-white" : "text-gray-500 dark:text-white/40"
                   )}>
                     {label}
@@ -110,8 +110,8 @@ const GeneralSettings: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Language</label>
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Language</label>
             <LemonSelect
               value={formData.language || 'en'}
               onChange={(v) => setFormData({ ...formData, language: v })}
@@ -129,14 +129,14 @@ const GeneralSettings: React.FC = () => {
 
       {/* Interview Timer */}
       <LemonCard title="Interview Timer" subtitle="Set default session duration.">
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover">
-              <Clock size={20} />
+        <div className="space-y-4">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-xl bg-lemonade-accent/10 flex items-center justify-center text-lemonade-accent-hover">
+              <Clock size={24} />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Default Duration</label>
-              <div className="flex items-center gap-2 mt-1">
+              <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Default Duration</label>
+              <div className="flex items-center gap-3 mt-1">
                 <input
                   type="number"
                   value={formData.defaultInterviewDuration || 30}
@@ -145,13 +145,13 @@ const GeneralSettings: React.FC = () => {
                   }
                   min={5}
                   max={120}
-                  className="w-20 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+                  className="w-24 px-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-base font-semibold focus:border-lemonade-accent outline-none transition-all"
                 />
-                <span className="text-sm text-gray-500 dark:text-white/40">minutes</span>
+                <span className="text-base text-gray-500 dark:text-white/40">minutes</span>
               </div>
             </div>
           </div>
-          <p className="text-xs text-gray-500 dark:text-white/40 leading-relaxed">
+          <p className="text-sm text-gray-500 dark:text-white/40 leading-relaxed">
             The AI adjusts its pacing as time runs low for a natural close.
           </p>
         </div>
@@ -160,14 +160,14 @@ const GeneralSettings: React.FC = () => {
       {/* Preferences */}
       <LemonCard title="Preferences" subtitle="Notifications and data options." noPadding>
         <div className="divide-y divide-gray-100/60 dark:divide-white/[0.04]">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                <Bell size={18} />
+          <div className="flex items-center justify-between px-6 py-5">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                <Bell size={22} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white/90">Notifications</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Receive interview reminders</p>
+                <p className="text-base font-medium text-gray-900 dark:text-white/90">Notifications</p>
+                <p className="text-sm text-gray-500 dark:text-white/40">Receive interview reminders</p>
               </div>
             </div>
             <LemonSwitch
@@ -175,14 +175,14 @@ const GeneralSettings: React.FC = () => {
               onCheckedChange={(checked) => setFormData({ ...formData, notifications: checked })}
             />
           </div>
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
-                <ShieldCheck size={18} />
+          <div className="flex items-center justify-between px-6 py-5">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
+                <ShieldCheck size={22} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white/90">Auto-save</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Save transcripts automatically</p>
+                <p className="text-base font-medium text-gray-900 dark:text-white/90">Auto-save</p>
+                <p className="text-sm text-gray-500 dark:text-white/40">Save transcripts automatically</p>
               </div>
             </div>
             <LemonSwitch
@@ -196,9 +196,9 @@ const GeneralSettings: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          className="flex items-center gap-3 px-6 py-3.5 bg-lemonade-accent text-black font-semibold text-base rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
-          <Save size={16} />
+          <Save size={20} />
           {saved ? 'Saved!' : 'Save Changes'}
         </button>
       </div>
@@ -274,7 +274,7 @@ const InterviewerSettingsPanel: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <MultiModelStatus />
       <SystemInfoPanel />
 
@@ -285,37 +285,37 @@ const InterviewerSettingsPanel: React.FC = () => {
         )}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-5">
             <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center",
+              "w-14 h-14 rounded-xl flex items-center justify-center",
               serverStatus.isRunning ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
             )}>
-              <Activity size={20} />
+              <Activity size={24} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-900 dark:text-white/90">Lemonade Server</span>
-                <LemonBadge variant={serverStatus.isRunning ? 'success' : 'warning'}>
+              <div className="flex items-center gap-3">
+                <span className="text-base font-semibold text-gray-900 dark:text-white/90">Lemonade Server</span>
+                <LemonBadge variant={serverStatus.isRunning ? 'success' : 'warning'} className="shrink-0">
                   {serverStatus.isRunning ? 'Online' : 'Offline'}
                 </LemonBadge>
               </div>
-              <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+              <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
                 {serverStatus.isRunning ? `Connected at ${serverStatus.url}` : 'Not running — start with: lemonade-server serve'}
               </p>
             </div>
           </div>
           <button
             onClick={checkServerStatus}
-            className="p-2 rounded-xl border border-gray-200/60 dark:border-white/10 hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors"
+            className="p-3 rounded-xl border border-gray-200/60 dark:border-white/10 hover:bg-lemonade-bg dark:hover:bg-white/5 transition-colors"
           >
-            <RefreshCw size={16} className="text-gray-400" />
+            <RefreshCw size={20} className="text-gray-400" />
           </button>
         </div>
       </LemonCard>
 
       {/* Info card */}
-      <div className="border border-lemonade-accent/20 bg-lemonade-accent/5 rounded-2xl p-4">
-        <p className="text-xs text-gray-600 dark:text-white/50 leading-relaxed">
+      <div className="border border-lemonade-accent/20 bg-lemonade-accent/5 rounded-2xl p-6">
+        <p className="text-sm text-gray-600 dark:text-white/50 leading-relaxed">
           <strong>Note:</strong> This application uses <strong>Lemonade Server</strong> for local LLM inference.
           All AI processing stays on your device — no API costs or data sent externally.
         </p>
@@ -329,16 +329,16 @@ const InterviewerSettingsPanel: React.FC = () => {
           <button
             onClick={refreshModels}
             disabled={loadingModels || !serverStatus.isRunning}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200/60 dark:border-white/[0.08] rounded-xl hover:bg-lemonade-bg dark:hover:bg-white/[0.04] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-200/60 dark:border-white/[0.08] rounded-xl hover:bg-lemonade-bg dark:hover:bg-white/[0.04] transition-colors disabled:opacity-40"
           >
-            <RefreshCw size={12} className={cn(loadingModels && "animate-spin")} />
+            <RefreshCw size={18} className={cn(loadingModels && "animate-spin")} />
             Refresh
           </button>
         }
       >
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Interview Model</label>
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Interview Model</label>
             <LemonSelect
               value={formData.modelName || ''}
               onChange={(v) => setFormData({ ...formData, modelName: v })}
@@ -355,13 +355,13 @@ const InterviewerSettingsPanel: React.FC = () => {
                     ]
               }
             />
-            <p className="text-xs text-gray-500 dark:text-white/40">
+            <p className="text-sm text-gray-500 dark:text-white/40">
               Used for generating the interviewer's responses.
             </p>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Extraction Model</label>
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Extraction Model</label>
             <LemonSelect
               value={formData.extractionModelName || formData.modelName || ''}
               onChange={(v) => setFormData({ ...formData, extractionModelName: v })}
@@ -378,13 +378,13 @@ const InterviewerSettingsPanel: React.FC = () => {
                     ]
               }
             />
-            <p className="text-xs text-gray-500 dark:text-white/40">
+            <p className="text-sm text-gray-500 dark:text-white/40">
               Used for structured data extraction (e.g., feedback, persona generation).
             </p>
           </div>
 
           {!serverStatus.isRunning && (
-            <p className="text-xs text-gray-500 dark:text-white/40">
+            <p className="text-sm text-gray-500 dark:text-white/40">
               Start Lemonade Server to see available models.
             </p>
           )}
@@ -393,9 +393,9 @@ const InterviewerSettingsPanel: React.FC = () => {
 
       {/* AI Parameters */}
       <LemonCard title="AI Parameters" subtitle="Fine-tune behavior and creativity.">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Number of Questions</label>
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Number of Questions</label>
             <input
               type="number"
               value={formData.numberOfQuestions || 10}
@@ -404,14 +404,14 @@ const InterviewerSettingsPanel: React.FC = () => {
               }
               min={1}
               max={50}
-              className="w-24 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+              className="w-28 px-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-base font-semibold focus:border-lemonade-accent outline-none transition-all"
             />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Temperature</label>
-              <span className="text-xs font-semibold text-lemonade-accent-hover bg-lemonade-accent/10 px-2 py-0.5 rounded">
+              <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Temperature</label>
+              <span className="text-sm font-semibold text-lemonade-accent-hover bg-lemonade-accent/10 px-3 py-1 rounded">
                 {formData.temperature?.toFixed(1) || '0.7'}
               </span>
             </div>
@@ -423,29 +423,29 @@ const InterviewerSettingsPanel: React.FC = () => {
               step={0.1}
               className="max-w-xs"
             />
-            <div className="flex justify-between max-w-xs text-[11px] text-gray-400 dark:text-white/30">
+            <div className="flex justify-between max-w-xs text-sm text-gray-400 dark:text-white/30">
               <span>Focused</span>
               <span>Creative</span>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Max Tokens</label>
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 dark:text-white/30 uppercase tracking-wider">Max Tokens</label>
             <input
               type="number"
               value={formData.maxTokens || 2000}
               onChange={(e) => setFormData({ ...formData, maxTokens: parseInt(e.target.value) })}
               min={100}
               max={8000}
-              className="w-28 px-3 py-2 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-sm font-semibold focus:border-lemonade-accent outline-none transition-all"
+              className="w-32 px-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/10 rounded-xl text-base font-semibold focus:border-lemonade-accent outline-none transition-all"
             />
           </div>
 
-          <div className="pt-4 border-t border-gray-100/60 dark:border-white/[0.04] space-y-4">
+          <div className="pt-6 border-t border-gray-100/60 dark:border-white/[0.04] space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white/90">Follow-up Questions</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Allow the AI to probe deeper</p>
+                <p className="text-base font-medium text-gray-900 dark:text-white/90">Follow-up Questions</p>
+                <p className="text-sm text-gray-500 dark:text-white/40">Allow the AI to probe deeper</p>
               </div>
               <LemonSwitch
                 checked={formData.includeFollowUps ?? true}
@@ -454,8 +454,8 @@ const InterviewerSettingsPanel: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white/90">Performance Feedback</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Generate feedback after the interview ends</p>
+                <p className="text-base font-medium text-gray-900 dark:text-white/90">Performance Feedback</p>
+                <p className="text-sm text-gray-500 dark:text-white/40">Generate feedback after the interview ends</p>
               </div>
               <LemonSwitch
                 checked={formData.provideFeedback ?? true}
@@ -466,16 +466,16 @@ const InterviewerSettingsPanel: React.FC = () => {
         </div>
       </LemonCard>
 
-      <p className="text-xs text-gray-500 dark:text-white/40">
+      <p className="text-sm text-gray-500 dark:text-white/40">
         Interview style and question difficulty are configured during the preparation phase.
       </p>
 
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-6 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
+          className="flex items-center gap-3 px-6 py-3.5 bg-lemonade-accent text-black font-semibold text-base rounded-xl hover:bg-lemonade-accent-hover transition-colors duration-200 active:scale-[0.98]"
         >
-          <Save size={16} />
+          <Save size={20} />
           {saved ? 'Saved!' : 'Save AI Settings'}
         </button>
       </div>

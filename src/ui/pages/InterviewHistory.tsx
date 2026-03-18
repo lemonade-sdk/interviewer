@@ -48,28 +48,28 @@ const InterviewHistory: React.FC = () => {
 
   return (
     <div className="h-full overflow-y-auto bg-lemonade-bg dark:bg-lemonade-dark-bg transition-colors duration-300">
-      <div className="p-8 max-w-5xl mx-auto space-y-6 pb-16">
+      <div className="px-16 py-12 max-w-7xl mx-auto space-y-12 pb-20">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">History</h1>
-          <p className="text-sm text-gray-500 dark:text-white/40 mt-1">Review your past interviews</p>
+          <h1 className="text-5xl font-bold tracking-tight text-gray-900 dark:text-[#cfcfcf]">History</h1>
+          <p className="text-lg text-gray-500 dark:text-white/40 mt-4">Review your past interviews</p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-4 flex gap-3 items-center transition-colors duration-300">
+        <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-3xl p-10 flex gap-6 items-center transition-colors duration-300">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={15} />
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30" size={22} />
             <input
               type="text"
               placeholder="Search interviews..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none"
+              className="w-full pl-12 pr-6 py-5 bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 focus:border-lemonade-accent focus:ring-2 focus:ring-lemonade-accent/10 transition-all outline-none"
             />
           </div>
           <LemonSelect
             value={filterType}
             onChange={setFilterType}
-            className="w-44"
+            className="w-48"
             options={[
               { value: 'all', label: 'All Types' },
               { value: 'technical', label: 'Technical' },
@@ -83,58 +83,61 @@ const InterviewHistory: React.FC = () => {
         </div>
 
         {/* Interviews List */}
-        <div className="space-y-2">
+        <div className="space-y-6">
           {filteredInterviews.length === 0 ? (
-            <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-12 text-center transition-colors duration-300">
-              <MessageSquare size={32} className="mx-auto text-gray-300 dark:text-white/15 mb-4" />
-              <p className="text-sm text-gray-500 dark:text-white/40">No interviews found matching your criteria.</p>
+            <div className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-3xl p-16 text-center transition-colors duration-300">
+              <MessageSquare size={48} className="mx-auto text-gray-300 dark:text-white/15 mb-6" />
+              <p className="text-lg text-gray-500 dark:text-white/40">No interviews found matching your criteria.</p>
             </div>
           ) : (
             filteredInterviews.map((interview) => (
-              <div key={interview.id} className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-2xl p-5 hover:border-gray-300/60 dark:hover:border-white/10 transition-all duration-200">
+              <div key={interview.id} className="bg-lemonade-bg dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] rounded-3xl p-10 hover:border-gray-300/60 dark:hover:border-white/10 transition-all duration-200">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold truncate text-gray-900 dark:text-white/90">{interview.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">
+                    <h3 className="text-lg font-semibold truncate text-gray-900 dark:text-white/90">{interview.title}</h3>
+                    <p className="text-base text-gray-500 dark:text-white/40 mt-2">
                       {interview.company} &middot; {interview.position}
                     </p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-white/30">
-                      <span className="text-[11px] px-1.5 py-0.5 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
+                    <div className="flex items-center gap-6 mt-4 text-base text-gray-400 dark:text-white/30">
+                      <span className="text-sm px-4 py-2 border border-gray-200/50 dark:border-white/[0.08] rounded-full">
                         {interview.interviewType}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} />
-                        {format(new Date(interview.startedAt), 'MMM d, yyyy')}
+                      <span className="flex items-center gap-2">
+                        <Clock size={20} />
+                        {format(new Date(interview.startedAt), 'MMMM d, yyyy')}
                       </span>
                       {interview.duration && (
-                        <span>{Math.round(interview.duration / 60)} min</span>
+                        <span className="flex items-center gap-2">
+                          <MessageSquare size={20} />
+                          {Math.round(interview.duration / 60)} min
+                        </span>
                       )}
                     </div>
                     {interview.feedback && (
-                      <div className="mt-3 flex items-center gap-4">
-                        <span className={`text-xl font-bold ${getScoreColor(interview.feedback.overallScore)}`}>
+                      <div className="mt-6 flex items-center gap-6">
+                        <span className={`text-3xl font-bold ${getScoreColor(interview.feedback.overallScore)}`}>
                           {interview.feedback.overallScore}%
                         </span>
-                        <p className="text-xs text-gray-500 dark:text-white/40 line-clamp-1 flex-1">
+                        <p className="text-base text-gray-500 dark:text-white/40 line-clamp-1 flex-1">
                           {interview.feedback.detailedFeedback}
                         </p>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1 ml-4">
+                  <div className="flex gap-4 ml-6">
                     <button
                       onClick={() => setSelectedInterview(interview)}
                       title="View Details"
-                      className="p-2 rounded-xl text-gray-400 dark:text-white/30 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
+                      className="p-4 rounded-xl text-gray-400 dark:text-white/30 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
                     >
-                      <Eye size={15} />
+                      <Eye size={20} />
                     </button>
                     <button
                       onClick={() => handleDelete(interview.id)}
                       title="Delete"
-                      className="p-2 rounded-xl text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                      className="p-4 rounded-xl text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={20} />
                     </button>
                   </div>
                 </div>
@@ -151,7 +154,7 @@ const InterviewHistory: React.FC = () => {
         title={selectedInterview?.title}
         subtitle={
           selectedInterview && (
-            <p className="text-sm text-gray-500 dark:text-white/40">
+            <p className="text-lg text-gray-500 dark:text-white/40">
               {selectedInterview.company} &middot; {selectedInterview.position}
             </p>
           )
@@ -162,27 +165,27 @@ const InterviewHistory: React.FC = () => {
           <LemonTabs
             defaultValue="feedback"
             className="flex-1 overflow-hidden flex flex-col"
-            listClassName="px-6 pt-2"
-            contentClassName="flex-1 overflow-y-auto mt-4 px-6 pb-6"
+            listClassName="px-10 pt-2"
+            contentClassName="flex-1 overflow-y-auto mt-4 px-10 pb-10"
             tabs={[
               {
                 value: 'feedback',
                 label: 'Feedback',
                 content: selectedInterview.feedback ? (
-                  <div className="space-y-5">
-                    <div className="flex items-center gap-4">
-                      <span className={`text-3xl font-bold ${getScoreColor(selectedInterview.feedback.overallScore)}`}>
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-6">
+                      <span className={`text-5xl font-bold ${getScoreColor(selectedInterview.feedback.overallScore)}`}>
                         {selectedInterview.feedback.overallScore}%
                       </span>
-                      <span className="text-sm text-gray-500 dark:text-white/40">Overall Score</span>
+                      <span className="text-lg text-gray-500 dark:text-white/40">Overall Score</span>
                     </div>
 
                     {selectedInterview.feedback.strengths.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Strengths</h4>
-                        <ul className="space-y-1">
+                        <h4 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-6">Strengths</h4>
+                        <ul className="space-y-3">
                           {selectedInterview.feedback.strengths.map((s, i) => (
-                            <li key={i} className="text-sm flex items-start gap-2">
+                            <li key={i} className="text-base flex items-start gap-3">
                               <span className="text-green-500 dark:text-green-400 mt-0.5">+</span>
                               <span>{s}</span>
                             </li>
@@ -193,10 +196,10 @@ const InterviewHistory: React.FC = () => {
 
                     {selectedInterview.feedback.weaknesses.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Areas for Improvement</h4>
-                        <ul className="space-y-1">
+                        <h4 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-6">Areas for Improvement</h4>
+                        <ul className="space-y-3">
                           {selectedInterview.feedback.weaknesses.map((w, i) => (
-                            <li key={i} className="text-sm flex items-start gap-2">
+                            <li key={i} className="text-base flex items-start gap-3">
                               <span className="text-yellow-500 dark:text-yellow-400 mt-0.5">!</span>
                               <span>{w}</span>
                             </li>
@@ -207,10 +210,10 @@ const InterviewHistory: React.FC = () => {
 
                     {selectedInterview.feedback.suggestions.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Suggestions</h4>
-                        <ul className="space-y-1">
+                        <h4 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-6">Suggestions</h4>
+                        <ul className="space-y-3">
                           {selectedInterview.feedback.suggestions.map((s, i) => (
-                            <li key={i} className="text-sm flex items-start gap-2">
+                            <li key={i} className="text-base flex items-start gap-3">
                               <span className="text-lemonade-accent-hover mt-0.5">&rarr;</span>
                               <span>{s}</span>
                             </li>
@@ -219,11 +222,11 @@ const InterviewHistory: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="border-t border-gray-100/60 dark:border-white/[0.04]" />
+                    <div className="border-t border-gray-100/60 dark:border-white/[0.04] my-8" />
 
                     <div>
-                      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-2">Detailed Feedback</h4>
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                      <h4 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-white/30 mb-6">Detailed Feedback</h4>
+                      <p className="text-base whitespace-pre-wrap leading-relaxed">
                         {selectedInterview.feedback.detailedFeedback}
                       </p>
                     </div>
@@ -235,14 +238,15 @@ const InterviewHistory: React.FC = () => {
                           setSelectedInterview(null);
                           navigate(`/feedback/${selectedInterview.id}`);
                         }}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-lemonade-accent text-black font-semibold rounded-xl hover:bg-lemonade-accent-hover transition-colors"
+                        className="flex items-center gap-4 px-8 py-5 bg-lemonade-accent text-black font-semibold text-base rounded-2xl hover:bg-lemonade-accent-hover transition-colors"
                       >
+                        <Eye size={20} />
                         View Detailed Question Feedback
                       </button>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-white/40 text-center py-8">
+                  <p className="text-lg text-gray-500 dark:text-white/40 text-center py-12">
                     No feedback available for this interview.
                   </p>
                 ),
@@ -251,23 +255,23 @@ const InterviewHistory: React.FC = () => {
                 value: 'transcript',
                 label: 'Transcript',
                 content: (
-                  <div className="space-y-3">
+                  <div className="space-y-6">
                     {selectedInterview.transcript
                       .filter((msg) => msg.role !== 'system')
                       .map((message) => (
                         <div
                           key={message.id}
-                          className={`p-3 rounded-xl text-sm ${
+                          className={`p-8 rounded-2xl text-base ${
                             message.role === 'user'
-                              ? 'bg-lemonade-accent/10 ml-12'
-                              : 'bg-lemonade-bg dark:bg-white/[0.03] mr-12'
+                              ? 'bg-lemonade-accent/10 ml-16'
+                              : 'bg-lemonade-bg dark:bg-white/[0.03] mr-16'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-500 dark:text-white/40">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm font-medium text-gray-500 dark:text-white/40">
                               {message.role === 'user' ? 'You' : 'Interviewer'}
                             </span>
-                            <span className="text-[11px] text-gray-400 dark:text-white/30">
+                            <span className="text-xs text-gray-400 dark:text-white/30">
                               {format(new Date(message.timestamp), 'h:mm a')}
                             </span>
                           </div>

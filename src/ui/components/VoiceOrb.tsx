@@ -156,20 +156,20 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
           {/* Center content */}
           <div className="absolute inset-0 flex items-center justify-center">
             {state === 'processing' ? (
-              <div ref={barsRef} className="flex items-end gap-[3px]">
+              <div ref={barsRef} className="flex items-end gap-1">
                 {[0, 1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-[3px] rounded-full bg-black/35"
+                    className="w-[3px] rounded-full bg-black/35 dark:bg-white/35"
                     style={{ height: '10px', transition: 'height 80ms ease' }}
                   />
                 ))}
               </div>
             ) : isListening ? (
-              <Square className="w-6 h-6 text-black/40" fill="currentColor" />
+              <Square className="w-6 h-6 text-black/40 dark:text-white/40" fill="currentColor" />
             ) : (
               <Mic
-                className="w-7 h-7 text-black/30 group-hover:text-black/50 transition-colors duration-200"
+                className="w-7 h-7 text-black/30 dark:text-white/30 group-hover:text-black/50 dark:group-hover:text-white/50 transition-colors duration-200"
               />
             )}
           </div>
@@ -177,7 +177,7 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
       </button>
 
       {/* Status label */}
-      <p className="mt-8 text-sm font-medium tracking-wide text-gray-400 dark:text-white/40 transition-colors duration-300">
+      <p className="mt-6 text-sm font-medium tracking-wide text-gray-500 dark:text-white/40 transition-colors duration-300">
         {statusLabel}
       </p>
     </div>

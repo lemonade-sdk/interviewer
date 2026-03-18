@@ -136,13 +136,19 @@ const Interview: React.FC = () => {
   useEffect(() => {
     if (stage === 'interview' && voiceReady && !hasInitiatedRef.current) {
       hasInitiatedRef.current = true;
-      if (messages.length === 0) {
+      const hasUserMessage = messages.some(m => m.role === 'user');
+      if (greetingFromStart && !hasUserMessage) {
+        console.log('[DEBUG] Fresh interview with pre-generated greeting, initiating TTS');
+        handleTTSInitiation();
+      } else if (messages.length === 0) {
+        console.log('[DEBUG] Empty messages array, initiating TTS');
         handleTTSInitiation();
       } else {
+        console.log('[DEBUG] Existing conversation found, skipping TTS initiation and starting hands-free mode');
         startHandsFreeMode();
       }
     }
-  }, [stage, voiceReady, messages.length]);
+  }, [stage, voiceReady, messages, greetingFromStart]);
 
   useEffect(() => {
     scrollToBottom();
@@ -167,22 +173,32 @@ const Interview: React.FC = () => {
 
   // ─── Core functions ───────────────────────────────────────
   const handleTTSInitiation = async () => {
-    if (!id || !voiceManagerRef.current) return;
+    console.log('[DEBUG] handleTTSInitiation called', { hasVoiceManager: !!voiceManagerRef.current, greetingLength: greetingFromStart?.length, isMuted });
+    if (!id || !voiceManagerRef.current) {
+      console.log('[DEBUG] Early return - missing id or voiceManager', { hasId: !!id, hasVoiceManager: !!voiceManagerRef.current });
+      return;
+    }
     const manager = voiceManagerRef.current;
 
     try {
       // If startInterview already generated a greeting, display it and speak it directly.
       // This avoids a second LLM call that would make the model skip the greeting and jump to Q1.
       if (greetingFromStart) {
-        const assistantMsg: Message = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: greetingFromStart,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages([assistantMsg]);
+        console.log('[DEBUG] Greeting found, displaying message', { greetingPreview: greetingFromStart.substring(0, 50), isMuted });
+        
+        // Only set messages if they aren't already loaded from the DB
+        if (messages.length === 0) {
+          const assistantMsg: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: greetingFromStart,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages([assistantMsg]);
+        }
 
         if (!isMuted) {
+          console.log('[DEBUG] Not muted, starting TTS flow', { greetingLength: greetingFromStart.length });
           setIsSpeaking(true);
           try {
             // Add a short delay before first TTS to allow audio system warmup
@@ -190,19 +206,26 @@ const Interview: React.FC = () => {
             console.log('[Interview:handleTTSInitiation] Waiting 800ms for audio warmup before TTS...');
             await new Promise(r => setTimeout(r, 800));
             console.log(`[Interview:handleTTSInitiation] Starting TTS for greeting (${greetingFromStart.length} chars)`);
+            console.log('[DEBUG] Calling manager.speak()', { greetingLength: greetingFromStart.length });
             await manager.speak(greetingFromStart);
+            console.log('[DEBUG] manager.speak() completed successfully');
             console.log('[Interview:handleTTSInitiation] TTS completed successfully');
           } catch (ttsError) {
+            console.log('[DEBUG] TTS failed with error', { error: String(ttsError) });
             console.error('[Interview:handleTTSInitiation] TTS failed:', ttsError);
             throw ttsError;
           } finally {
             setIsSpeaking(false);
           }
+        } else {
+          console.log('[DEBUG] Skipping TTS - isMuted is true', { isMuted });
         }
 
         shouldResumeListeningRef.current = true;
         await startHandsFreeMode();
         return;
+      } else {
+        console.log('[DEBUG] No greetingFromStart found', { greetingFromStart });
       }
 
       // Fallback: no stored greeting — trigger via LLM (legacy path, should not normally run)

@@ -119,6 +119,7 @@ export class VoiceInterviewManager extends EventEmitter {
    * @param personaGender - Optional gender to auto-select matching TTS voice
    */
   async initialize(personaGender?: 'male' | 'female' | 'neutral'): Promise<void> {
+    console.log('[DEBUG:VoiceInterviewManager] initialize() called', { isInitialized: this.isInitialized, personaGender });
     if (this.isInitialized) {
       console.warn('[VoiceInterviewManager:initialize] Already initialized');
       return;
@@ -143,6 +144,7 @@ export class VoiceInterviewManager extends EventEmitter {
       try {
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         console.log(`[VoiceInterviewManager:initialize] AudioContext state: ${audioCtx.state}`);
+        console.log('[DEBUG:VoiceInterviewManager] AudioContext state check', { audioContextState: audioCtx.state });
         if (audioCtx.state === 'suspended') {
           console.log('[VoiceInterviewManager:initialize] Attempting to resume AudioContext...');
           await audioCtx.resume();
@@ -154,6 +156,7 @@ export class VoiceInterviewManager extends EventEmitter {
       }
       
       this.isInitialized = true;
+      console.log('[DEBUG:VoiceInterviewManager] Initialization complete', { isInitialized: this.isInitialized });
       console.log('[VoiceInterviewManager:initialize] Initialization complete');
     } catch (error) {
       console.error('[VoiceInterviewManager:initialize] Failed to initialize:', error);
@@ -832,7 +835,9 @@ export class VoiceInterviewManager extends EventEmitter {
    * before playing.
    */
   async speak(text: string): Promise<void> {
+    console.log('[DEBUG:VoiceInterviewManager] speak() called', { isInitialized: this.isInitialized, textLength: text.length, textPreview: text.substring(0, 30) });
     if (!this.isInitialized) {
+      console.log('[DEBUG:VoiceInterviewManager] Error: VoiceInterviewManager not initialized');
       throw new Error('VoiceInterviewManager not initialized');
     }
 
@@ -847,18 +852,24 @@ export class VoiceInterviewManager extends EventEmitter {
       this.isSpeaking = true;
       this.emit('speaking-started');
       console.log('[VoiceInterviewManager:speak] Emitting speaking-started event');
+      console.log('[DEBUG:VoiceInterviewManager] Starting TTS attempts');
 
       // Try streaming first for faster time-to-first-audio
       try {
         console.log('[VoiceInterviewManager:speak] Attempting streaming TTS...');
+        console.log('[DEBUG:VoiceInterviewManager] Calling ttsService.speakStreaming()');
         await this.ttsService.speakStreaming(text, () => {
           console.log('[VoiceInterviewManager:speak] TTS streaming: first chunk playing');
+          console.log('[DEBUG:VoiceInterviewManager] TTS first chunk callback fired');
         });
         console.log('[VoiceInterviewManager:speak] Streaming TTS completed successfully');
+        console.log('[DEBUG:VoiceInterviewManager] speakStreaming() completed successfully');
       } catch (streamErr: any) {
         console.warn('[VoiceInterviewManager:speak] TTS streaming failed, falling back to non-streaming:', streamErr.message);
+        console.log('[DEBUG:VoiceInterviewManager] speakStreaming() failed, falling back', { error: streamErr.message });
         await this.ttsService.speak(text);
         console.log('[VoiceInterviewManager:speak] Non-streaming TTS completed successfully');
+        console.log('[DEBUG:VoiceInterviewManager] Non-streaming speak() completed successfully');
       }
 
       this.isSpeaking = false;
@@ -866,6 +877,7 @@ export class VoiceInterviewManager extends EventEmitter {
       console.log('[VoiceInterviewManager:speak] Emitting speaking-stopped event');
     } catch (error: any) {
       console.error('[VoiceInterviewManager:speak] TTS error:', error);
+      console.log('[DEBUG:VoiceInterviewManager] TTS error caught', { error: error.message });
       this.isSpeaking = false;
       this.emit('speaking-stopped');
       this.emit('error', error);
@@ -1048,17 +1060,11 @@ export class VoiceInterviewManager extends EventEmitter {
 
     while (this.ttsQueue.length > 0 && !this.streamingCancelled) {
       const sentence = this.ttsQueue.shift()!;
-      try {
-        // Use streaming TTS with fallback — same as speak()
         try {
           await this.ttsService.speakStreaming(sentence);
-        } catch {
+        } catch (streamErr: any) {
           await this.ttsService.speak(sentence);
         }
-      } catch (error) {
-        console.error('TTS queue: failed to speak sentence:', error);
-        // Continue with next sentence rather than stopping entirely
-      }
     }
 
     this.isTTSQueueRunning = false;

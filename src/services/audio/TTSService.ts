@@ -60,6 +60,7 @@ export class TTSService {
    * finish, then tears down the shared AudioContext.
    */
   async closePipeline(): Promise<void> {
+    console.log('[DEBUG:TTSService] closePipeline() called', { pipelineActive: this.pipelineActive, hasCtx: !!this.pipelineCtx });
     this.pipelineActive = false;
     const ctx = this.pipelineCtx;
     const nextStart = this.pipelineNextStartTime;
@@ -70,10 +71,12 @@ export class TTSService {
       
       // Wait for remaining scheduled audio
       const remaining = nextStart - ctx.currentTime;
+      console.log('[DEBUG:TTSService] closePipeline() waiting for remaining audio', { remaining });
       if (remaining > 0) {
         await new Promise((r) => setTimeout(r, remaining * 1000));
       }
       if (ctx.state !== 'closed') {
+        console.log('[DEBUG:TTSService] closePipeline() closing AudioContext');
         await ctx.close().catch(() => {});
       }
     }
@@ -238,7 +241,11 @@ export class TTSService {
     text: string,
     onFirstChunk?: () => void,
   ): Promise<void> {
-    if (!text.trim()) return;
+    console.log('[DEBUG:TTSService] speakStreaming() called', { textLength: text.length, textPreview: text.substring(0, 30), pipelineActive: this.pipelineActive });
+    if (!text.trim()) {
+      console.log('[DEBUG:TTSService] Empty text, returning early');
+      return;
+    }
 
     // ─── Pipeline mode: reuse the shared AudioContext ─────────
     // When a pipeline is open, we do NOT create/destroy a context per
@@ -246,6 +253,7 @@ export class TTSService {
     // nextStartTime forward so sentences chain with zero gap.
     const isPipeline = this.pipelineActive && this.pipelineCtx;
     const audioCtx = isPipeline ? this.pipelineCtx! : new AudioContext({ sampleRate: TTSService.STREAMING_SAMPLE_RATE });
+    console.log('[DEBUG:TTSService] AudioContext created', { isPipeline, audioContextState: audioCtx.state, sampleRate: audioCtx.sampleRate });
 
     if (!isPipeline) {
       // Standalone mode — abort any prior stream, own the context
@@ -262,6 +270,7 @@ export class TTSService {
     let firstChunkFired = false;
 
     try {
+      console.log('[DEBUG:TTSService] Fetching TTS from server', { baseURL: this.baseURL, model: this.model, voice: this.voice });
       const response = await fetch(`${this.baseURL}/audio/speech`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,19 +286,32 @@ export class TTSService {
 
       if (!response.ok) {
         const errText = await response.text().catch(() => 'unknown');
+        console.log('[DEBUG:TTSService] TTS HTTP request failed', { status: response.status, error: errText });
         throw new Error(`TTS streaming request failed (${response.status}): ${errText}`);
       }
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('TTS response has no readable body');
+      if (!reader) {
+        console.log('[DEBUG:TTSService] TTS response has no readable body');
+        throw new Error('TTS response has no readable body');
+      }
+      console.log('[DEBUG:TTSService] TTS response received, starting to read chunks');
 
       // Remainder buffer for byte-alignment across chunks
       let remainder: Uint8Array | null = null;
 
+      let chunkCount = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
-        if (done || !this.isStreamingActive) break;
+        if (done || !this.isStreamingActive) {
+          console.log('[DEBUG:TTSService] TTS stream ended', { done, isStreamingActive: this.isStreamingActive, chunkCount });
+          break;
+        }
+        chunkCount++;
+        if (chunkCount === 1) {
+          console.log('[DEBUG:TTSService] First TTS chunk received', { chunkSize: value.length });
+        }
 
         // Merge any leftover byte from the previous chunk
         let bytes: Uint8Array;
@@ -341,6 +363,16 @@ export class TTSService {
         if (!firstChunkFired) {
           firstChunkFired = true;
           onFirstChunk?.();
+          console.log('[DEBUG:TTSService] First audio chunk scheduled to play', { nextStartTime, audioCtxState: audioCtx.state });
+          // CRITICAL: Check if AudioContext is suspended - this is the #1 cause of no audio
+          if (audioCtx.state === 'suspended') {
+            console.log('[DEBUG:TTSService] WARNING: AudioContext is suspended! Attempting to resume...');
+            audioCtx.resume().then(() => {
+              console.log('[DEBUG:TTSService] AudioContext resumed successfully, new state:', audioCtx.state);
+            }).catch((err) => {
+              console.error('[DEBUG:TTSService] Failed to resume AudioContext:', err);
+            });
+          }
         }
       }
 
@@ -349,6 +381,7 @@ export class TTSService {
         this.pipelineNextStartTime = nextStartTime;
         // Do NOT wait — return immediately so the queue can start the
         // next sentence's fetch while this one is still playing.
+        console.log('[DEBUG:TTSService] Pipeline mode: returning immediately after stream');
         return;
       }
 
@@ -360,9 +393,11 @@ export class TTSService {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('TTS streaming aborted');
+        console.log('[DEBUG:TTSService] TTS streaming aborted');
         return;
       }
       console.error('TTS streaming error:', error);
+      console.log('[DEBUG:TTSService] TTS streaming error', { error: error.message });
       throw new Error(
         error.message || 'Text-to-speech streaming failed',
       );
@@ -376,6 +411,7 @@ export class TTSService {
         }
         this.streamingCtx = null;
       }
+      console.log('[DEBUG:TTSService] speakStreaming() finally block reached', { isPipeline, audioCtxState: audioCtx.state });
     }
   }
 
@@ -383,6 +419,7 @@ export class TTSService {
    * Stop any in-progress streaming playback and tear down the pipeline.
    */
   stopStreaming(): void {
+    console.log('[DEBUG:TTSService] stopStreaming() called', { isStreamingActive: this.isStreamingActive, pipelineActive: this.pipelineActive });
     this.isStreamingActive = false;
     this.pipelineActive = false;
     if (this.streamingAbort) {

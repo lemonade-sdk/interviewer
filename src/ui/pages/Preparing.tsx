@@ -186,7 +186,10 @@ const Preparing: React.FC = () => {
           return;
         }
         setLlmModels(llms);
+        const PREFERRED_MODEL_IDS = ['Qwen3-Coder-30B-A3B-Instruct-GGUF'];
+        const preferredMatch = llms.find(m => PREFERRED_MODEL_IDS.includes(m.id)) ?? null;
         const best =
+          preferredMatch ||
           llms.find(m => m.suggested && m.downloaded) ||
           llms.find(m => m.suggested) ||
           llms.find(m => m.downloaded) ||

@@ -80,10 +80,10 @@ export class SettingsRepository {
   private async createDefaultInterviewerSettings(): Promise<InterviewerSettings> {
     const defaults: InterviewerSettings = {
       modelProvider: 'lemonade-server',
-      modelName: 'qwen3-coder-30b-a3b-instruct',
-      extractionModelName: 'qwen3-coder-30b-a3b-instruct',
+      modelName: 'Qwen3-Coder-30B-A3B-Instruct-GGUF',
+      extractionModelName: 'Qwen3-Coder-30B-A3B-Instruct-GGUF',
       temperature: 0.7,
-      maxTokens: 2000,
+      maxTokens: 8192,
       interviewStyle: 'conversational',
       questionDifficulty: 'medium',
       numberOfQuestions: 10,

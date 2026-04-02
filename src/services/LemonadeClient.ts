@@ -911,6 +911,13 @@ export class LemonadeClient {
   private getDefaultModels(): ModelConfig[] {
     return [
       {
+        id: 'Qwen3-Coder-30B-A3B-Instruct-GGUF',
+        name: 'Qwen3 Coder 30B A3B Instruct (GGUF)',
+        provider: 'lemonade-server',
+        maxTokens: 8192,
+        temperature: 0.7,
+      },
+      {
         id: 'Llama-3.2-1B-Instruct-Hybrid',
         name: 'Llama 3.2 1B Instruct (Hybrid)',
         provider: 'lemonade-server',

@@ -94,6 +94,15 @@ let extractionService: StructuredExtractionService;
 // Audio recordings directory
 let audioRecordingsPath: string;
 
+// Disable Chromium sandbox on Linux to prevent SIGTRAP crash when the
+// chrome-sandbox SUID binary is absent (common in non-packaged environments
+// and some Linux distributions). Safe here because the app only loads
+// trusted local content and contextIsolation remains enabled.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-setuid-sandbox');
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,

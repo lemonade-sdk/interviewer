@@ -8,6 +8,8 @@
     "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "dev:react": "vite",
     "dev:electron": "tsc -p tsconfig.electron.json && concurrently \"tsc -p tsconfig.electron.json -w\" \"cross-env NODE_ENV=development electron dist/electron/src/electron_app/main.js\"",
+    "dev:linux": "concurrently \"npm run dev:react\" \"npm run dev:electron:linux\"",
+    "dev:electron:linux": "tsc -p tsconfig.electron.json && concurrently \"tsc -p tsconfig.electron.json -w\" \"cross-env NODE_ENV=development electron --no-sandbox --disable-setuid-sandbox dist/electron/src/electron_app/main.js\"",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "build:electron": "electron-builder",
     "build:electron:dir": "electron-builder --dir",
@@ -102,7 +104,13 @@
       "target": "dmg"
     },
     "linux": {
-      "target": "AppImage"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Utility"
     },
     "forceCodeSigning": false
   }

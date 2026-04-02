@@ -161,10 +161,10 @@ export class StorageManager {
     if (!interviewerSettings) {
       await this.interviewerSettings.set({
         modelProvider: 'lemonade-server',
-        modelName: 'gpt-oss-mxp4',
-        extractionModelName: 'gpt-oss-mxp4',
+        modelName: 'Qwen3-Coder-30B-A3B-Instruct-GGUF',
+        extractionModelName: 'Qwen3-Coder-30B-A3B-Instruct-GGUF',
         temperature: 0.7,
-        maxTokens: 2000,
+        maxTokens: 8192,
         interviewStyle: 'conversational',
         questionDifficulty: 'medium',
         numberOfQuestions: 10,

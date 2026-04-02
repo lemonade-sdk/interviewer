@@ -177,6 +177,36 @@ export class StorageManager {
         recordingQuality: 'medium',
       });
       console.log('✓ Created default interviewer settings');
+    } else {
+      await this.migrateInterviewerSettings(interviewerSettings);
+    }
+  }
+
+  /**
+   * Correct persisted settings that contain stale or invalid model names.
+   * Runs on every startup so existing users are migrated automatically.
+   */
+  private async migrateInterviewerSettings(settings: InterviewerSettings): Promise<void> {
+    const CORRECT_MODEL = 'Qwen3-Coder-30B-A3B-Instruct-GGUF';
+    const BAD_MODELS = new Set([
+      'gpt-oss-mxp4',
+      'gpt-oss-mxfp4',
+      'qwen3-coder-30b-a3b-instruct', // wrong casing/format
+      'Llama-3.2-1B-Instruct-Hybrid',
+    ]);
+
+    const updates: Partial<InterviewerSettings> = {};
+
+    if (BAD_MODELS.has(settings.modelName)) {
+      updates.modelName = CORRECT_MODEL;
+    }
+    if (settings.extractionModelName && BAD_MODELS.has(settings.extractionModelName)) {
+      updates.extractionModelName = CORRECT_MODEL;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.interviewerSettings.update(updates);
+      console.log('✓ Migrated interviewer settings:', updates);
     }
   }
 

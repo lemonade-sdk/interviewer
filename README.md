@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Windows-x64-0078D6?logo=windows&logoColor=white" alt="Windows" />
+  <img src="https://img.shields.io/badge/Linux-Ubuntu-E95420?logo=ubuntu&logoColor=white" alt="Linux/Ubuntu" />
   <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white" alt="Node.js 20+" />
   <a href="https://github.com/lemonade-sdk/interviewer/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
@@ -55,8 +56,11 @@ Follow the [Lemonade Server installation guide](https://github.com/lemonade-sdk/
 ### Development Mode
 
 ```bash
-# Start the development server (React + Electron)
+# Windows / macOS
 npm run dev
+
+# Linux / Ubuntu
+npm run dev:linux
 
 # In a separate terminal, ensure Lemonade Server is running
 lemonade-server
@@ -193,6 +197,14 @@ interviewer/
                                    │   Generation    │
                                    └─────────────────┘
 ```
+
+## Linux / Ubuntu Notes
+
+The app runs on Ubuntu out of the box. A few things to be aware of:
+
+- Use `npm run dev:linux` instead of `npm run dev` — this passes the required `--no-sandbox` flag to Electron, bypassing the SUID sandbox requirement that causes a crash on most Linux setups.
+- The default model (`Qwen3-Coder-30B-A3B-Instruct-GGUF`) is set automatically. If you previously ran an older version that saved a different model name (e.g. `gpt-oss-mxp4`), the app will auto-correct it on next startup.
+- For packaged AppImage builds, no extra flags are needed — the sandbox is handled at the app level.
 
 ##  Contributing
 

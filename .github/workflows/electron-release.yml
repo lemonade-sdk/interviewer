@@ -122,7 +122,7 @@ jobs:
           Get-ChildItem -Path "release-artifacts" -Recurse | Format-Table Name, Length
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-artifacts/**/*
           draft: false

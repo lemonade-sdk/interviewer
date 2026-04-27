@@ -164,18 +164,31 @@ interviewer/
 ### Backend Integration
 - **HTTP**: OpenAI client + Axios for Lemonade Server
 
-### Phase Aware Interview Flow 
+### Phase-Aware Interview Flow (5 Phases • 5 Core Questions)
 
-1. **Greeting Phase** - Audio check, self-introduction, session overview
-2. **Q1 Active** - Warm-up baseline question
-3. **Q2 Active** - Core technical probe
-4. **Q3 Active** - Behavioral/leadership probe
-5. **Wrap-up** - Closing remarks and candidate questions
+The interview follows a strict **5-phase structure** with **exactly 5 dynamically generated core question topics** (Q1–Q5). All phases and questions are controlled by the unified prompt system in `prompts.json`.
+
+| Phase | Focus | Description |
+|---|---|---|
+| **1. Greeting** | Audio check + Introduction | One-time audio check, persona self-introduction, session overview (duration + format) |
+| **2. Q1 Active** | Warm-up / Baseline | Open rapport-building question + light follow-ups |
+| **3. Q2 Active** | Core Technical | Job-specific technical depth probes |
+| **4. Q3 Active** | Behavioral / Leadership | STAR-method behavioral questions + leadership signals |
+| **5. Wrap-up** | Closing + Candidate Questions | Summary, feedback preview, open Q&A from candidate |
+
+- **Total structured questions**: 5 main questions (Q1–Q5) with adaptive, context-aware follow-up probes.
+- Question topics (`q1Topic` … `q5Topic`) and "watch signals" (resume gaps, red flags, etc.) are generated fresh every session from your JD + resume.
 
 ### Extraction & Feedback
 - **Persona Generation**: Creates tailored 21+ field interviewer personas from job/resume
 - **Document Extraction**: Parses resumes and job descriptions for context
 - **Comprehensive Feedback**: Multi-stage analysis with structured Q&A grading
+
+## Prompt Engineering & UCL Framework
+
+The interview logic, persona generation, phase gating, and structured output are powered by `src/data/prompts.json`, which implements **Universal Conditional Logic (UCL)** — a formal mathematical framework for prompt optimization authored by the same developer.
+
+This project is a production-grade real-world application of UCL for multi-turn, voice-interactive, agentic interview simulation.
 
 ##  Interview Flow
 
@@ -226,6 +239,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) - Efficient LLM inference
 - [Whisper](https://github.com/openai/whisper) - OpenAI's ASR model
 - [Kokoro](https://github.com/kokoro-js/kokoro) - Fast TTS
+
+## References
+
+- Anthony Mikinka. "Universal Conditional Logic: A Formal Language for Prompt Engineering." *arXiv:2601.00880* (2025). https://arxiv.org/abs/2601.00880 · [GitHub](https://github.com/antmikinka/Universal-Conditional-Logic)
 ---
 
 **Made with ❤️ for better, private interview preparation**

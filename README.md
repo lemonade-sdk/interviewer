@@ -9,6 +9,10 @@
   <img src="https://img.shields.io/badge/Privacy-Local--First-7c3aed" alt="Privacy: Local-First" />
   <a href="https://github.com/lemonade-sdk/lemonade">
     <img src="https://img.shields.io/badge/Powered%20by-Lemonade-FFD700" alt="Powered by Lemonade" /></a>
+  <a href="https://arxiv.org/abs/2601.00880">
+    <img src="https://img.shields.io/badge/arXiv-2601.00880-b31b1b.svg" alt="arXiv:2601.00880" /></a>
+  <a href="https://doi.org/10.48550/arXiv.2601.00880">
+    <img src="https://img.shields.io/badge/DOI-10.48550%2FarXiv.2601.00880-blue.svg" alt="DOI" /></a>
 </p>
 
 <p align="center">

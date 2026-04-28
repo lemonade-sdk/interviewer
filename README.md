@@ -192,7 +192,7 @@ The interview follows a strict **5-phase structure** with **exactly 5 dynamicall
 
 The interview logic, persona generation, phase gating, and structured output are powered by `src/data/prompts.json`, which implements **Universal Conditional Logic (UCL)** — a formal mathematical framework for prompt optimization authored by the same developer.
 
-This project is a production-grade real-world application of UCL for multi-turn, voice-interactive, agentic interview simulation.
+This project is a real-world application of UCL for multi-turn, voice-interactive, agentic interview simulation.
 
 ##  Interview Flow
 

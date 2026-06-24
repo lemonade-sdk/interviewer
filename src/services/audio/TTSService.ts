@@ -35,7 +35,7 @@ export class TTSService {
   private pipelineNextStartTime: number = 0;
   private pipelineActive: boolean = false;
 
-  constructor(baseURL: string = 'http://localhost:8000/api/v1') {
+  constructor(baseURL: string = 'http://localhost:13305/api/v1') {
     this.baseURL = baseURL;
   }
 

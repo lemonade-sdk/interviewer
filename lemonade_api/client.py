@@ -7,7 +7,7 @@ Docs: https://lemonade-sdk.github.io/lemonade/docs/server/python_sdk/
 Usage:
     from lemonade_api import LemonadeClient, ChatCompletionRequest, Message
 
-    client = LemonadeClient(base_url="http://localhost:8000")
+    client = LemonadeClient(base_url="http://localhost:13305")
     request = ChatCompletionRequest(
         model="Qwen3-0.6B-GGUF",
         messages=[Message(role="user", content="Hello!")]
@@ -51,11 +51,11 @@ class LemonadeClient:
     Client for the Lemonade Server API.
 
     Args:
-        base_url: Base URL of the Lemonade Server (default: http://localhost:8000).
+        base_url: Base URL of the Lemonade Server (default: http://localhost:13305).
                   Do NOT include /api/v1 — the client handles path prefixing internally.
     """
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:13305"):
         self.base_url = base_url.rstrip("/")
         self._api_prefix = "/api/v1"
         self._client = httpx.Client(timeout=60.0)

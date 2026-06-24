@@ -365,7 +365,7 @@ const Interview: React.FC = () => {
 
       const manager = new VoiceInterviewManager(
         defaultAudioSettings,
-        'http://localhost:8000/api/v1',
+        'http://localhost:13305/api/v1',
         asrModel,
         wsPort || undefined,
         DEFAULT_VAD_CONFIG,

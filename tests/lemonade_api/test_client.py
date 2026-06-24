@@ -29,27 +29,27 @@ class TestLemonadeClient:
 
     def test_client_initialization(self):
         """Test that client initializes with correct base URL"""
-        client = LemonadeClient(base_url="http://localhost:8000")
-        assert client.base_url == "http://localhost:8000"
+        client = LemonadeClient(base_url="http://localhost:13305")
+        assert client.base_url == "http://localhost:13305"
 
     def test_client_initialization_default_url(self):
         """Test that client uses default URL when none provided"""
         client = LemonadeClient()
-        assert client.base_url == "http://localhost:8000"
+        assert client.base_url == "http://localhost:13305"
 
     def test_client_trailing_slash_stripped(self):
         """Test that trailing slash is stripped from base URL"""
-        client = LemonadeClient(base_url="http://localhost:8000/")
-        assert client.base_url == "http://localhost:8000"
+        client = LemonadeClient(base_url="http://localhost:13305/")
+        assert client.base_url == "http://localhost:13305"
         assert not client.base_url.endswith("/")
 
     def test_url_construction(self):
         """Test that internal URL builder constructs correct paths"""
-        client = LemonadeClient(base_url="http://localhost:8000")
-        assert client._url("models") == "http://localhost:8000/api/v1/models"
-        assert client._url("/models") == "http://localhost:8000/api/v1/models"
-        assert client._url("chat/completions") == "http://localhost:8000/api/v1/chat/completions"
-        assert client._url("health") == "http://localhost:8000/api/v1/health"
+        client = LemonadeClient(base_url="http://localhost:13305")
+        assert client._url("models") == "http://localhost:13305/api/v1/models"
+        assert client._url("/models") == "http://localhost:13305/api/v1/models"
+        assert client._url("chat/completions") == "http://localhost:13305/api/v1/chat/completions"
+        assert client._url("health") == "http://localhost:13305/api/v1/health"
 
     @pytest.mark.unit
     def test_client_has_required_methods(self):
@@ -226,7 +226,7 @@ class TestLemonadeClientIntegration:
     @pytest.fixture
     def client(self):
         """Fixture providing a test client"""
-        return LemonadeClient(base_url="http://localhost:8000")
+        return LemonadeClient(base_url="http://localhost:13305")
 
     @pytest.mark.skip(reason="Requires running Lemonade Server")
     def test_real_server_health(self, client):

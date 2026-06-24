@@ -731,11 +731,11 @@ ipcMain.handle('server:getStatus', async () => {
     const isHealthy = await interviewService.checkServerHealth();
     return {
       isRunning: isHealthy,
-      url: 'http://localhost:8000' // Default URL
+      url: 'http://localhost:13305' // Default URL
     };
   } catch (error) {
     console.error('Failed to get server status:', error);
-    return { isRunning: false, url: 'http://localhost:8000' };
+    return { isRunning: false, url: 'http://localhost:13305' };
   }
 });
 

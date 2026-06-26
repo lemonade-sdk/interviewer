@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="public/application-interviewer-image-5.png?raw=true" alt="Interviewer Banner" />
+  <img src="public/lemonade-sdk-interviewer-job-prep-local-ai.gif?raw=true" alt="Interviewer Demo" />
 </p>
 
 ## Goal / Mission

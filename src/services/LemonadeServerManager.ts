@@ -10,7 +10,7 @@ export class LemonadeServerManager {
   private isServerRunning: boolean = false;
   private onStatusChange?: (isRunning: boolean) => void;
 
-  constructor(baseURL: string = 'http://localhost:8000') {
+  constructor(baseURL: string = 'http://localhost:13305') {
     this.baseURL = baseURL;
   }
 

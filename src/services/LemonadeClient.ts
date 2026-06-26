@@ -10,7 +10,7 @@ import { TextProcessingService } from './TextProcessingService';
 /**
  * LemonadeClient - Integration with Lemonade Server
  * Lemonade Server is a local LLM server that implements the OpenAI API standard
- * Running at http://localhost:8000/api/v1
+ * Running at http://localhost:13305/api/v1
  *
  * Documentation: https://lemonade-server.ai/docs/
  */
@@ -35,7 +35,7 @@ export const FEEDBACK_MAX_INPUT_TOKENS = MODEL_CTX_WINDOW - 2048;
 export class LemonadeClient {
   private settings: InterviewerSettings;
   private client!: OpenAI;
-  private baseURL: string = 'http://localhost:8000/api/v1';
+  private baseURL: string = 'http://localhost:13305/api/v1';
   private apiKey: string = 'lemonade'; // Required but unused by Lemonade Server
   private isConnected: boolean = false;
   private availableModels: ModelConfig[] = [];
@@ -122,7 +122,7 @@ export class LemonadeClient {
         const isHealthy = await this.checkServerHealth();
         if (!isHealthy) {
           throw new Error(
-            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:8000'
+            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:13305'
           );
         }
       }
@@ -307,7 +307,7 @@ export class LemonadeClient {
         const isHealthy = await this.checkServerHealth();
         if (!isHealthy) {
           throw new Error(
-            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:8000',
+            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:13305',
           );
         }
       }

@@ -212,7 +212,7 @@ const InterviewerSettingsPanel: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [serverStatus, setServerStatus] = useState<{ isRunning: boolean; url: string }>({
     isRunning: false,
-    url: 'http://localhost:8000',
+    url: 'http://localhost:13305',
   });
   const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);

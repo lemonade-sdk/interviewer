@@ -29,6 +29,13 @@ on:
 permissions:
   contents: read
 
+# Shared with electron-release.yml: the cleanup action kills ALL node/electron
+# processes machine-wide, so overlapping runs on the single self-hosted runner
+# would destroy each other. Never cancel an in-flight run.
+concurrency:
+  group: self-hosted-windows-serial
+  cancel-in-progress: false
+
 jobs:
   # ========================================================================
   # BUILD & TEST - Self-hosted Windows runner

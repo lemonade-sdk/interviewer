@@ -67,14 +67,14 @@ const Landing: React.FC = () => {
       const installation = await window.electronAPI.checkLemonadeInstallation();
       setLemonadeInstalled(installation.installed);
       if (!installation.installed) {
-        setStartError('Lemonade Server is not installed. Download it from lemonade-server.ai to get started.');
+        setStartError('Lemonade Server is not installed. Install it using the link below, then click Retry Connection.');
         setIsChecking(false);
         return;
       }
       const serverStatus = await window.electronAPI.getServerStatus();
       setServerRunning(serverStatus.isRunning);
       if (!serverStatus.isRunning) {
-        setStartError('Lemonade Server is installed but not running. Start it with: lemonade-server serve');
+        setStartError('Lemonade Server is installed but not running. Start it with: lemonade-server serve — then click Retry Connection.');
         setIsChecking(false);
         return;
       }
@@ -271,7 +271,7 @@ const Landing: React.FC = () => {
               {lemonadeInstalled === false && (
                 <div className="ml-7 space-y-2">
                   <a
-                    href="https://lemonade-server.ai/"
+                    href="https://github.com/lemonade-sdk/lemonade/releases/latest/download/lemonade.msi"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-lemonade-accent hover:bg-lemonade-accent-hover text-black font-semibold rounded-xl transition-colors text-xs"
@@ -279,13 +279,36 @@ const Landing: React.FC = () => {
                     <ExternalLink size={12} />
                     Download Lemonade Server
                   </a>
-                  <p className="text-xs text-gray-500 dark:text-white/40">After installing, restart this application.</p>
+                  <p className="text-xs text-gray-500 dark:text-white/40">
+                    After installing, click <span className="font-semibold">Retry Connection</span> below.{' '}
+                    <a
+                      href="https://github.com/lemonade-sdk/interviewer/blob/main/docs/INSTALLATION.md"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-gray-700 dark:hover:text-white/60"
+                    >
+                      Installation guide
+                    </a>
+                  </p>
                 </div>
               )}
               {lemonadeInstalled === true && !serverRunning && (
-                <div className="ml-7 p-3 bg-gray-900 text-green-400 rounded-xl font-mono text-xs flex items-center gap-2">
-                  <Terminal size={12} className="shrink-0 text-gray-500" />
-                  <code>lemonade-server serve</code>
+                <div className="ml-7 space-y-2">
+                  <div className="p-3 bg-gray-900 text-green-400 rounded-xl font-mono text-xs flex items-center gap-2">
+                    <Terminal size={12} className="shrink-0 text-gray-500" />
+                    <code>lemonade-server serve</code>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-white/40">
+                    Then click <span className="font-semibold">Retry Connection</span> below.{' '}
+                    <a
+                      href="https://github.com/lemonade-sdk/interviewer/blob/main/docs/INSTALLATION.md"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-gray-700 dark:hover:text-white/60"
+                    >
+                      Installation guide
+                    </a>
+                  </p>
                 </div>
               )}
               <button onClick={performBackgroundChecks} className="text-xs font-semibold hover:underline text-left ml-7">

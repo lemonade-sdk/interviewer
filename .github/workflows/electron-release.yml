@@ -1,23 +1,39 @@
 name: Electron Release (Windows) 🪟🚀
 
-# Modeled after the Lemonade SDK release pattern:
-# - Self-hosted Windows runner for builds
-# - Process cleanup before/after
-# - Artifact upload + GitHub Release creation
+# ============================================================================
+# RELEASE MODEL
+#   - workflow_dispatch = SMOKE BUILD ONLY (build + artifact upload, no release).
+#   - Releases are created ONLY from annotated tags vX.Y.Z pushed to the repo.
+#   - The tag glob 'v*.*.*' intentionally also matches prerelease tags such as
+#     v1.0.0-rc.1 (needed for the release dry run; a tag containing '-' becomes
+#     a GitHub prerelease). Keep it.
+#
+# FROZEN FIELDS (decision log D6 — change control + M1 re-run required):
+#   build.appId       = com.interviewer.app        (NSIS upgrade GUID derives from it)
+#   build.productName = Interviewer
+#   build.nsis.artifactName = Interviewer-Setup-${version}.${ext}
+#   build.directories.output = release
+#   Artifact set = exactly: *.exe, latest.yml, *.blockmap, SHA256SUMS.txt
+#
+# CONCURRENCY: this workflow and nodejs-ci.yml share the group
+# 'self-hosted-windows-serial'. The cleanup action kills ALL node/electron
+# processes machine-wide, so overlapping runs on the single self-hosted runner
+# would destroy each other. Never cancel an in-flight run.
+# ============================================================================
 
 on:
   push:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g., 1.0.0)'
-        required: true
-        type: string
+    # No inputs. Dispatch is a smoke build only; releases are tag-driven.
 
 permissions:
   contents: write
+
+concurrency:
+  group: self-hosted-windows-serial
+  cancel-in-progress: false
 
 jobs:
   # ========================================================================
@@ -27,12 +43,31 @@ jobs:
   build-windows:
     name: Build Electron App (Windows)
     runs-on: [self-hosted, Windows]
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
         with:
           clean: true
-          fetch-depth: 0
+
+      # Version↔tag guard (N3): fail fast BEFORE any dependency work.
+      # Tag vX.Y.Z must match package.json version exactly (full semver incl.
+      # prerelease suffix). Skipped for workflow_dispatch smoke builds.
+      - name: Version guard (tag must match package.json)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = $env:GITHUB_REF_NAME
+          $expected = $tag -replace '^v',''
+          $actual = node -p "require('./package.json').version"
+          Write-Host "Tag version:      $expected"
+          Write-Host "package.json:     $actual"
+          if ($actual -ne $expected) {
+            Write-Error "Version mismatch: tag '$tag' implies '$expected' but package.json has '$actual'. Update package.json or push the correct tag."
+            exit 1
+          }
+          Write-Host "Version guard passed." -ForegroundColor Green
 
       - name: Cleanup processes (pre-build)
         uses: ./.github/actions/cleanup-processes-windows
@@ -46,7 +81,6 @@ jobs:
         shell: PowerShell
         run: |
           $ErrorActionPreference = "Stop"
-
           Write-Host "Installing npm dependencies..." -ForegroundColor Cyan
           npm ci
           if ($LASTEXITCODE -ne 0) {
@@ -55,49 +89,95 @@ jobs:
           }
           Write-Host "Dependencies installed successfully!" -ForegroundColor Green
 
-      - name: Build React app
+      - name: Build app (tsc + vite)
         shell: PowerShell
         run: |
           $ErrorActionPreference = "Stop"
-
-          Write-Host "Building React app..." -ForegroundColor Cyan
+          Write-Host "Building app..." -ForegroundColor Cyan
           npm run build
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "ERROR: React build failed!" -ForegroundColor Red
+              Write-Host "ERROR: Build failed!" -ForegroundColor Red
               exit $LASTEXITCODE
           }
-          Write-Host "React app built successfully!" -ForegroundColor Green
+          Write-Host "Build succeeded!" -ForegroundColor Green
 
-      - name: Build Electron app (Windows)
+      - name: Package installer (electron-builder, NSIS x64)
         shell: PowerShell
         run: |
           $ErrorActionPreference = "Stop"
-
-          Write-Host "Building Electron app for Windows..." -ForegroundColor Cyan
-          npm run build:electron -- --win
+          Write-Host "Packaging Windows NSIS installer..." -ForegroundColor Cyan
+          # Explicit --publish never: packaging must never publish.
+          # GH_TOKEN is intentionally NOT in this step's environment.
+          npx electron-builder --win nsis --x64 --publish never
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "ERROR: Electron build failed!" -ForegroundColor Red
+              Write-Host "ERROR: electron-builder failed!" -ForegroundColor Red
               exit $LASTEXITCODE
           }
-          Write-Host "Electron app built successfully!" -ForegroundColor Green
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          Write-Host "Installer packaged!" -ForegroundColor Green
 
-      - name: Upload Windows artifacts
+      # Disk guard (R11): fail loudly if the build left the runner low on space.
+      - name: Disk space guard
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $drive = Get-PSDrive -Name ($env:SystemDrive -replace ':','')
+          $freeGB = [math]::Round($drive.Free / 1GB, 2)
+          Write-Host "Free disk space: $freeGB GB"
+          if ($drive.Free -lt 10GB) {
+              Write-Error "Free disk space ($freeGB GB) is below the 10 GB safety threshold. Clean the runner before the next run."
+              exit 1
+          }
+
+      # Checksums (B4): SHA256SUMS.txt is generated AND uploaded.
+      - name: Generate SHA256SUMS.txt
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $files = @()
+          $files += @(Get-ChildItem -Path "release" -Filter "*.exe")
+          $files += @(Get-ChildItem -Path "release" -Filter "latest.yml" -ErrorAction SilentlyContinue)
+          $files += @(Get-ChildItem -Path "release" -Filter "*.blockmap" -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0) {
+              Write-Error "No release files found to checksum."
+              exit 1
+          }
+          $lines = foreach ($f in $files) {
+              $hash = (Get-FileHash -Path $f.FullName -Algorithm SHA256).Hash
+              "$hash  $($f.Name)"
+          }
+          $lines | Set-Content -Path "release\SHA256SUMS.txt" -Encoding ascii
+          Write-Host "SHA256SUMS.txt:" -ForegroundColor Cyan
+          Get-Content "release\SHA256SUMS.txt"
+
+      # Artifact set is FROZEN (D6/SM-4): exe, latest.yml, blockmap, SHA256SUMS.txt.
+      - name: Upload Windows release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
-            dist/*.exe
-            dist/*.msi
-          retention-days: 7
+            release/*.exe
+            release/latest.yml
+            release/*.blockmap
+            release/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      # Runner hygiene: drop the unpacked dir (~300 MB) after artifacts are safe.
+      - name: Delete win-unpacked
+        if: always()
+        shell: PowerShell
+        run: |
+          if (Test-Path "release\win-unpacked") {
+              Remove-Item -Path "release\win-unpacked" -Recurse -Force
+              Write-Host "release\win-unpacked removed." -ForegroundColor Green
+          }
 
       - name: Cleanup processes (post-build)
         if: always()
         uses: ./.github/actions/cleanup-processes-windows
 
   # ========================================================================
-  # RELEASE - Create GitHub Release with Windows artifacts
+  # RELEASE - Create GitHub Release with the frozen 4-artifact set
   # ========================================================================
 
   create-release:
@@ -115,18 +195,56 @@ jobs:
           name: windows-build
           path: release-artifacts
 
-      - name: Verify release artifacts
+      # Fail loudly if the frozen artifact set is incomplete (B4) — a partial
+      # release must never be published.
+      - name: Verify release artifacts and prepare release metadata
+        id: meta
         shell: PowerShell
         run: |
+          $ErrorActionPreference = "Stop"
+
           Write-Host "Release artifacts:" -ForegroundColor Cyan
           Get-ChildItem -Path "release-artifacts" -Recurse | Format-Table Name, Length
+
+          $missing = @()
+          if (-not (Get-ChildItem -Path "release-artifacts" -Filter "*.exe" -ErrorAction SilentlyContinue))       { $missing += "*.exe" }
+          if (-not (Get-ChildItem -Path "release-artifacts" -Filter "latest.yml" -ErrorAction SilentlyContinue))  { $missing += "latest.yml" }
+          if (-not (Get-ChildItem -Path "release-artifacts" -Filter "*.blockmap" -ErrorAction SilentlyContinue))  { $missing += "*.blockmap" }
+          if (-not (Get-ChildItem -Path "release-artifacts" -Filter "SHA256SUMS.txt" -ErrorAction SilentlyContinue)) { $missing += "SHA256SUMS.txt" }
+          if ($missing.Count -gt 0) {
+              Write-Error ("Frozen artifact set incomplete — missing: " + ($missing -join ", "))
+              exit 1
+          }
+          Write-Host "All 4 artifact types present." -ForegroundColor Green
+
+          # Prerelease iff the tag contains a hyphen (e.g. v1.0.0-rc.1).
+          $tag = $env:GITHUB_REF_NAME
+          $isPrerelease = $tag -match '-'
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "prerelease=$($isPrerelease.ToString().ToLower())"
+          Write-Host "Tag: $tag | prerelease: $isPrerelease"
+
+          # Release body: tag-specific notes (docs/release-notes/<tag>.md) if
+          # authored, else the mandatory-sections template. GitHub prepends this
+          # body to the auto-generated changelog (generate_release_notes: true).
+          $tagNotes = Join-Path "docs/release-notes" "$tag.md"
+          if (Test-Path $tagNotes) {
+              Write-Host "Using tag-specific release notes: $tagNotes"
+              $body = Get-Content -Path $tagNotes -Raw
+          } else {
+              Write-Host "Using release-notes template header."
+              $body = Get-Content -Path ".github/RELEASE-NOTES-TEMPLATE.md" -Raw
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "body<<EOFBODY"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $body
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "EOFBODY"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: release-artifacts/**/*
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          body: ${{ steps.meta.outputs.body }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

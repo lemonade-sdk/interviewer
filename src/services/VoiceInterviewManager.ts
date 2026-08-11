@@ -100,7 +100,9 @@ export class VoiceInterviewManager extends EventEmitter {
     super();
     
     this.audioService = new AudioService(audioSettings);
-    this.ttsService = new TTSService();
+    // TTS must hit the SAME server (and port) as ASR — pass the discovered
+    // base URL through instead of defaulting to port 8000.
+    this.ttsService = new TTSService(asrBaseURL);
     this.wsPort = wsPort ?? null;
     this.asrModel = asrModel;
     this.asrBaseURL = asrBaseURL;

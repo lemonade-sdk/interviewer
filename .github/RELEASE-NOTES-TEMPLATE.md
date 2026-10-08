@@ -2,7 +2,7 @@
 
 <!--
 MANDATORY release-body template. The six sections below are required for every
-release (docs/release-planning/02-program-plan.md §6.3; enforced at M2/M3).
+release.
 When used by .github/workflows/electron-release.yml this text becomes the
 release body header, with GitHub's auto-generated changelog appended.
 Replace {PLACEHOLDERS}; do not delete sections.

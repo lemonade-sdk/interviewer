@@ -28,9 +28,6 @@ on:
   workflow_dispatch:
     # No inputs. Dispatch is a smoke build only; releases are tag-driven.
 
-permissions:
-  contents: write
-
 concurrency:
   group: self-hosted-windows-serial
   cancel-in-progress: false
@@ -44,6 +41,8 @@ jobs:
     name: Build Electron App (Windows)
     runs-on: [self-hosted, Windows]
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +52,8 @@ jobs:
       # Version↔tag guard (N3): fail fast BEFORE any dependency work.
       # Tag vX.Y.Z must match package.json version exactly (full semver incl.
       # prerelease suffix). Skipped for workflow_dispatch smoke builds.
+      # Parsed with ConvertFrom-Json on purpose: the guard must not depend on
+      # a runner-global Node install (setup-node runs later).
       - name: Version guard (tag must match package.json)
         if: startsWith(github.ref, 'refs/tags/')
         shell: PowerShell
@@ -60,7 +61,8 @@ jobs:
           $ErrorActionPreference = "Stop"
           $tag = $env:GITHUB_REF_NAME
           $expected = $tag -replace '^v',''
-          $actual = node -p "require('./package.json').version"
+          $pkg = Get-Content -Path "package.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+          $actual = $pkg.version
           Write-Host "Tag version:      $expected"
           Write-Host "package.json:     $actual"
           if ($actual -ne $expected) {
@@ -100,6 +102,20 @@ jobs:
               exit $LASTEXITCODE
           }
           Write-Host "Build succeeded!" -ForegroundColor Green
+
+      # H1 fix: releases must never ship with failing tests. Blocking gate —
+      # a red suite here stops the release (nodejs-ci.yml is blocking too).
+      - name: Run tests (release gate)
+        shell: PowerShell
+        run: |
+          $ErrorActionPreference = "Stop"
+          Write-Host "Running test suite (release gate)..." -ForegroundColor Cyan
+          npm test
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: Tests failed — release blocked!" -ForegroundColor Red
+              exit $LASTEXITCODE
+          }
+          Write-Host "Tests passed!" -ForegroundColor Green
 
       - name: Package installer (electron-builder, NSIS x64)
         shell: PowerShell
@@ -184,10 +200,15 @@ jobs:
     name: Create GitHub Release
     needs: build-windows
     runs-on: [self-hosted, Windows]
+    timeout-minutes: 15
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # least privilege: only this job creates the release
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true  # self-hosted runner: never inherit stale untracked files
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
@@ -226,20 +247,24 @@ jobs:
           # Release body: tag-specific notes (docs/release-notes/<tag>.md) if
           # authored, else the mandatory-sections template. GitHub prepends this
           # body to the auto-generated changelog (generate_release_notes: true).
+          # Explicit UTF8 everywhere (M1): Windows PowerShell 5.1 defaults to
+          # ANSI for Get-Content/Add-Content, which mojibakes the non-ASCII
+          # characters in the template; GitHub parses GITHUB_OUTPUT as UTF-8.
           $tagNotes = Join-Path "docs/release-notes" "$tag.md"
           if (Test-Path $tagNotes) {
               Write-Host "Using tag-specific release notes: $tagNotes"
-              $body = Get-Content -Path $tagNotes -Raw
+              $body = Get-Content -Path $tagNotes -Raw -Encoding UTF8
           } else {
               Write-Host "Using release-notes template header."
-              $body = Get-Content -Path ".github/RELEASE-NOTES-TEMPLATE.md" -Raw
+              $body = Get-Content -Path ".github/RELEASE-NOTES-TEMPLATE.md" -Raw -Encoding UTF8
           }
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "body<<EOFBODY"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value $body
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "EOFBODY"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "body<<EOFBODY" -Encoding UTF8
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $body -Encoding UTF8
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "EOFBODY" -Encoding UTF8
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        # Pinned by SHA (L4): softprops/action-gh-release v2.6.2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: release-artifacts/**/*
           draft: false

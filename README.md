@@ -19,6 +19,24 @@
   <img src="public/lemonade-sdk-interviewer-job-prep-local-ai.gif?raw=true" alt="Interviewer Demo" />
 </p>
 
+## Table of Contents
+
+- [Goal / Mission](#goal--mission)
+- [Features](#features)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [Quick Start (development)](#quick-start-development)
+- [Architecture Overview](#architecture-overview) ▸ *collapsible*
+- [Project Structure](#project-structure) ▸ *collapsible*
+- [Tech Stack](#tech-stack) ▸ *collapsible*
+- [Prompt Engineering & UCL Framework](#prompt-engineering--ucl-framework)
+- [Interview Flow](#interview-flow) ▸ *collapsible*
+- [Linux / Ubuntu Notes](#linux--ubuntu-notes) ▸ *collapsible*
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+- [References](#references)
+
 ## Goal / Mission
 
 **Interviewer** is a Proof of Concept AI-powered interview practice application designed to help a candidate prepare for real job interviews through voice enabled mock sessions. Built on the principle of **local-first privacy**, it runs entirely on your own hardware. No data ever leaves your machine, no API keys required, no subscription fees.
@@ -29,7 +47,7 @@ The application generates dynamic, context aware interviewer personas based on a
 - Tested on Strix Halo with 128 GB RAM; NPU-class hardware is recommended.
 - Recommended model: `Qwen3-Coder-30B-A3B-Instruct-GGUF`
 
-##  Features
+## Features
 
 - **Voice-Enabled Interviews** - Realistic interview simulation with speech-to-text (ASR) and text-to-speech (TTS)
 - **Local AI Models** - Runs entirely on your hardware via Lemonade Server—no cloud dependencies
@@ -46,7 +64,7 @@ The application generates dynamic, context aware interviewer personas based on a
 - **Hardware:** NPU-class hardware recommended — developed and tested on Strix Halo (AMD Ryzen AI Max) with 128 GB unified memory
 - **Model:** `Qwen3-Coder-30B-A3B-Instruct-GGUF` (recommended). Models are not bundled; the first model is downloaded (multi-GB) through Lemonade Server.
 
-##  Installation
+## Installation
 
 **Download the installer from [GitHub Releases](https://github.com/lemonade-sdk/interviewer/releases)** — this is the recommended path. Full walkthrough: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
@@ -80,7 +98,7 @@ Lemonade Server must still be installed and running — see [System Requirements
 
 </details>
 
-##  Quick Start (development)
+## Quick Start (development)
 
 ```bash
 # Windows / macOS
@@ -110,7 +128,8 @@ npm run build:electron -- --win nsis --x64
 npm test
 ```
 
-##  Architecture Overview
+<details>
+<summary><h2>Architecture Overview</h2></summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -151,7 +170,10 @@ npm test
               └─────────────────────────┘
 ```
 
-##  Project Structure
+</details>
+
+<details>
+<summary><h2>Project Structure</h2></summary>
 
 ```
 interviewer/
@@ -174,7 +196,10 @@ interviewer/
 └── release/                   # Packaged installers (generated)
 ```
 
-##  Tech Stack
+</details>
+
+<details>
+<summary><h2>Tech Stack</h2></summary>
 
 ### Frontend
 - **Framework**: React 19 + TypeScript
@@ -212,13 +237,16 @@ The interview follows a strict **5-phase structure** with **exactly 5 dynamicall
 - **Document Extraction**: Parses resumes and job descriptions for context
 - **Comprehensive Feedback**: Multi-stage analysis with structured Q&A grading
 
+</details>
+
 ## Prompt Engineering & UCL Framework
 
 The interview logic, persona generation, phase gating, and structured output are powered by `src/data/prompts.json`, which implements **Universal Conditional Logic (UCL)** — a formal mathematical framework for prompt optimization authored by the same developer.
 
 This project is a real-world application of UCL for multi-turn, voice-interactive, agentic interview simulation.
 
-##  Interview Flow
+<details>
+<summary><h2>Interview Flow</h2></summary>
 
 ```
 ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐
@@ -239,7 +267,10 @@ This project is a real-world application of UCL for multi-turn, voice-interactiv
                                    └─────────────────┘
 ```
 
-## Linux / Ubuntu Notes
+</details>
+
+<details>
+<summary><h2>Linux / Ubuntu Notes</h2></summary>
 
 The app runs on Ubuntu out of the box. A few things to be aware of:
 
@@ -247,7 +278,9 @@ The app runs on Ubuntu out of the box. A few things to be aware of:
 - The default model (`Qwen3-Coder-30B-A3B-Instruct-GGUF`) is set automatically. If you previously ran an older version that saved a different model name (e.g. `gpt-oss-mxp4`), the app will auto-correct it on next startup.
 - For packaged AppImage builds, no extra flags are needed — the sandbox is handled at the app level.
 
-##  Contributing
+</details>
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
@@ -257,11 +290,11 @@ The app runs on Ubuntu out of the box. A few things to be aware of:
 6. Push: `git push origin feature/amazing-feature`
 7. Open a Pull Request
 
-##  License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-##  Acknowledgments
+## Acknowledgments
 
 - [Lemonade Server](https://github.com/lemonade-sdk/lemonade) - Unified local AI inference
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) - Efficient LLM inference

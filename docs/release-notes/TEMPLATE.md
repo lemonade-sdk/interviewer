@@ -4,8 +4,7 @@ The canonical, machine-read template lives at
 [`.github/RELEASE-NOTES-TEMPLATE.md`](../../.github/RELEASE-NOTES-TEMPLATE.md)
 (single source of truth — the release workflow uses it as the release-body
 header when no tag-specific notes exist). Do not duplicate or edit the section
-structure here; the six mandatory sections are defined there
-(`docs/release-planning/02-program-plan.md` §6.3).
+structure here; the six mandatory sections are defined there.
 
 ## Authoring per-tag notes
 

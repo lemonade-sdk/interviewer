@@ -19,7 +19,18 @@
   <img src="public/lemonade-sdk-interviewer-job-prep-local-ai.gif?raw=true" alt="Interviewer Demo" />
 </p>
 
-## Table of Contents
+## Goal / Mission
+
+**Interviewer** is a Proof of Concept AI-powered interview practice application designed to help a candidate prepare for real job interviews through voice enabled mock sessions. Built on the principle of **local-first privacy**, it runs entirely on your own hardware. No data ever leaves your machine, no API keys required, no subscription fees.
+
+The application generates dynamic, context aware interviewer personas based on actual job descriptions and your resume, conducts multi phase technical and behavioral interviews with real time voice interaction, and provides comprehensive, actionable feedback to help you improve.
+
+- We are open to community contributions.
+- Tested on Strix Halo with 128 GB RAM; NPU-class hardware is recommended.
+- Recommended model: `Qwen3-Coder-30B-A3B-Instruct-GGUF`
+
+<details>
+<summary><h2>Table of Contents</h2></summary>
 
 - [Goal / Mission](#goal--mission)
 - [Features](#features)
@@ -37,15 +48,7 @@
 - [Acknowledgments](#acknowledgments)
 - [References](#references)
 
-## Goal / Mission
-
-**Interviewer** is a Proof of Concept AI-powered interview practice application designed to help a candidate prepare for real job interviews through voice enabled mock sessions. Built on the principle of **local-first privacy**, it runs entirely on your own hardware. No data ever leaves your machine, no API keys required, no subscription fees.
-
-The application generates dynamic, context aware interviewer personas based on actual job descriptions and your resume, conducts multi phase technical and behavioral interviews with real time voice interaction, and provides comprehensive, actionable feedback to help you improve.
-
-- We are open to community contributions.
-- Tested on Strix Halo with 128 GB RAM; NPU-class hardware is recommended.
-- Recommended model: `Qwen3-Coder-30B-A3B-Instruct-GGUF`
+</details>
 
 ## Features
 

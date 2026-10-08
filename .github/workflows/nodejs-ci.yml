@@ -29,6 +29,13 @@ on:
 permissions:
   contents: read
 
+# Shared with electron-release.yml: the cleanup action kills ALL node/electron
+# processes machine-wide, so overlapping runs on the single self-hosted runner
+# would destroy each other. Never cancel an in-flight run.
+concurrency:
+  group: self-hosted-windows-serial
+  cancel-in-progress: false
+
 jobs:
   # ========================================================================
   # BUILD & TEST - Self-hosted Windows runner
@@ -37,6 +44,7 @@ jobs:
   build-and-test:
     name: Build & Test (Windows)
     runs-on: [self-hosted, Windows]
+    timeout-minutes: 45
 
     env:
       NODE_ENV: production
@@ -93,17 +101,20 @@ jobs:
           }
           Write-Host "TypeScript compilation passed!" -ForegroundColor Green
 
+      # Blocking (H1 fix): the suite was previously warning-only because ts-jest
+      # was missing from devDependencies and could not run at all. The missing
+      # deps are now declared and the suite is green — failures fail the build.
       - name: Run tests
         shell: PowerShell
         run: |
+          $ErrorActionPreference = "Stop"
           Write-Host "Running tests..." -ForegroundColor Cyan
           npm test
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "WARNING: Tests had failures" -ForegroundColor Yellow
-          } else {
-              Write-Host "All tests passed!" -ForegroundColor Green
+              Write-Host "ERROR: Tests failed!" -ForegroundColor Red
+              exit $LASTEXITCODE
           }
-        continue-on-error: true
+          Write-Host "All tests passed!" -ForegroundColor Green
 
       - name: Build application
         shell: PowerShell

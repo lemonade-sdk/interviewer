@@ -10,7 +10,8 @@ import { TextProcessingService } from './TextProcessingService';
 /**
  * LemonadeClient - Integration with Lemonade Server
  * Lemonade Server is a local LLM server that implements the OpenAI API standard
- * Running at http://localhost:13305/api/v1
+ * Default endpoint http://localhost:13305/api/v1 — non-default ports (e.g. 8000)
+ * are auto-discovered via checkServerHealth()/discoverServer()
  *
  * Documentation: https://lemonade-server.ai/docs/
  */
@@ -32,10 +33,21 @@ export const INTERVIEW_MAX_INPUT_TOKENS = MODEL_CTX_WINDOW - 1024;
 
 /** Maximum input tokens for the post-interview feedback call (reserves 2048 tokens for feedback output). */
 export const FEEDBACK_MAX_INPUT_TOKENS = MODEL_CTX_WINDOW - 2048;
+/**
+ * Candidate ports probed (in order) when the default Lemonade Server port
+ * does not respond. Lemonade Server's default API port is 13305 (current
+ * releases); older or custom setups may still run on 8000 or another port
+ * (e.g. `lemonade-server serve --port <n>`). The WebSocket/ASR port
+ * (commonly 9000) is NOT probed here — it is discovered via the
+ * `websocket_port` field in the /health response (see getWebSocketPort).
+ */
+export const LEMONADE_DEFAULT_PORT = 13305;
+export const LEMONADE_CANDIDATE_PORTS = [13305, 8000, 8080, 3000];
+
 export class LemonadeClient {
   private settings: InterviewerSettings;
   private client!: OpenAI;
-  private baseURL: string = 'http://localhost:13305/api/v1';
+  private baseURL: string = `http://localhost:${LEMONADE_DEFAULT_PORT}/api/v1`;
   private apiKey: string = 'lemonade'; // Required but unused by Lemonade Server
   private isConnected: boolean = false;
   private availableModels: ModelConfig[] = [];
@@ -63,7 +75,50 @@ export class LemonadeClient {
   }
 
   /**
-   * Check if Lemonade Server is running and accessible
+   * Probe a single port for a live Lemonade Server /health endpoint.
+   * Uses a short timeout — this is only ever called for ports we do NOT
+   * already know are serving, so failing fast keeps discovery snappy.
+   */
+  private async probeHealth(port: number): Promise<boolean> {
+    try {
+      const response = await axios.get(`http://localhost:${port}/api/v1/health`, {
+        timeout: 1500,
+      });
+      return response.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Discover a running Lemonade Server when the current baseURL is dead.
+   * Probes the candidate ports in order; on a hit, re-points baseURL and
+   * re-initializes the OpenAI client so every subsequent call uses the
+   * discovered port. Returns true if a live server was found.
+   */
+  async discoverServer(): Promise<boolean> {
+    const currentPortMatch = this.baseURL.match(/localhost:(\d+)/);
+    const currentPort = currentPortMatch ? Number(currentPortMatch[1]) : LEMONADE_DEFAULT_PORT;
+
+    for (const port of LEMONADE_CANDIDATE_PORTS) {
+      if (port === currentPort) continue; // already tried via checkServerHealth
+      if (await this.probeHealth(port)) {
+        const newBaseURL = `http://localhost:${port}/api/v1`;
+        console.log(`[LemonadeClient] Server discovered on non-default port ${port} — switching baseURL to ${newBaseURL}`);
+        this.baseURL = newBaseURL;
+        this.initializeClient();
+        this.isConnected = true;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if Lemonade Server is running and accessible.
+   * If the configured port (default 13305) does not respond, automatically
+   * probes well-known alternative ports before giving up — users may run
+   * Lemonade Server on a custom port (e.g. 8000).
    */
   async checkServerHealth(): Promise<boolean> {
     try {
@@ -73,8 +128,16 @@ export class LemonadeClient {
       this.isConnected = response.status === 200;
       return this.isConnected;
     } catch (error) {
+      // Primary port failed — try to discover the server on another port.
+      // ECONNREFUSED returns near-instantly, so this adds negligible latency
+      // when nothing is running anywhere.
+      const discovered = await this.discoverServer();
+      if (discovered) {
+        return true;
+      }
       this.isConnected = false;
-      console.error('Lemonade Server health check failed:', error);
+      console.error('Lemonade Server health check failed (probed ports: ' +
+        `${LEMONADE_CANDIDATE_PORTS.join(', ')}):`, error);
       return false;
     }
   }
@@ -122,7 +185,7 @@ export class LemonadeClient {
         const isHealthy = await this.checkServerHealth();
         if (!isHealthy) {
           throw new Error(
-            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:13305'
+            'Lemonade Server is not running. Please start Lemonade Server (default port 13305; custom ports are auto-detected)'
           );
         }
       }
@@ -307,7 +370,7 @@ export class LemonadeClient {
         const isHealthy = await this.checkServerHealth();
         if (!isHealthy) {
           throw new Error(
-            'Lemonade Server is not running. Please start Lemonade Server at http://localhost:13305',
+            'Lemonade Server is not running. Please start Lemonade Server (default port 13305; custom ports are auto-detected)',
           );
         }
       }
@@ -949,7 +1012,9 @@ export class LemonadeClient {
   }
 
   /**
-   * Get server base URL
+   * Get server base URL.
+   * Reflects any non-default port discovered via discoverServer()
+   * (e.g. http://localhost:8000/api/v1 when the server runs on a custom port).
    */
   getBaseURL(): string {
     return this.baseURL;

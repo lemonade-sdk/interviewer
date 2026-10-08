@@ -350,6 +350,9 @@ const Interview: React.FC = () => {
 
       let asrModel: 'Whisper-Tiny' | 'Whisper-Base' | 'Whisper-Small' = 'Whisper-Base';
       let wsPort: number | null = null;
+      // Default server API base; replaced below with the ACTUAL discovered URL
+      // so non-default Lemonade Server ports (e.g. 8000) work for voice I/O.
+      let serverApiBase = 'http://localhost:13305/api/v1';
       try {
         const settings = await window.electronAPI.getInterviewerSettings();
         if (settings?.asrModel) {
@@ -359,13 +362,18 @@ const Interview: React.FC = () => {
           }
         }
         wsPort = await window.electronAPI.getWebSocketPort();
+        const status = await window.electronAPI.getServerStatus();
+        if (status?.isRunning && status.url) {
+          serverApiBase = `${status.url.replace(/\/$/, '')}/api/v1`;
+          console.log(`[VoiceManager] Using discovered Lemonade Server API base: ${serverApiBase}`);
+        }
       } catch (err) {
-        console.warn('Failed to fetch settings or wsPort:', err);
+        console.warn('Failed to fetch settings, wsPort, or server status:', err);
       }
 
       const manager = new VoiceInterviewManager(
         defaultAudioSettings,
-        'http://localhost:13305/api/v1',
+        serverApiBase,
         asrModel,
         wsPort || undefined,
         DEFAULT_VAD_CONFIG,

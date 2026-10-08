@@ -727,11 +727,13 @@ ipcMain.handle('server:checkHealth', async () => {
 
 ipcMain.handle('server:getStatus', async () => {
   try {
-    // Basic check if we can connect
+    // Basic check if we can connect (auto-discovers non-default ports)
     const isHealthy = await interviewService.checkServerHealth();
+    // Report the actual URL in use — reflects any discovered non-default port
+    const baseURL = interviewService.getLemonadeClient().getBaseURL();
     return {
       isRunning: isHealthy,
-      url: 'http://localhost:13305' // Default URL
+      url: baseURL.replace(/\/api\/v1$/, '')
     };
   } catch (error) {
     console.error('Failed to get server status:', error);
@@ -770,16 +772,53 @@ ipcMain.handle('server:checkInstallation', async () => {
   try {
     const isWindows = process.platform === 'win32';
 
-    // Primary check: look for lemonade-server.exe at the known install location
-    // Windows: %LOCALAPPDATA%\lemonade_server\bin\lemonade-server.exe
+    // Primary check: look for the server binary at the known install location
+    // Windows: %LOCALAPPDATA%\lemonade_server\bin\
+    // NOTE: binary names differ across Lemonade releases — older builds shipped
+    // "lemonade-server.exe"; current installers (lemonade.msi, v10.x) ship
+    // "LemonadeServer.exe". Check all known names so detection doesn't depend
+    // on which release the user installed.
+    const candidateBinaries = isWindows
+      ? ['LemonadeServer.exe', 'lemonade-server.exe']
+      : ['lemonade-server'];
+
     if (isWindows) {
       const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local');
-      const binaryPath = path.join(localAppData, 'lemonade_server', 'bin', 'lemonade-server.exe');
+      const binDir = path.join(localAppData, 'lemonade_server', 'bin');
 
-      if (fs.existsSync(binaryPath)) {
-        // Found at the known location — try to get version
+      for (const binaryName of candidateBinaries) {
+        const binaryPath = path.join(binDir, binaryName);
+        if (fs.existsSync(binaryPath)) {
+          // Found at the known location — try to get version
+          const version = await new Promise<string | null>((resolve) => {
+            exec(`"${binaryPath}" --version`, (error, stdout) => {
+              resolve(error ? null : stdout.trim());
+            });
+          });
+
+          return {
+            installed: true,
+            version: version,
+            binaryPath: binaryPath,
+          };
+        }
+      }
+    }
+
+    // Fallback 1: check if a lemonade binary is on PATH
+    // (try both command names across releases)
+    const pathCommands = isWindows
+      ? ['where lemonade-server', 'where lemonade']
+      : ['which lemonade-server', 'which lemonade'];
+
+    for (const pathCmd of pathCommands) {
+      const onPath = await new Promise<boolean>((resolve) => {
+        exec(pathCmd, (error) => resolve(!error));
+      });
+
+      if (onPath) {
         const version = await new Promise<string | null>((resolve) => {
-          exec(`"${binaryPath}" --version`, (error, stdout) => {
+          exec('lemonade-server --version', (error, stdout) => {
             resolve(error ? null : stdout.trim());
           });
         });
@@ -787,29 +826,42 @@ ipcMain.handle('server:checkInstallation', async () => {
         return {
           installed: true,
           version: version,
-          binaryPath: binaryPath,
+          binaryPath: null,
         };
       }
     }
 
-    // Fallback: check if lemonade-server is on PATH
-    const pathCmd = isWindows ? 'where lemonade-server' : 'which lemonade-server';
-    const onPath = await new Promise<boolean>((resolve) => {
-      exec(pathCmd, (error) => resolve(!error));
-    });
-
-    if (onPath) {
-      const version = await new Promise<string | null>((resolve) => {
-        exec('lemonade-server --version', (error, stdout) => {
-          resolve(error ? null : stdout.trim());
-        });
+    // Fallback 2: a live server responding on any well-known port proves an
+    // installation exists regardless of where/how it was installed.
+    for (const port of [13305, 8000]) {
+      const liveVersion = await new Promise<string | null>((resolve) => {
+        const req = require('http').get(
+          `http://localhost:${port}/api/v1/health`,
+          { timeout: 1500 },
+          (res: any) => {
+            let body = '';
+            res.on('data', (chunk: string) => { body += chunk; });
+            res.on('end', () => {
+              try {
+                const parsed = JSON.parse(body);
+                resolve(res.statusCode === 200 ? (parsed.version ?? 'unknown') : null);
+              } catch {
+                resolve(null);
+              }
+            });
+          },
+        );
+        req.on('error', () => resolve(null));
+        req.on('timeout', () => { req.destroy(); resolve(null); });
       });
 
-      return {
-        installed: true,
-        version: version,
-        binaryPath: null,
-      };
+      if (liveVersion !== null) {
+        return {
+          installed: true,
+          version: liveVersion,
+          binaryPath: null,
+        };
+      }
     }
 
     // Not found anywhere

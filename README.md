@@ -23,13 +23,34 @@
 
 **Interviewer** is a Proof of Concept AI-powered interview practice application designed to help a candidate prepare for real job interviews through voice enabled mock sessions. Built on the principle of **local-first privacy**, it runs entirely on your own hardware. No data ever leaves your machine, no API keys required, no subscription fees.
 
-The application generates dynamic, context aware interviewer personas based on actual job descriptions and your resume, conducts multi phase technical and behavioral interviews with real time voice interaction, and provides comprehensive, actionable feedback to help you improve. 
+The application generates dynamic, context aware interviewer personas based on actual job descriptions and your resume, conducts multi phase technical and behavioral interviews with real time voice interaction, and provides comprehensive, actionable feedback to help you improve.
 
 - We are open to community contributions.
-- Tested on the Strix Halo with 128GB RAM.
-- Recommended Models: Qwen3-Coder-30B-A3B-Instruct-GGUF
+- Tested on Strix Halo with 128 GB RAM; NPU-class hardware is recommended.
+- Recommended model: `Qwen3-Coder-30B-A3B-Instruct-GGUF`
 
-##  Features
+<details>
+<summary><h2>Table of Contents</h2></summary>
+
+- [Goal / Mission](#goal--mission)
+- [Features](#features)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [Quick Start (development)](#quick-start-development)
+- [Architecture Overview](#architecture-overview) ▸ *collapsible*
+- [Project Structure](#project-structure) ▸ *collapsible*
+- [Tech Stack](#tech-stack) ▸ *collapsible*
+- [Prompt Engineering & UCL Framework](#prompt-engineering--ucl-framework)
+- [Interview Flow](#interview-flow) ▸ *collapsible*
+- [Linux / Ubuntu Notes](#linux--ubuntu-notes) ▸ *collapsible*
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+- [References](#references)
+
+</details>
+
+## Features
 
 - **Voice-Enabled Interviews** - Realistic interview simulation with speech-to-text (ASR) and text-to-speech (TTS)
 - **Local AI Models** - Runs entirely on your hardware via Lemonade Server—no cloud dependencies
@@ -37,27 +58,50 @@ The application generates dynamic, context aware interviewer personas based on a
 - **Dynamic Persona Generation** - Creates tailored interviewer personas based on job/role
 - **Comprehensive Feedback** - Detailed performance analysis with actionable insights
 - **Privacy-First** - All data stored locally in JSON format
-- **Cross-Platform Desktop App** - Electron based for Windows, macOS, and Linux
+- **Electron Desktop App** - Built on Electron (cross-platform technology); official releases are currently **Windows-only**
 
-##  Installation
+## System Requirements
 
-### 1. Clone & Install Dependencies
+- **OS:** Windows 10/11 x64 (Windows 11 22H2+ recommended)
+- **Prerequisite:** [Lemonade Server](https://github.com/lemonade-sdk/lemonade) must be installed and running — Interviewer performs all AI inference through it and detects it automatically at startup (Windows: [direct .msi download](https://github.com/lemonade-sdk/lemonade/releases/latest/download/lemonade.msi))
+- **Hardware:** NPU-class hardware recommended — developed and tested on Strix Halo (AMD Ryzen AI Max) with 128 GB unified memory
+- **Model:** `Qwen3-Coder-30B-A3B-Instruct-GGUF` (recommended). Models are not bundled; the first model is downloaded (multi-GB) through Lemonade Server.
+
+## Installation
+
+**Download the installer from [GitHub Releases](https://github.com/lemonade-sdk/interviewer/releases)** — this is the recommended path. Full walkthrough: [docs/INSTALLATION.md](docs/INSTALLATION.md).
+
+1. Install [Lemonade Server](https://github.com/lemonade-sdk/lemonade) first (prerequisite) — Windows users can grab the [installer directly](https://github.com/lemonade-sdk/lemonade/releases/latest/download/lemonade.msi).
+2. Download `Interviewer-Setup-x.y.z.exe` from the [latest release](https://github.com/lemonade-sdk/interviewer/releases).
+3. Double-click the installer. Done.
+
+> **Windows SmartScreen:** builds are currently unsigned, so SmartScreen will show *"Windows protected your PC"*. Click **More info**, then **Run anyway**. This is expected — see [docs/INSTALLATION.md](docs/INSTALLATION.md#smartscreen-windows-protected-your-pc) for details.
+
+<details>
+<summary><strong>Build from source (developers)</strong></summary>
+
+Requires <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white" alt="Node.js 20+" /> (only needed for development builds).
 
 ```bash
 git clone https://github.com/lemonade-sdk/interviewer.git
 cd interviewer
 
-# Install Node.js dependencies
-npm install
+# Install dependencies
+npm ci
+
+# Build (TypeScript + Vite) and run
+npm run build
+npm start
+
+# Or develop with hot reload
+npm run dev
 ```
 
-### 2. Install Lemonade Server
+Lemonade Server must still be installed and running — see [System Requirements](#system-requirements).
 
-Follow the [Lemonade Server installation guide](https://github.com/lemonade-sdk/lemonade-server) to set up local LLM inference.
+</details>
 
-##  Quick Start
-
-### Development Mode
+## Quick Start (development)
 
 ```bash
 # Windows / macOS
@@ -67,17 +111,17 @@ npm run dev
 npm run dev:linux
 
 # In a separate terminal, ensure Lemonade Server is running
-lemonade-server
+lemonade-server serve
 ```
 
 ### Building for Production
 
 ```bash
-# Build React app
+# Build renderer + main process
 npm run build
 
-# Build Electron app for distribution
-npm run build:electron
+# Package the Windows installer (NSIS) into release/
+npm run build:electron -- --win nsis --x64
 ```
 
 ### Running Tests
@@ -87,7 +131,8 @@ npm run build:electron
 npm test
 ```
 
-##  Architecture Overview
+<details>
+<summary><h2>Architecture Overview</h2></summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -128,7 +173,10 @@ npm test
               └─────────────────────────┘
 ```
 
-##  Project Structure
+</details>
+
+<details>
+<summary><h2>Project Structure</h2></summary>
 
 ```
 interviewer/
@@ -147,13 +195,17 @@ interviewer/
 │   ├── ui/                    # React components
 │   └── electron_app/          # Electron main process
 ├── docs/                      # Documentation
-└── tests/                     # Test suites
+├── resources/                 # Build resources (app icon)
+└── release/                   # Packaged installers (generated)
 ```
 
-##  Tech Stack
+</details>
+
+<details>
+<summary><h2>Tech Stack</h2></summary>
 
 ### Frontend
-- **Framework**: React 18 + TypeScript
+- **Framework**: React 19 + TypeScript
 - **Desktop**: Electron
 - **Build**: Vite
 - **Styling**: Tailwind CSS
@@ -188,13 +240,16 @@ The interview follows a strict **5-phase structure** with **exactly 5 dynamicall
 - **Document Extraction**: Parses resumes and job descriptions for context
 - **Comprehensive Feedback**: Multi-stage analysis with structured Q&A grading
 
+</details>
+
 ## Prompt Engineering & UCL Framework
 
 The interview logic, persona generation, phase gating, and structured output are powered by `src/data/prompts.json`, which implements **Universal Conditional Logic (UCL)** — a formal mathematical framework for prompt optimization authored by the same developer.
 
 This project is a real-world application of UCL for multi-turn, voice-interactive, agentic interview simulation.
 
-##  Interview Flow
+<details>
+<summary><h2>Interview Flow</h2></summary>
 
 ```
 ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐
@@ -215,7 +270,10 @@ This project is a real-world application of UCL for multi-turn, voice-interactiv
                                    └─────────────────┘
 ```
 
-## Linux / Ubuntu Notes
+</details>
+
+<details>
+<summary><h2>Linux / Ubuntu Notes</h2></summary>
 
 The app runs on Ubuntu out of the box. A few things to be aware of:
 
@@ -223,7 +281,9 @@ The app runs on Ubuntu out of the box. A few things to be aware of:
 - The default model (`Qwen3-Coder-30B-A3B-Instruct-GGUF`) is set automatically. If you previously ran an older version that saved a different model name (e.g. `gpt-oss-mxp4`), the app will auto-correct it on next startup.
 - For packaged AppImage builds, no extra flags are needed — the sandbox is handled at the app level.
 
-##  Contributing
+</details>
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
@@ -233,16 +293,16 @@ The app runs on Ubuntu out of the box. A few things to be aware of:
 6. Push: `git push origin feature/amazing-feature`
 7. Open a Pull Request
 
-##  License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-##  Acknowledgments
+## Acknowledgments
 
-- [Lemonade Server](https://github.com/lemonade-sdk/lemonade-server) - Unified local AI inference
+- [Lemonade Server](https://github.com/lemonade-sdk/lemonade) - Unified local AI inference
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) - Efficient LLM inference
 - [Whisper](https://github.com/openai/whisper) - OpenAI's ASR model
-- [Kokoro](https://github.com/kokoro-js/kokoro) - Fast TTS
+- [Kokoro](https://github.com/hexgrad/kokoro) - Fast TTS
 
 ## References
 
